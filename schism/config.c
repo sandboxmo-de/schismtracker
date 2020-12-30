@@ -24,7 +24,6 @@
 #include "headers.h"
 
 #include "it.h"
-#include "video.h" /* shouldn't need this */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -83,47 +82,47 @@ void cfg_init_dir(void)
 
 /* --------------------------------------------------------------------- */
 
-static const char palette_trans[64] = ".0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
-static void cfg_load_palette(cfg_file_t *cfg)
-{
-	uint8_t colors[48];
-	int n;
-	char palette_text[49] = "";
-	const char *ptr;
+//static const char palette_trans[64] = ".0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+//static void cfg_load_palette(cfg_file_t *cfg)
+//{
+//	uint8_t colors[48];
+//	int n;
+//	char palette_text[49] = "";
+//	const char *ptr;
+//
+//	palette_load_preset(cfg_get_number(cfg, "General", "palette", 2));
+//
+//	cfg_get_string(cfg, "General", "palette_cur", palette_text, 48, "");
+//	for (n = 0; n < 48; n++) {
+//		if (palette_text[n] == '\0' || (ptr = strchr(palette_trans, palette_text[n])) == NULL)
+//			return;
+//		colors[n] = ptr - palette_trans;
+//	}
+//	memcpy(current_palette, colors, sizeof(current_palette));
+//}
 
-	palette_load_preset(cfg_get_number(cfg, "General", "palette", 2));
-
-	cfg_get_string(cfg, "General", "palette_cur", palette_text, 48, "");
-	for (n = 0; n < 48; n++) {
-		if (palette_text[n] == '\0' || (ptr = strchr(palette_trans, palette_text[n])) == NULL)
-			return;
-		colors[n] = ptr - palette_trans;
-	}
-	memcpy(current_palette, colors, sizeof(current_palette));
-}
-
-static void cfg_save_palette(cfg_file_t *cfg)
-{
-	int n;
-	char palette_text[49] = "";
-
-	cfg_set_number(cfg, "General", "palette", current_palette_index);
-
-	for (n = 0; n < 48; n++) {
-		/* Changed older implementation for this, since it is not vital
-		to have speed here and the compiler printed a warning */
-		palette_text[n] = palette_trans[current_palette[n/3][n%3]];
-	}
-	palette_text[48] = '\0';
-	cfg_set_string(cfg, "General", "palette_cur", palette_text);
-}
+//static void cfg_save_palette(cfg_file_t *cfg)
+//{
+//	int n;
+//	char palette_text[49] = "";
+//
+//	cfg_set_number(cfg, "General", "palette", current_palette_index);
+//
+//	for (n = 0; n < 48; n++) {
+//		/* Changed older implementation for this, since it is not vital
+//		to have speed here and the compiler printed a warning */
+//		palette_text[n] = palette_trans[current_palette[n/3][n%3]];
+//	}
+//	palette_text[48] = '\0';
+//	cfg_set_string(cfg, "General", "palette_cur", palette_text);
+//}
 
 /* --------------------------------------------------------------------------------------------------------- */
 
 void cfg_load(void)
 {
 	char *tmp;
-	const char *ptr;
+//	const char *ptr;
 	int i;
 	cfg_file_t cfg;
 
@@ -133,17 +132,17 @@ void cfg_load(void)
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-	cfg_get_string(&cfg, "Video", "driver", cfg_video_driver, 64, "");
-	cfg_video_width = cfg_get_number(&cfg, "Video", "width", 640);
-	cfg_video_height = cfg_get_number(&cfg, "Video", "height", 400);
-	cfg_video_fullscreen = !!cfg_get_number(&cfg, "Video", "fullscreen", 0);
-	cfg_video_mousecursor = cfg_get_number(&cfg, "Video", "mouse_cursor", MOUSE_EMULATED);
-	cfg_video_mousecursor = CLAMP(cfg_video_mousecursor, 0, MOUSE_MAX_STATE);
-	cfg_video_gl_bilinear =
-		!!cfg_get_number(&cfg, "Video", "gl_bilinear", 1);
-	ptr = cfg_get_string(&cfg, "Video", "aspect", NULL, 0, NULL);
-	if (ptr && *ptr)
-		put_env_var("SCHISM_VIDEO_ASPECT", ptr);
+//	cfg_get_string(&cfg, "Video", "driver", cfg_video_driver, 64, "");
+//	cfg_video_width = cfg_get_number(&cfg, "Video", "width", 640);
+//	cfg_video_height = cfg_get_number(&cfg, "Video", "height", 400);
+//	cfg_video_fullscreen = !!cfg_get_number(&cfg, "Video", "fullscreen", 0);
+//	cfg_video_mousecursor = cfg_get_number(&cfg, "Video", "mouse_cursor", MOUSE_EMULATED);
+//	cfg_video_mousecursor = CLAMP(cfg_video_mousecursor, 0, MOUSE_MAX_STATE);
+//	cfg_video_gl_bilinear =
+//		!!cfg_get_number(&cfg, "Video", "gl_bilinear", 1);
+//	ptr = cfg_get_string(&cfg, "Video", "aspect", NULL, 0, NULL);
+//	if (ptr && *ptr)
+//		put_env_var("SCHISM_VIDEO_ASPECT", ptr);
 
 	tmp = get_home_directory();
 	cfg_get_string(&cfg, "Directories", "modules", cfg_dir_modules, PATH_MAX, tmp);
@@ -151,35 +150,35 @@ void cfg_load(void)
 	cfg_get_string(&cfg, "Directories", "instruments", cfg_dir_instruments, PATH_MAX, tmp);
 	free(tmp);
 
-	ptr = cfg_get_string(&cfg, "Directories", "module_pattern", NULL, 0, NULL);
-	if (ptr) {
-		strncpy(cfg_module_pattern, ptr, PATH_MAX);
-		cfg_module_pattern[PATH_MAX] = 0;
-	}
-
-	ptr = cfg_get_string(&cfg, "Directories", "export_pattern", NULL, 0, NULL);
-	if (ptr) {
-		strncpy(cfg_export_pattern, ptr, PATH_MAX);
-		cfg_export_pattern[PATH_MAX] = 0;
-	}
-
-	ptr = cfg_get_string(&cfg, "General", "numlock_setting", NULL, 0, NULL);
-	if (!ptr)
-		status.fix_numlock_setting = NUMLOCK_GUESS;
-	else if (strcasecmp(ptr, "on") == 0)
-		status.fix_numlock_setting = NUMLOCK_ALWAYS_ON;
-	else if (strcasecmp(ptr, "off") == 0)
-		status.fix_numlock_setting = NUMLOCK_ALWAYS_OFF;
-	else
-		status.fix_numlock_setting = NUMLOCK_HONOR;
+//	ptr = cfg_get_string(&cfg, "Directories", "module_pattern", NULL, 0, NULL);
+//	if (ptr) {
+//		strncpy(cfg_module_pattern, ptr, PATH_MAX);
+//		cfg_module_pattern[PATH_MAX] = 0;
+//	}
+//
+//	ptr = cfg_get_string(&cfg, "Directories", "export_pattern", NULL, 0, NULL);
+//	if (ptr) {
+//		strncpy(cfg_export_pattern, ptr, PATH_MAX);
+//		cfg_export_pattern[PATH_MAX] = 0;
+//	}
+//
+//	ptr = cfg_get_string(&cfg, "General", "numlock_setting", NULL, 0, NULL);
+//	if (!ptr)
+//		status.fix_numlock_setting = NUMLOCK_GUESS;
+//	else if (strcasecmp(ptr, "on") == 0)
+//		status.fix_numlock_setting = NUMLOCK_ALWAYS_ON;
+//	else if (strcasecmp(ptr, "off") == 0)
+//		status.fix_numlock_setting = NUMLOCK_ALWAYS_OFF;
+//	else
+//		status.fix_numlock_setting = NUMLOCK_HONOR;
 
 	set_key_repeat(cfg_get_number(&cfg, "General", "key_repeat_delay", key_repeat_delay()),
 		       cfg_get_number(&cfg, "General", "key_repeat_rate", key_repeat_rate()));
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-	cfg_load_info(&cfg);
-	cfg_load_patedit(&cfg);
+//	cfg_load_info(&cfg);
+//	cfg_load_patedit(&cfg);
 	cfg_load_audio(&cfg);
 	cfg_load_midi(&cfg);
 	cfg_load_disko(&cfg);
@@ -239,7 +238,7 @@ void cfg_load(void)
 
 	cfg_get_string(&cfg, "General", "font", cfg_font, NAME_MAX, "font.cfg");
 
-	cfg_load_palette(&cfg);
+//	cfg_load_palette(&cfg);
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -277,13 +276,13 @@ void cfg_save(void)
 	cfg_set_string(&cfg, "Directories", "samples", cfg_dir_samples);
 	cfg_set_string(&cfg, "Directories", "instruments", cfg_dir_instruments);
 	/* No, it's not a directory, but whatever. */
-	cfg_set_string(&cfg, "Directories", "module_pattern", cfg_module_pattern);
-	cfg_set_string(&cfg, "Directories", "export_pattern", cfg_export_pattern);
+//	cfg_set_string(&cfg, "Directories", "module_pattern", cfg_module_pattern);
+//	cfg_set_string(&cfg, "Directories", "export_pattern", cfg_export_pattern);
 
-	cfg_save_info(&cfg);
-	cfg_save_patedit(&cfg);
+//	cfg_save_info(&cfg);
+//	cfg_save_patedit(&cfg);
 	cfg_save_audio(&cfg);
-	cfg_save_palette(&cfg);
+//	cfg_save_palette(&cfg);
 	cfg_save_disko(&cfg);
 	cfg_save_dmoz(&cfg);
 
@@ -328,20 +327,20 @@ void cfg_atexit_save(void)
 	don't HAVE to touch the settings. Then we can just use an enum (and we *could* in theory
 	include comments to the config by default listing what the numbers are, but that shouldn't
 	be necessary in most cases. */
-	switch (status.fix_numlock_setting) {
-	case NUMLOCK_ALWAYS_ON:
-		cfg_set_string(&cfg, "General", "numlock_setting", "on");
-		break;
-	case NUMLOCK_ALWAYS_OFF:
-		cfg_set_string(&cfg, "General", "numlock_setting", "off");
-		break;
-	case NUMLOCK_HONOR:
-		cfg_set_string(&cfg, "General", "numlock_setting", "system");
-		break;
-	case NUMLOCK_GUESS:
-		/* leave empty */
-		break;
-	};
+//	switch (status.fix_numlock_setting) {
+//	case NUMLOCK_ALWAYS_ON:
+//		cfg_set_string(&cfg, "General", "numlock_setting", "on");
+//		break;
+//	case NUMLOCK_ALWAYS_OFF:
+//		cfg_set_string(&cfg, "General", "numlock_setting", "off");
+//		break;
+//	case NUMLOCK_HONOR:
+//		cfg_set_string(&cfg, "General", "numlock_setting", "system");
+//		break;
+//	case NUMLOCK_GUESS:
+//		/* leave empty */
+//		break;
+//	};
 
 	/* hm... most of the time probably nothing's different, so saving the
 	config file here just serves to make the backup useless. maybe add a

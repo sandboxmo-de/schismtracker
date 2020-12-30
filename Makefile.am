@@ -106,8 +106,6 @@ noinst_HEADERS = \
 	include/log.h			\
 	include/midi.h			\
 	include/osdefs.h		\
-	include/page.h			\
-	include/pattern-view.h		\
 	include/precomp_lut.h		\
 	include/sample-edit.h		\
 	include/sdlmain.h		\
@@ -121,7 +119,6 @@ noinst_HEADERS = \
 	include/util.h			\
 	include/version.h		\
 	include/vgamem-scanner.h	\
-	include/video.h			\
 	sys/wii/isfs.h			\
 	sys/wii/certs_bin.h		\
 	sys/wii/su_tik_bin.h		\
@@ -248,26 +245,14 @@ endif
 
 ## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
 schismtracker_SOURCES = \
-	schism/page_blank.c		\
 	schism/charset.c		\
 	schism/sample-edit.c		\
 	schism/dmoz.c			\
-	schism/page_info.c		\
-	schism/page.c			\
-	schism/page_palette.c		\
-	schism/page_instruments.c	\
 	schism/page_log.c		\
-	schism/page_about.c		\
-	schism/pattern-view.c		\
 	schism/xpmdata.c		\
-	schism/menu.c			\
 	schism/volume-core.c		\
 	schism/disko.c			\
-	schism/page_loadinst.c		\
 	schism/mplink.c			\
-	schism/page_loadmodule.c	\
-	schism/page_vars.c		\
-	schism/palettes.c		\
 	fmt/compression.c		\
 	fmt/generic.c			\
 	fmt/mmcmp.c			\
@@ -303,34 +288,15 @@ schismtracker_SOURCES = \
 	fmt/xi.c			\
 	fmt/xm.c			\
 	schism/util.c			\
-	schism/page_midi.c		\
-	schism/draw-char.c		\
-	schism/page_help.c		\
 	schism/slurp.c			\
-	schism/widget-keyhandler.c	\
 	schism/main.c			\
-	schism/page_midiout.c		\
-	schism/page_loadsample.c	\
-	schism/page_preferences.c	\
-	schism/widget.c			\
 	schism/config.c			\
-	schism/status.c			\
-	schism/video.c			\
-	schism/sample-view.c		\
-	schism/page_patedit.c		\
-	schism/page_config.c		\
 	schism/keyboard.c		\
-	schism/page_samples.c		\
-	schism/itf.c			\
-	schism/page_orderpan.c		\
-	schism/page_waterfall.c		\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
 	schism/audio_playback.c		\
 	schism/config-parser.c		\
 	schism/audio_loadsave.c		\
-	schism/draw-misc.c		\
-	schism/fakemem.c		\
 	schism/version.c		\
 	player/csndfile.c		\
 	player/mixutil.c		\

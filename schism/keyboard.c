@@ -25,7 +25,6 @@
 
 #include "it.h"
 #include "song.h"
-#include "page.h"
 #include "osdefs.h"
 
 #include "sdlmain.h"

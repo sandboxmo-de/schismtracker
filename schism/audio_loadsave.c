@@ -29,7 +29,6 @@
 #include "sndfile.h"
 #include "song.h"
 #include "slurp.h"
-#include "page.h"
 #include "version.h"
 
 #include "fmt.h"
@@ -161,7 +160,7 @@ void song_new(int flags)
 
 	song_unlock_audio();
 
-	main_song_changed_cb();
+//	main_song_changed_cb();
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -255,7 +254,7 @@ song_t *song_create_load(const char *file)
 
 	newsong->stop_at_order = newsong->stop_at_row = -1;
 	message_convert_newlines(newsong);
-	message_reset_selection();
+//	message_reset_selection();
 
 	return newsong;
 }
@@ -300,7 +299,7 @@ int song_load_unchecked(const char *file)
 	if (was_playing && (status.flags & PLAY_AFTER_LOAD))
 		song_start();
 
-	main_song_changed_cb();
+//	main_song_changed_cb();
 
 	status.flags &= ~SONG_NEEDS_SAVE;
 
@@ -1005,7 +1004,7 @@ int song_save_sample(const char *filename, const char *type, song_sample_t *smp,
 		return SAVE_INTERNAL_ERROR;
 
 	if (!filename || !filename[0]) {
-		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "No Filename?");
+//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "No Filename?");
 		return SAVE_INTERNAL_ERROR; // ?
 	}
 
@@ -1024,15 +1023,15 @@ int song_save_sample(const char *filename, const char *type, song_sample_t *smp,
 
 	switch (ret) {
 	case SAVE_SUCCESS:
-		status_text_flash("%s sample saved (sample %d)", format->name, num);
+//		status_text_flash("%s sample saved (sample %d)", format->name, num);
 		break;
 	case SAVE_FILE_ERROR:
-		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "File Error");
+//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "File Error");
 		log_perror(get_basename(filename));
 		break;
 	case SAVE_INTERNAL_ERROR:
 	default: // ???
-		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "Internal error");
+//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "Internal error");
 		log_appendf(4, "Internal error saving sample");
 		break;
 	}
@@ -1282,9 +1281,9 @@ void song_create_host_instrument(int smp)
 
 	if (ins > 0) {
 		song_init_instrument_from_sample(ins, smp);
-		status_text_flash("Sample assigned to Instrument %d", ins);
+//		status_text_flash("Sample assigned to Instrument %d", ins);
 	} else {
-		status_text_flash("Error: No available Instruments!");
+//		status_text_flash("Error: No available Instruments!");
 	}
 }
 
@@ -1481,7 +1480,7 @@ int instrument_loader_sample(struct instrumentloader *ii, int slot)
 		ii->basex = x + 1;
 		return ii->sample_map[slot];
 	}
-	status_text_flash("Too many samples");
+//	status_text_flash("Too many samples");
 	return 0;
 }
 

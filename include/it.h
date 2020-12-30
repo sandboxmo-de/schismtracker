@@ -33,7 +33,6 @@
 #include <sys/stat.h> /* roundabout way to get time_t */
 
 #include "util.h"
-#include "video.h"
 #include "log.h"
 
 /* --------------------------------------------------------------------- */
@@ -157,10 +156,6 @@ enum tracker_vis_style {
 };
 
 struct tracker_status {
-	int current_page;
-	int previous_page;
-	int current_help_index;
-	int dialog_type;        /* one of the DIALOG_* constants above */
 	int flags;
 	enum tracker_time_display time_display;
 	enum tracker_vis_style vis_style;
@@ -221,7 +216,14 @@ enum {
 /* --------------------------------------------------------------------- */
 /* global crap */
 
-extern struct tracker_status status;
+
+struct tracker_status status = {
+	.flags = IS_FOCUSED | IS_VISIBLE,
+	.time_display = TIME_PLAY_ELAPSED,
+	.vis_style = VIS_VU_METER,
+	.last_midi_event = "",
+	// everything else set to 0/NULL/etc.
+};
 extern uint8_t *font_data; /* ... which is 2048 bytes */
 extern struct it_palette palettes[];
 extern uint8_t current_palette[16][3];
@@ -305,15 +307,15 @@ static inline unsigned char unicode_to_ascii(uint16_t unicode)
 #include "draw-char.h"
 
 struct song_sample;
-void draw_sample_data(struct vgamem_overlay *r, struct song_sample *sample);
+//void draw_sample_data(struct vgamem_overlay *r, struct song_sample *sample);
 
 /* this works like draw_sample_data, just without having to allocate a
  * song_sample structure, and without caching the waveform.
  * mostly it's just for the oscilloscope view. */
-void draw_sample_data_rect_16(struct vgamem_overlay *r, signed short *data, int length,
-	unsigned int inputchans, unsigned int outputchans);
-void draw_sample_data_rect_8(struct vgamem_overlay *r, signed char *data, int length,
-	unsigned int inputchans, unsigned int outputchans);
+//void draw_sample_data_rect_16(struct vgamem_overlay *r, signed short *data, int length,
+//	unsigned int inputchans, unsigned int outputchans);
+//void draw_sample_data_rect_8(struct vgamem_overlay *r, signed char *data, int length,
+//	unsigned int inputchans, unsigned int outputchans);
 
 /* these are in audio_playback.cc */
 extern signed short *audio_buffer;
@@ -331,39 +333,38 @@ void set_page(int new_page);
 /* these should only be called from main */
 void load_pages(void);  /* called once at start of program */
 void playback_update(void);     /* once per cycle */
-struct key_event;
+
+
+
+/* NOTE: needed for midi-core; synthetic keypress events*/
+
+struct key_event {
+	SDLKey sym, orig_sym;
+	SDLMod mod;
+	uint16_t unicode;
+	int scancode;
+
+	enum { KEY_PRESS=0, KEY_RELEASE } state;
+	enum { MOUSE_NONE=0, MOUSE_CLICK, MOUSE_SCROLL_UP, MOUSE_SCROLL_DOWN, MOUSE_DBLCLICK } mouse;
+	enum { MOUSE_BUTTON_LEFT=0, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT } mouse_button;
+	int midi_note;
+	int midi_channel;
+	int midi_volume; /* -1 for not a midi key otherwise 0...128 */
+	int midi_bend;  /* normally 0; -8192 to +8192  */
+	unsigned int sx, sy; /* start x and y position (character) */
+	unsigned int x, hx, fx; /* x position of mouse (character, halfcharacter, fine) */
+	unsigned int y, fy; /* y position of mouse (character, fine) */
+
+	unsigned int rx, ry; /* x/y resolution */
+
+	int is_repeat;
+	int on_target;
+	int is_synthetic; /* 1 came from paste */
+};
+
+/* NOTE: synthetic key presses in midi-core again */
 void handle_key(struct key_event * k);        /* whenever there's a keypress ;) */
-void key_translate(struct key_event *k);
-
-/* this should only be called from main.
- * anywhere else, use status.flags |= NEED_UPDATE instead. */
-void redraw_screen(void);
-
-/* called whenever the song changes (from song_new or song_load) */
-void main_song_changed_cb(void);
-
-/* --------------------------------------------------------------------- */
-/* colors and fonts */
-
-int font_load(const char *filename);
-void palette_apply(void);
-void palette_load_preset(int palette_index);
-
-/* mostly for the itf editor */
-int font_save(const char *filename);
-
-void font_reset_lower(void);    /* ascii chars (0-127) */
-void font_reset_upper(void);    /* itf chars (128-255) */
-void font_reset(void);  /* everything (0-255) */
-void font_reset_bios(void);     /* resets all chars to the alt font */
-void font_reset_char(int c);     /* resets just one char */
-
-/* this needs to be called before any char drawing.
- * it's pretty much the same as doing...
- *         if (!font_load("font.cfg"))
- *                 font_reset();
- * ... the main difference being font_init() is easier to deal with :) */
-void font_init(void);
+//void key_translate(struct key_event *k);
 
 /* --------------------------------------------------------------------- */
 /* keyboard.c */
@@ -379,16 +380,16 @@ int get_ptm_effect_number(char effect);
 
 void kbd_init(void);
 void kbd_sharp_flat_toggle(int e);
-int kbd_get_effect_number(struct key_event *k);
+//int kbd_get_effect_number(struct key_event *k);
 int kbd_char_to_hex(struct key_event *k);
 int kbd_char_to_99(struct key_event *k);
 
 int kbd_get_current_octave(void);
 void kbd_set_current_octave(int new_octave);
 
-int kbd_get_note(struct key_event *k);
-
-int kbd_get_alnum(struct key_event *k);
+//int kbd_get_note(struct key_event *k);
+//
+//int kbd_get_alnum(struct key_event *k);
 
 /* use 0 for delay to (re)set the default rate. */
 void set_key_repeat(int delay, int rate);
@@ -414,7 +415,7 @@ int sample_host_dialog(int newpage);
 
 int song_is_instrument_mode(void);
 int song_first_unused_instrument(void);
-int song_get_current_instrument(void);
+//int song_get_current_instrument(void);
 
 void set_previous_instrument(void);
 void set_next_instrument(void);
@@ -441,18 +442,18 @@ void show_song_length(void);
 void show_song_timejump(void);
 
 /* memory usage */
-unsigned int memused_lowmem(void);
-unsigned int memused_ems(void);
-unsigned int memused_songmessage(void);
-unsigned int memused_instruments(void);
-unsigned int memused_samples(void);
-unsigned int memused_clipboard(void);
-unsigned int memused_patterns(void);
-unsigned int memused_history(void);
-/* clears the memory lookup cache */
-void memused_songchanged(void);
-
-void memused_get_pattern_saved(unsigned int *a, unsigned int *b); /* wtf */
+//unsigned int memused_lowmem(void);
+//unsigned int memused_ems(void);
+//unsigned int memused_songmessage(void);
+//unsigned int memused_instruments(void);
+//unsigned int memused_samples(void);
+//unsigned int memused_clipboard(void);
+//unsigned int memused_patterns(void);
+//unsigned int memused_history(void);
+///* clears the memory lookup cache */
+//void memused_songchanged(void);
+//
+//void memused_get_pattern_saved(unsigned int *a, unsigned int *b); /* wtf */
 
 /* --------------------------------------------------------------------- */
 

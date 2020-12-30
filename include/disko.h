@@ -101,7 +101,7 @@ int disko_multiwrite_samples(int firstsmp, int pattern);
 
 /* Wrapper for the above that writes to the current sample,
 and with a confirmation dialog if the sample already has data */
-void song_pattern_to_sample(int pattern, int split, int bind);
+void song_pattern_to_sample(int pattern, int split, int bind, int sample);
 
 /* export the song to a file */
 struct save_format;

@@ -27,7 +27,6 @@
 #include "headers.h"
 
 #include "it.h"
-#include "page.h"
 
 #include "sdlmain.h"
 
@@ -50,104 +49,10 @@ struct log_line {
 
 /* --------------------------------------------------------------------- */
 
-static struct widget widgets_log[1];
-
 #define NUM_LINES 1000
 static struct log_line lines[NUM_LINES];
 static int top_line = 0;
 static int last_line = -1;
-
-/* --------------------------------------------------------------------- */
-
-static void log_draw_const(void)
-{
-	draw_box(1, 12, 78, 48, BOX_THICK | BOX_INNER | BOX_INSET);
-	draw_fill_chars(2, 13, 77, 47, 0);
-}
-
-static int log_handle_key(struct key_event * k)
-{
-	switch (k->sym) {
-	case SDLK_UP:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line--;
-		break;
-	case SDLK_PAGEUP:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line -= 15;
-		break;
-	case SDLK_DOWN:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line++;
-		break;
-	case SDLK_PAGEDOWN:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line += 15;
-		break;
-	case SDLK_HOME:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line = 0;
-		break;
-	case SDLK_END:
-		if (k->state == KEY_RELEASE)
-			return 1;
-		top_line = last_line;
-		break;
-	default:
-		if (k->state == KEY_PRESS) {
-			if (k->mouse == MOUSE_SCROLL_UP) {
-				top_line -= MOUSE_SCROLL_LINES;
-				break;
-			} else if (k->mouse == MOUSE_SCROLL_DOWN) {
-				top_line += MOUSE_SCROLL_LINES;
-				break;
-			}
-		}
-
-		return 0;
-	};
-	top_line = CLAMP(top_line, 0, (last_line-32));
-	if (top_line < 0) top_line = 0;
-	status.flags |= NEED_UPDATE;
-	return 1;
-}
-
-static void log_redraw(void)
-{
-	int n, i;
-
-	i = top_line;
-	for (n = 0; n <= last_line && n < 33; n++, i++) {
-		if (!lines[i].text) continue;
-		if (lines[i].bios_font) {
-			draw_text_bios_len(lines[i].text,
-					74, 3, 14 + n,
-					lines[i].color, 0);
-		} else {
-			draw_text_len(lines[i].text,
-					74, 3, 14 + n,
-					lines[i].color, 0);
-		}
-	}
-}
-
-/* --------------------------------------------------------------------- */
-
-void log_load_page(struct page *page)
-{
-	page->title = "Message Log Viewer (Ctrl-F11)";
-	page->draw_const = log_draw_const;
-	page->total_widgets = 1;
-	page->widgets = widgets_log;
-	page->help_index = HELP_COPYRIGHT; /* I guess */
-
-	create_other(widgets_log + 0, 0, log_handle_key, log_redraw);
-}
 
 /* --------------------------------------------------------------------- */
 
@@ -166,8 +71,8 @@ inline void log_append2(int bios_font, int color, int must_free, const char *tex
 	lines[last_line].bios_font = bios_font;
 	top_line = CLAMP(last_line - 32, 0, NUM_LINES-32);
 
-	if (status.current_page == PAGE_LOG)
-		status.flags |= NEED_UPDATE;
+//	if (status.current_page == PAGE_LOG)
+//		status.flags |= NEED_UPDATE;
 }
 inline void log_append(int color, int must_free, const char *text)
 {
