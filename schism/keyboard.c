@@ -77,13 +77,13 @@ void kbd_sharp_flat_toggle(int e)
 		break;
 	case 1:
 		status.flags |= ACCIDENTALS_AS_FLATS;
-		status_text_flash("Displaying accidentals as flats (b)");
+//		status_text_flash("Displaying accidentals as flats (b)");
 		note_names = note_names_down;
 		note_names_short = note_names_short_down;
 		break;
 	default: /* case 0... */
 		status.flags &= ~ACCIDENTALS_AS_FLATS;
-		status_text_flash("Displaying accidentals as sharps (#)");
+//		status_text_flash("Displaying accidentals as sharps (#)");
 		note_names = note_names_up;
 		note_names_short = note_names_short_up;
 	}

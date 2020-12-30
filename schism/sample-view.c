@@ -25,7 +25,6 @@
 
 #include "it.h"
 #include "song.h"
-#include "page.h"
 #include "video.h"
 
 #include "sdlmain.h"
