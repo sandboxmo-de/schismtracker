@@ -1270,10 +1270,8 @@ int song_load_sample(int n, const char *file)
 	return 1;
 }
 
-void song_create_host_instrument(int smp)
+void song_create_host_instrument(int smp, int ins)
 {
-	int ins = instrument_get_current();
-
 	if (csf_instrument_is_empty(current_song->instruments[smp]))
 		ins = smp;
 	else if ((status.flags & CLASSIC_MODE) || !csf_instrument_is_empty(current_song->instruments[ins]))

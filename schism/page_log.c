@@ -121,3 +121,11 @@ void log_perror(const char *prefix)
 	log_appendf(4, "%s: %s", prefix, e);
 }
 
+struct tracker_status status = {
+	.flags = IS_FOCUSED | IS_VISIBLE,
+	.time_display = TIME_PLAY_ELAPSED,
+	.vis_style = VIS_VU_METER,
+	.last_midi_event = "",
+	// everything else set to 0/NULL/etc.
+};
+
