@@ -39,18 +39,6 @@
 /* --------------------------------------------------------------------- */
 /* globals */
 
-struct tracker_status status = {
-	.current_page = PAGE_BLANK,
-	.previous_page = PAGE_BLANK,
-	.current_help_index = HELP_GLOBAL,
-	.dialog_type = DIALOG_NONE,
-	.flags = IS_FOCUSED | IS_VISIBLE,
-	.time_display = TIME_PLAY_ELAPSED,
-	.vis_style = VIS_VU_METER,
-	.last_midi_event = "",
-	// everything else set to 0/NULL/etc.
-};
-
 struct page pages[PAGE_MAX] = {};
 
 struct widget *widgets = NULL;

@@ -311,7 +311,7 @@ int main(int argc, char **argv)
 	volume_setup();
 
 //	load_pages();
-	main_song_changed_cb();
+//	main_song_changed_cb();
 
 	if (initial_song && !initial_dir) {
 		initial_dir = get_parent_directory(initial_song);

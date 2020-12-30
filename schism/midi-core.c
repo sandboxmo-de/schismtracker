@@ -33,8 +33,6 @@
 
 #include "sdlmain.h"
 
-#include "page.h"
-
 #include "it.h"
 
 #include "dmoz.h"
