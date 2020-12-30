@@ -106,6 +106,12 @@ extern int midi_bend_hit[64], midi_last_bend_hit[64];
 //extern void vis_work_8s(char *in, int inlen);
 //extern void vis_work_8m(char *in, int inlen);
 
+int playback_tracing = 0;       /* scroll lock */
+int midi_playback_tracing = 0;
+
+int midi_bend_hit[64];
+int midi_last_bend_hit[64];
+
 // this gets called from sdl
 static void audio_callback(UNUSED void *qq, uint8_t * stream, int len)
 {

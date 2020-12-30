@@ -97,11 +97,6 @@ static int draw_divisions = 0;          /* = vertical lines between channels */
 
 static int centralise_cursor = 0;
 static int highlight_current_row = 0;
-int playback_tracing = 0;       /* scroll lock */
-int midi_playback_tracing = 0;
-
-int midi_bend_hit[64];
-int midi_last_bend_hit[64];
 
 /* blah; other forwards */
 static void pated_save(const char *descr);

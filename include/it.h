@@ -216,14 +216,7 @@ enum {
 /* --------------------------------------------------------------------- */
 /* global crap */
 
-
-struct tracker_status status = {
-	.flags = IS_FOCUSED | IS_VISIBLE,
-	.time_display = TIME_PLAY_ELAPSED,
-	.vis_style = VIS_VU_METER,
-	.last_midi_event = "",
-	// everything else set to 0/NULL/etc.
-};
+extern struct tracker_status status;
 extern uint8_t *font_data; /* ... which is 2048 bytes */
 extern struct it_palette palettes[];
 extern uint8_t current_palette[16][3];
@@ -285,6 +278,11 @@ void cfg_save_disko(cfg_file_t *cfg);
 
 void cfg_load_dmoz(cfg_file_t *cfg);
 void cfg_save_dmoz(cfg_file_t *cfg);
+
+/* --------------------------------------------------------------------- */
+/* charset.c (this is slightly out of place...) */
+int char_digraph(int k1, int k2);
+int char_unicode_to_cp437(unsigned int c);
 
 /* --------------------------------------------------------------------- */
 /* text functions */
