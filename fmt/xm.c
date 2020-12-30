@@ -26,7 +26,6 @@
 #include "slurp.h"
 #include "fmt.h"
 
-#include "it.h" // needed for get_effect_char (purely informational)
 #include "log.h"
 #include "sndfile.h"
 #include "tables.h"
@@ -299,8 +298,6 @@ static void load_xm_patterns(song_t *song, struct xm_file_header *hdr, slurp_t *
 						note->effect = note->voleffect;
 						note->param = note->volparam;
 					}
-					//log_appendf(4, "Warning: pat%u row%u chn%u: lost effect %c%02X",
-					//      pat, row, chan + 1, get_effect_char(note->voleffect), note->volparam);
 					note->voleffect = note->volparam = 0;
 					lostfx++;
 				}

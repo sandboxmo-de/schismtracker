@@ -36,12 +36,7 @@
 /* config settings */
 
 char cfg_dir_modules[PATH_MAX + 1], cfg_dir_samples[PATH_MAX + 1], cfg_dir_instruments[PATH_MAX + 1],
-	cfg_dir_dotschism[PATH_MAX + 1], cfg_font[NAME_MAX + 1];
-char cfg_video_driver[65];
-int cfg_video_fullscreen = 0;
-int cfg_video_mousecursor = MOUSE_EMULATED;
-int cfg_video_gl_bilinear = 1;
-int cfg_video_width, cfg_video_height;
+	cfg_dir_dotschism[PATH_MAX + 1];
 
 /* --------------------------------------------------------------------- */
 
@@ -80,50 +75,12 @@ void cfg_init_dir(void)
 #endif
 }
 
-/* --------------------------------------------------------------------- */
-
-//static const char palette_trans[64] = ".0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
-//static void cfg_load_palette(cfg_file_t *cfg)
-//{
-//	uint8_t colors[48];
-//	int n;
-//	char palette_text[49] = "";
-//	const char *ptr;
-//
-//	palette_load_preset(cfg_get_number(cfg, "General", "palette", 2));
-//
-//	cfg_get_string(cfg, "General", "palette_cur", palette_text, 48, "");
-//	for (n = 0; n < 48; n++) {
-//		if (palette_text[n] == '\0' || (ptr = strchr(palette_trans, palette_text[n])) == NULL)
-//			return;
-//		colors[n] = ptr - palette_trans;
-//	}
-//	memcpy(current_palette, colors, sizeof(current_palette));
-//}
-
-//static void cfg_save_palette(cfg_file_t *cfg)
-//{
-//	int n;
-//	char palette_text[49] = "";
-//
-//	cfg_set_number(cfg, "General", "palette", current_palette_index);
-//
-//	for (n = 0; n < 48; n++) {
-//		/* Changed older implementation for this, since it is not vital
-//		to have speed here and the compiler printed a warning */
-//		palette_text[n] = palette_trans[current_palette[n/3][n%3]];
-//	}
-//	palette_text[48] = '\0';
-//	cfg_set_string(cfg, "General", "palette_cur", palette_text);
-//}
-
 /* --------------------------------------------------------------------------------------------------------- */
 
 void cfg_load(void)
 {
 	char *tmp;
-//	const char *ptr;
-	int i;
+//	int i;
 	cfg_file_t cfg;
 
 	tmp = dmoz_path_concat(cfg_dir_dotschism, "config");
@@ -132,48 +89,11 @@ void cfg_load(void)
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-//	cfg_get_string(&cfg, "Video", "driver", cfg_video_driver, 64, "");
-//	cfg_video_width = cfg_get_number(&cfg, "Video", "width", 640);
-//	cfg_video_height = cfg_get_number(&cfg, "Video", "height", 400);
-//	cfg_video_fullscreen = !!cfg_get_number(&cfg, "Video", "fullscreen", 0);
-//	cfg_video_mousecursor = cfg_get_number(&cfg, "Video", "mouse_cursor", MOUSE_EMULATED);
-//	cfg_video_mousecursor = CLAMP(cfg_video_mousecursor, 0, MOUSE_MAX_STATE);
-//	cfg_video_gl_bilinear =
-//		!!cfg_get_number(&cfg, "Video", "gl_bilinear", 1);
-//	ptr = cfg_get_string(&cfg, "Video", "aspect", NULL, 0, NULL);
-//	if (ptr && *ptr)
-//		put_env_var("SCHISM_VIDEO_ASPECT", ptr);
-
 	tmp = get_home_directory();
 	cfg_get_string(&cfg, "Directories", "modules", cfg_dir_modules, PATH_MAX, tmp);
 	cfg_get_string(&cfg, "Directories", "samples", cfg_dir_samples, PATH_MAX, tmp);
 	cfg_get_string(&cfg, "Directories", "instruments", cfg_dir_instruments, PATH_MAX, tmp);
 	free(tmp);
-
-//	ptr = cfg_get_string(&cfg, "Directories", "module_pattern", NULL, 0, NULL);
-//	if (ptr) {
-//		strncpy(cfg_module_pattern, ptr, PATH_MAX);
-//		cfg_module_pattern[PATH_MAX] = 0;
-//	}
-//
-//	ptr = cfg_get_string(&cfg, "Directories", "export_pattern", NULL, 0, NULL);
-//	if (ptr) {
-//		strncpy(cfg_export_pattern, ptr, PATH_MAX);
-//		cfg_export_pattern[PATH_MAX] = 0;
-//	}
-//
-//	ptr = cfg_get_string(&cfg, "General", "numlock_setting", NULL, 0, NULL);
-//	if (!ptr)
-//		status.fix_numlock_setting = NUMLOCK_GUESS;
-//	else if (strcasecmp(ptr, "on") == 0)
-//		status.fix_numlock_setting = NUMLOCK_ALWAYS_ON;
-//	else if (strcasecmp(ptr, "off") == 0)
-//		status.fix_numlock_setting = NUMLOCK_ALWAYS_OFF;
-//	else
-//		status.fix_numlock_setting = NUMLOCK_HONOR;
-
-	set_key_repeat(cfg_get_number(&cfg, "General", "key_repeat_delay", key_repeat_delay()),
-		       cfg_get_number(&cfg, "General", "key_repeat_rate", key_repeat_rate()));
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -199,64 +119,13 @@ void cfg_load(void)
 	else
 		status.flags &= ~NUMBERED_BACKUPS;
 
-	i = cfg_get_number(&cfg, "General", "time_display", TIME_PLAY_ELAPSED);
-	/* default to play/elapsed for invalid values */
-	if (i < 0 || i >= TIME_PLAYBACK)
-		i = TIME_PLAY_ELAPSED;
-	status.time_display = i;
-
-	i = cfg_get_number(&cfg, "General", "vis_style", VIS_OSCILLOSCOPE);
-	/* default to oscilloscope for invalid values */
-	if (i < 0 || i >= VIS_SENTINEL)
-		i = VIS_OSCILLOSCOPE;
-	status.vis_style = i;
-
-	kbd_sharp_flat_toggle(cfg_get_number(&cfg, "General", "accidentals_as_flats", 0) == 1);
-
-#ifdef MACOSX
-# define DEFAULT_META 1
-#else
-# define DEFAULT_META 0
-#endif
-	if (cfg_get_number(&cfg, "General", "meta_is_ctrl", DEFAULT_META))
-		status.flags |= META_IS_CTRL;
-	else
-		status.flags &= ~META_IS_CTRL;
-	if (cfg_get_number(&cfg, "General", "altgr_is_alt", 1))
-		status.flags |= ALTGR_IS_ALT;
-	else
-		status.flags &= ~ALTGR_IS_ALT;
-	if (cfg_get_number(&cfg, "Video", "lazy_redraw", 0))
-		status.flags |= LAZY_REDRAW;
-	else
-		status.flags &= ~LAZY_REDRAW;
-
 	if (cfg_get_number(&cfg, "General", "midi_like_tracker", 0))
 		status.flags |= MIDI_LIKE_TRACKER;
 	else
 		status.flags &= ~MIDI_LIKE_TRACKER;
 
-	cfg_get_string(&cfg, "General", "font", cfg_font, NAME_MAX, "font.cfg");
-
-//	cfg_load_palette(&cfg);
-
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-	cfg_free(&cfg);
-}
-
-void cfg_midipage_save(void)
-{
-	char *ptr;
-	cfg_file_t cfg;
-
-	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
-	cfg_init(&cfg, ptr);
-	free(ptr);
-
-	cfg_save_midi(&cfg);
-
-	cfg_write(&cfg);
 	cfg_free(&cfg);
 }
 
@@ -275,9 +144,6 @@ void cfg_save(void)
 	cfg_set_string(&cfg, "Directories", "modules", cfg_dir_modules);
 	cfg_set_string(&cfg, "Directories", "samples", cfg_dir_samples);
 	cfg_set_string(&cfg, "Directories", "instruments", cfg_dir_instruments);
-	/* No, it's not a directory, but whatever. */
-//	cfg_set_string(&cfg, "Directories", "module_pattern", cfg_module_pattern);
-//	cfg_set_string(&cfg, "Directories", "export_pattern", cfg_export_pattern);
 
 //	cfg_save_info(&cfg);
 //	cfg_save_patedit(&cfg);
@@ -301,46 +167,11 @@ void cfg_atexit_save(void)
 
 	cfg_atexit_save_audio(&cfg);
 
-	/* TODO: move these config options to video.c, this is lame :)
-	Or put everything here, which is what the note in audio_loadsave.cc
-	says. Very well, I contradict myself. */
-//	cfg_set_string(&cfg, "Video", "driver", video_driver_name());
-//	cfg_set_number(&cfg, "Video", "fullscreen", !!(video_is_fullscreen()));
-//	cfg_set_number(&cfg, "Video", "mouse_cursor", video_mousecursor_visible());
-//	cfg_set_number(&cfg, "Video", "gl_bilinear", video_gl_bilinear());
-	cfg_set_number(&cfg, "Video", "lazy_redraw", !!(status.flags & LAZY_REDRAW));
-
-	cfg_set_number(&cfg, "General", "vis_style", status.vis_style);
-	cfg_set_number(&cfg, "General", "time_display", status.time_display);
 	cfg_set_number(&cfg, "General", "classic_mode", !!(status.flags & CLASSIC_MODE));
 	cfg_set_number(&cfg, "General", "make_backups", !!(status.flags & MAKE_BACKUPS));
 	cfg_set_number(&cfg, "General", "numbered_backups", !!(status.flags & NUMBERED_BACKUPS));
 
-	cfg_set_number(&cfg, "General", "accidentals_as_flats", !!(status.flags & ACCIDENTALS_AS_FLATS));
-	cfg_set_number(&cfg, "General", "meta_is_ctrl", !!(status.flags & META_IS_CTRL));
-	cfg_set_number(&cfg, "General", "altgr_is_alt", !!(status.flags & ALTGR_IS_ALT));
-
 	cfg_set_number(&cfg, "General", "midi_like_tracker", !!(status.flags & MIDI_LIKE_TRACKER));
-	/* Say, whose bright idea was it to make this a string setting?
-	The config file is human editable but that's mostly for developer convenience and debugging
-	purposes. These sorts of things really really need to be options in the GUI so that people
-	don't HAVE to touch the settings. Then we can just use an enum (and we *could* in theory
-	include comments to the config by default listing what the numbers are, but that shouldn't
-	be necessary in most cases. */
-//	switch (status.fix_numlock_setting) {
-//	case NUMLOCK_ALWAYS_ON:
-//		cfg_set_string(&cfg, "General", "numlock_setting", "on");
-//		break;
-//	case NUMLOCK_ALWAYS_OFF:
-//		cfg_set_string(&cfg, "General", "numlock_setting", "off");
-//		break;
-//	case NUMLOCK_HONOR:
-//		cfg_set_string(&cfg, "General", "numlock_setting", "system");
-//		break;
-//	case NUMLOCK_GUESS:
-//		/* leave empty */
-//		break;
-//	};
 
 	/* hm... most of the time probably nothing's different, so saving the
 	config file here just serves to make the backup useless. maybe add a

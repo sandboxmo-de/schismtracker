@@ -25,7 +25,6 @@
 #include "headers.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "it.h" /* for get_effect_char */
 #include "log.h"
 
 #include "sndfile.h"
@@ -230,8 +229,6 @@ static int read_ult_event(slurp_t *fp, song_note_t *note, int *lostfx)
 		if (effect_weight[note->voleffect] > effect_weight[note->effect])
 			swap_effects(note);
 		(*lostfx)++;
-		//log_appendf(4, "Effect dropped: %c%02X < %c%02X", get_effect_char(note->voleffect),
-		//        note->volparam, get_effect_char(note->effect), note->param);
 		note->voleffect = 0;
 	}
 	if (!note->voleffect)

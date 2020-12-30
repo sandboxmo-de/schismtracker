@@ -101,17 +101,17 @@ static void _key_info_setup(void)
 		info.info.x11.unlock_func();
 }
 
-unsigned int key_repeat_rate(void)
-{
-	_key_info_setup();
-	return rate;
-}
-
-unsigned int key_repeat_delay(void)
-{
-	_key_info_setup();
-	return delay;
-}
+//unsigned int key_repeat_rate(void)
+//{
+//	_key_info_setup();
+//	return rate;
+//}
+//
+//unsigned int key_repeat_delay(void)
+//{
+//	_key_info_setup();
+//	return delay;
+//}
 
 #ifdef USE_XKB
 int key_scancode_lookup(int k, int def)

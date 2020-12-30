@@ -25,8 +25,6 @@
 #include "osdefs.h"
 #include "event.h"
 #include "song.h"
-#include "it.h" // need for kbd_get_alnum
-#include "page.h" // need for struct key_event
 #include "log.h"
 
 #include <di/di.h>
@@ -183,102 +181,102 @@ static SDLKey hat_to_keysym(int value)
 // Huge event-rewriting hack to get at least a sort of useful interface with no keyboard.
 // It's obviously impossible to provide any sort of editing functions in this manner,
 // but it at least allows simple song playback.
-int wii_sdlevent(SDL_Event *event)
-{
-	SDL_Event newev = {};
-	SDLKey sym;
-
-	switch (event->type) {
-	case SDL_KEYDOWN:
-	case SDL_KEYUP:
-		{ // argh
-			struct key_event k = {
-				.mod = event->key.keysym.mod,
-				.sym = event->key.keysym.sym,
-			};
-			event->key.keysym.unicode = kbd_get_alnum(&k);
-		}
-		return 1;
-
-	case SDL_JOYHATMOTION:
-		// TODO key repeat for these, somehow
-		sym = hat_to_keysym(event->jhat.value);
-		if (sym) {
-			newev.type = SDL_KEYDOWN;
-			newev.key.state = SDL_PRESSED;
-			lasthatsym = sym;
-		} else {
-			newev.type = SDL_KEYUP;
-			newev.key.state = SDL_RELEASED;
-			sym = lasthatsym;
-			lasthatsym = 0;
-		}
-		newev.key.which = event->jhat.which;
-		newev.key.keysym.sym = sym;
-		newev.key.type = newev.type; // is this a no-op?
-		*event = newev;
-		return 1;
-
-	case SDL_JOYBUTTONDOWN:
-	case SDL_JOYBUTTONUP:
-		switch (event->jbutton.button) {
-		case 0: // A
-		case 1: // B
-		default:
-			return 0;
-		case 2: // 1
-			if (song_get_mode() == MODE_STOPPED) {
-				// nothing playing? go to load screen
-				sym = SDLK_F9;
-			} else {
-				sym = SDLK_F8;
-			}
-			break;
-		case 3: // 2
-			if (status.current_page == PAGE_LOAD_MODULE) {
-				// if the cursor is on a song, load then play; otherwise handle as enter
-				// (hmm. ctrl-enter?)
-				sym = SDLK_RETURN;
-			} else {
-				// F5 key
-				sym = SDLK_F5;
-			}
-			break;
-		case 4: // -
-			// dialog escape, or jump back a pattern
-			if (status.dialog_type) {
-				sym = SDLK_ESCAPE;
-				break;
-			} else if (event->type == SDL_JOYBUTTONDOWN && song_get_mode() == MODE_PLAYING) {
-				song_set_current_order(song_get_current_order() - 1);
-			}
-			return 0;
-		case 5: // +
-			// dialog enter, or jump forward a pattern
-			if (status.dialog_type) {
-				sym = SDLK_RETURN;
-				break;
-			} else if (event->type == SDL_JOYBUTTONDOWN && song_get_mode() == MODE_PLAYING) {
-				song_set_current_order(song_get_current_order() + 1);
-			}
-			return 0;
-		case 6: // Home
-			event->type = SDL_QUIT;
-			return 1;
-		}
-		newev.key.which = event->jbutton.which;
-		newev.key.keysym.sym = sym;
-		if (event->type == SDL_JOYBUTTONDOWN) {
-			newev.type = SDL_KEYDOWN;
-			newev.key.state = SDL_PRESSED;
-		} else {
-			newev.type = SDL_KEYUP;
-			newev.key.state = SDL_RELEASED;
-		}
-		newev.key.type = newev.type; // no-op?
-		*event = newev;
-		return 1;
-	}
-	return 1;
-}
+//int wii_sdlevent(SDL_Event *event)
+//{
+//	SDL_Event newev = {};
+//	SDLKey sym;
+//
+//	switch (event->type) {
+//	case SDL_KEYDOWN:
+//	case SDL_KEYUP:
+//		{ // argh
+//			struct key_event k = {
+//				.mod = event->key.keysym.mod,
+//				.sym = event->key.keysym.sym,
+//			};
+//			event->key.keysym.unicode = kbd_get_alnum(&k);
+//		}
+//		return 1;
+//
+//	case SDL_JOYHATMOTION:
+//		// TODO key repeat for these, somehow
+//		sym = hat_to_keysym(event->jhat.value);
+//		if (sym) {
+//			newev.type = SDL_KEYDOWN;
+//			newev.key.state = SDL_PRESSED;
+//			lasthatsym = sym;
+//		} else {
+//			newev.type = SDL_KEYUP;
+//			newev.key.state = SDL_RELEASED;
+//			sym = lasthatsym;
+//			lasthatsym = 0;
+//		}
+//		newev.key.which = event->jhat.which;
+//		newev.key.keysym.sym = sym;
+//		newev.key.type = newev.type; // is this a no-op?
+//		*event = newev;
+//		return 1;
+//
+//	case SDL_JOYBUTTONDOWN:
+//	case SDL_JOYBUTTONUP:
+//		switch (event->jbutton.button) {
+//		case 0: // A
+//		case 1: // B
+//		default:
+//			return 0;
+//		case 2: // 1
+//			if (song_get_mode() == MODE_STOPPED) {
+//				// nothing playing? go to load screen
+//				sym = SDLK_F9;
+//			} else {
+//				sym = SDLK_F8;
+//			}
+//			break;
+//		case 3: // 2
+//			if (status.current_page == PAGE_LOAD_MODULE) {
+//				// if the cursor is on a song, load then play; otherwise handle as enter
+//				// (hmm. ctrl-enter?)
+//				sym = SDLK_RETURN;
+//			} else {
+//				// F5 key
+//				sym = SDLK_F5;
+//			}
+//			break;
+//		case 4: // -
+//			// dialog escape, or jump back a pattern
+//			if (status.dialog_type) {
+//				sym = SDLK_ESCAPE;
+//				break;
+//			} else if (event->type == SDL_JOYBUTTONDOWN && song_get_mode() == MODE_PLAYING) {
+//				song_set_current_order(song_get_current_order() - 1);
+//			}
+//			return 0;
+//		case 5: // +
+//			// dialog enter, or jump forward a pattern
+//			if (status.dialog_type) {
+//				sym = SDLK_RETURN;
+//				break;
+//			} else if (event->type == SDL_JOYBUTTONDOWN && song_get_mode() == MODE_PLAYING) {
+//				song_set_current_order(song_get_current_order() + 1);
+//			}
+//			return 0;
+//		case 6: // Home
+//			event->type = SDL_QUIT;
+//			return 1;
+//		}
+//		newev.key.which = event->jbutton.which;
+//		newev.key.keysym.sym = sym;
+//		if (event->type == SDL_JOYBUTTONDOWN) {
+//			newev.type = SDL_KEYDOWN;
+//			newev.key.state = SDL_PRESSED;
+//		} else {
+//			newev.type = SDL_KEYUP;
+//			newev.key.state = SDL_RELEASED;
+//		}
+//		newev.key.type = newev.type; // no-op?
+//		*event = newev;
+//		return 1;
+//	}
+//	return 1;
+//}
 
