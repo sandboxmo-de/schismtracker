@@ -31,44 +31,6 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 
-/* eek... */
-void win32_get_modkey(int *mk)
-{
-	BYTE ks[256];
-	if (GetKeyboardState(ks) == 0) return;
-
-	if (ks[VK_CAPITAL] & 128) {
-		status.flags |= CAPS_PRESSED;
-	} else {
-		status.flags &= ~CAPS_PRESSED;
-	}
-
-	(*mk) = ((*mk) & ~(KMOD_NUM|KMOD_CAPS))
-		| ((ks[VK_NUMLOCK]&1) ? KMOD_NUM : 0)
-		| ((ks[VK_CAPITAL]&1) ? KMOD_CAPS : 0);
-}
-
-/* more windows key stuff... */
-unsigned int key_repeat_rate(void)
-{
-	DWORD spd;
-	if (!SystemParametersInfo(SPI_GETKEYBOARDSPEED, 0, &spd, 0)) return 0;
-	if (!spd) return 1;
-	return spd;
-}
-unsigned int key_repeat_delay(void)
-{
-	int delay;
-
-	if (!SystemParametersInfo(SPI_GETKEYBOARDDELAY, 0, &delay, 0)) return 0;
-	switch (delay) {
-	case 0: return 250;
-	case 1: return 500;
-	case 2: return 750;
-	};
-	return 1000;
-}
-
 static HKL default_keymap;
 static HKL us_keymap;
 

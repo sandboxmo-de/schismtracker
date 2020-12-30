@@ -444,11 +444,6 @@ void song_set_instrument_mode(int value)
 	}
 }
 
-//int song_get_current_instrument(void)
-//{
-//	return (song_is_instrument_mode() ? instrument_get_current() : sample_get_current());
-//}
-
 // ------------------------------------------------------------------------
 
 void song_exchange_samples(int a, int b)

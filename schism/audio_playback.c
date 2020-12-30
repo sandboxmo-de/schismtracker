@@ -101,13 +101,6 @@ static char cfg_audio_driver[256];
 // playback
 
 extern int midi_bend_hit[64], midi_last_bend_hit[64];
-//extern void vis_work_16s(short *in, int inlen);
-//extern void vis_work_16m(short *in, int inlen);
-//extern void vis_work_8s(char *in, int inlen);
-//extern void vis_work_8m(char *in, int inlen);
-
-int playback_tracing = 0;       /* scroll lock */
-int midi_playback_tracing = 0;
 
 int midi_bend_hit[64];
 int midi_last_bend_hit[64];
@@ -120,9 +113,6 @@ static void audio_callback(UNUSED void *qq, uint8_t * stream, int len)
 	int i, n;
 
 	if (!stream || !len || !current_song) {
-//		if (status.current_page == PAGE_WATERFALL || status.vis_style == VIS_FFT) {
-//			vis_work_8m(NULL, 0);
-//		}
 		song_stop_unlocked(0);
 		goto POST_EVENT;
 	}
@@ -138,10 +128,6 @@ static void audio_callback(UNUSED void *qq, uint8_t * stream, int len)
 	} else {
 		n = csf_read(current_song, stream, len);
 		if (!n) {
-//			if (status.current_page == PAGE_WATERFALL
-//			|| status.vis_style == VIS_FFT) {
-//				vis_work_8m(NULL, 0);
-//			}
 			song_stop_unlocked(0);
 			goto POST_EVENT;
 		}
@@ -158,23 +144,7 @@ static void audio_callback(UNUSED void *qq, uint8_t * stream, int len)
 		for (i = 0; i < n; i++) {
 			stream[i] ^= 128;
 		}
-//		if (status.current_page == PAGE_WATERFALL
-//		|| status.vis_style == VIS_FFT) {
-//			if (audio_output_channels == 2) {
-//				vis_work_8s((char*)stream, n/2);
-//			} else {
-//				vis_work_8m((char*)stream, n);
-//			}
-//		}
 	}
-//	else if (status.current_page == PAGE_WATERFALL
-//				|| status.vis_style == VIS_FFT) {
-//		if (audio_output_channels == 2) {
-//			vis_work_16s((short*)stream, n);
-//		} else {
-//			vis_work_16m((short*)stream, n);
-//		}
-//	}
 
 	if (current_song->num_voices > max_channels_used)
 		max_channels_used = MIN(current_song->num_voices, max_voices);
@@ -611,8 +581,6 @@ void song_stop_unlocked(int quitting)
 	memset(was_banklo,0,sizeof(was_banklo));
 	memset(was_bankhi,0,sizeof(was_bankhi));
 
-	playback_tracing = midi_playback_tracing;
-
 	song_reset_play_state();
 	// Modplug doesn't actually have a "stop" mode, but if SONG_ENDREACHED is set, current_song->Read just returns.
 	current_song->flags |= SONG_PAUSED | SONG_ENDREACHED;
@@ -621,9 +589,6 @@ void song_stop_unlocked(int quitting)
 	global_vu_right = 0;
 	memset(audio_buffer, 0, audio_buffer_samples * audio_sample_size);
 }
-
-
-
 
 void song_loop_pattern(int pattern, int row)
 {
@@ -1440,12 +1405,6 @@ void audio_reinit(void)
 	song_stop();
 	_audio_init_head(active_audio_driver, 0);
 	_audio_init_tail();
-
-//	if (status.flags & CLASSIC_MODE)
-//		// FIXME: but we spontaneously report a GUS card sometimes...
-//		status_text_flash("Sound Blaster 16 reinitialised");
-//	else
-//		status_text_flash("Audio output reinitialised");
 }
 
 /* --------------------------------------------------------------------------------------------------------- */
