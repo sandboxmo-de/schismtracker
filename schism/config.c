@@ -304,10 +304,10 @@ void cfg_atexit_save(void)
 	/* TODO: move these config options to video.c, this is lame :)
 	Or put everything here, which is what the note in audio_loadsave.cc
 	says. Very well, I contradict myself. */
-	cfg_set_string(&cfg, "Video", "driver", video_driver_name());
-	cfg_set_number(&cfg, "Video", "fullscreen", !!(video_is_fullscreen()));
-	cfg_set_number(&cfg, "Video", "mouse_cursor", video_mousecursor_visible());
-	cfg_set_number(&cfg, "Video", "gl_bilinear", video_gl_bilinear());
+//	cfg_set_string(&cfg, "Video", "driver", video_driver_name());
+//	cfg_set_number(&cfg, "Video", "fullscreen", !!(video_is_fullscreen()));
+//	cfg_set_number(&cfg, "Video", "mouse_cursor", video_mousecursor_visible());
+//	cfg_set_number(&cfg, "Video", "gl_bilinear", video_gl_bilinear());
 	cfg_set_number(&cfg, "Video", "lazy_redraw", !!(status.flags & LAZY_REDRAW));
 
 	cfg_set_number(&cfg, "General", "vis_style", status.vis_style);
