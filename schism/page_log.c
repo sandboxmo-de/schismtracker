@@ -28,8 +28,6 @@
 
 #include "it.h"
 
-#include "sdlmain.h"
-
 #include <stdarg.h>
 #include <errno.h>
 
@@ -122,10 +120,7 @@ void log_perror(const char *prefix)
 }
 
 struct tracker_status status = {
-	.flags = IS_FOCUSED | IS_VISIBLE,
-	.time_display = TIME_PLAY_ELAPSED,
-	.vis_style = VIS_VU_METER,
-	.last_midi_event = "",
+	.flags = 0,
 	// everything else set to 0/NULL/etc.
 };
 

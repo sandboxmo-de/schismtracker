@@ -61,9 +61,6 @@
 # define ENABLE_HOOKS 1
 #endif
 
-#define NATIVE_SCREEN_WIDTH     640
-#define NATIVE_SCREEN_HEIGHT    400
-
 /* --------------------------------------------------------------------- */
 /* globals */
 
@@ -131,7 +128,7 @@ static char *initial_dir = NULL;
 enum {
 	SF_PLAY = 1, /* -p: start playing after loading initial_song */
 	SF_HOOKS = 2, /* --no-hooks: don't run startup/exit scripts */
-	SF_FONTEDIT = 4,
+//	SF_FONTEDIT = 4,
 	SF_CLASSIC = 8,
 	SF_NETWORK = 16,
 };
@@ -329,11 +326,7 @@ int main(int argc, char **argv)
 		free(initial_dir);
 	}
 
-	if (startup_flags & SF_FONTEDIT) {
-		status.flags |= STARTUP_FONTEDIT;
-//		set_page(PAGE_FONT_EDIT);
-		free(initial_song);
-	} else if (initial_song) {
+	if (initial_song) {
 //		set_page(PAGE_LOG);
 		if (song_load_unchecked(initial_song)) {
 //			if (diskwrite_to) {

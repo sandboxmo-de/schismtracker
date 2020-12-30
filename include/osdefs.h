@@ -103,7 +103,7 @@ void x11_screensaver_deactivate(void);
 unsigned int xv_yuvlayout(void);
 
 void win32_sysinit(int *pargc, char ***pargv);
-void win32_get_modkey(int *m);
+//void win32_get_modkey(int *m);
 void win32_filecreated_callback(const char *filename);
 
 // migrated from xkb.c
@@ -115,15 +115,6 @@ void win32_filecreated_callback(const char *filename);
 int key_scancode_lookup(int k, int def);
 #else
 #define key_scancode_lookup(k, def) def
-#endif
-
-#if defined(USE_X11) || defined(WIN32) || defined(MACOSX)
-unsigned int key_repeat_delay(void);
-unsigned int key_repeat_rate(void);
-#else
-# include "sdlmain.h" // blecch
-# define key_repeat_delay() SDL_DEFAULT_REPEAT_DELAY
-# define key_repeat_rate() SDL_DEFAULT_REPEAT_INTERVAL
 #endif
 
 
