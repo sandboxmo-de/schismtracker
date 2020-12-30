@@ -24,7 +24,7 @@
 #include "headers.h"
 
 #include "sdlmain.h"
-#include "video.h" /* for declaration of xpmdata */
+//#include "video.h" /* for declaration of xpmdata */
 
 #include <ctype.h>
 

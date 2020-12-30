@@ -793,7 +793,7 @@ static void pat2smp_single(void *data)
 //		set_page(PAGE_SAMPLE_LIST);
 	} else {
 		log_perror("Sample write");
-		status_text_flash("Error writing to sample");
+//		status_text_flash("Error writing to sample");
 	}
 
 	free(ps);
@@ -806,13 +806,13 @@ static void pat2smp_multi(void *data)
 //		set_page(PAGE_SAMPLE_LIST);
 	} else {
 		log_perror("Sample multi-write");
-		status_text_flash("Error writing to samples");
+//		status_text_flash("Error writing to samples");
 	}
 
 	free(ps);
 }
 
-void song_pattern_to_sample(int pattern, int split, int bind)
+void song_pattern_to_sample(int pattern, int split, int bind, int sample)
 {
 	struct pat2smp *ps;
 	int n;
@@ -832,13 +832,13 @@ void song_pattern_to_sample(int pattern, int split, int bind)
 		if (!samp) continue;
 		if (((unsigned char) samp->name[23]) != 0xFF) continue;
 		if (((unsigned char) samp->name[24]) != pattern) continue;
-		status_text_flash("Pattern %d already linked to sample %d", pattern, n);
+//		status_text_flash("Pattern %d already linked to sample %d", pattern, n);
 		return;
 	}
 
 	ps = mem_alloc(sizeof(struct pat2smp));
 	ps->pattern = pattern;
-	ps->sample = sample_get_current() ?: 1;
+	ps->sample = sample ?: 1;
 	ps->bind = bind;
 
 	if (split) {
