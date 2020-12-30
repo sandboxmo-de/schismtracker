@@ -24,7 +24,6 @@
 #include "headers.h"
 
 #include "it.h"
-//#include "page.h"
 #include "cmixer.h"
 #include "sndfile.h"
 #include "song.h"
@@ -226,13 +225,13 @@ void song_change_current_play_channel(int relative, int wraparound)
 	} else {
 		current_play_channel = CLAMP(current_play_channel, 1, 64);
 	}
-	status_text_flash("Using channel %d for playback", current_play_channel);
+//	status_text_flash("Using channel %d for playback", current_play_channel);
 }
 
 void song_toggle_multichannel_mode(void)
 {
 	multichannel_mode = !multichannel_mode;
-	status_text_flash("Multichannel playback %s", (multichannel_mode ? "enabled" : "disabled"));
+//	status_text_flash("Multichannel playback %s", (multichannel_mode ? "enabled" : "disabled"));
 }
 
 int song_is_multichannel_mode(void)
@@ -1436,11 +1435,11 @@ void audio_reinit(void)
 	_audio_init_head(active_audio_driver, 0);
 	_audio_init_tail();
 
-	if (status.flags & CLASSIC_MODE)
-		// FIXME: but we spontaneously report a GUS card sometimes...
-		status_text_flash("Sound Blaster 16 reinitialised");
-	else
-		status_text_flash("Audio output reinitialised");
+//	if (status.flags & CLASSIC_MODE)
+//		// FIXME: but we spontaneously report a GUS card sometimes...
+//		status_text_flash("Sound Blaster 16 reinitialised");
+//	else
+//		status_text_flash("Audio output reinitialised");
 }
 
 /* --------------------------------------------------------------------------------------------------------- */
