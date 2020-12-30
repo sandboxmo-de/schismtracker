@@ -89,12 +89,10 @@ noinst_HEADERS = \
 	include/auto/logoit.h		\
 	include/auto/logoschism.h	\
 	include/auto/schismico.h	\
-	include/charset.h		\
 	include/cmixer.h		\
 	include/config-parser.h		\
 	include/disko.h			\
 	include/dmoz.h			\
-	include/draw-char.h		\
 	include/event.h			\
 	include/fmopl2.h			\
 	include/fmopl3.h			\
@@ -118,7 +116,6 @@ noinst_HEADERS = \
 	include/tree.h			\
 	include/util.h			\
 	include/version.h		\
-	include/vgamem-scanner.h	\
 	sys/wii/isfs.h			\
 	sys/wii/certs_bin.h		\
 	sys/wii/su_tik_bin.h		\
@@ -244,7 +241,6 @@ endif
 
 ## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
 schismtracker_SOURCES = \
-	schism/charset.c		\
 	schism/sample-edit.c		\
 	schism/dmoz.c			\
 	schism/page_log.c		\
@@ -290,7 +286,6 @@ schismtracker_SOURCES = \
 	schism/slurp.c			\
 	schism/main.c			\
 	schism/config.c			\
-	schism/keyboard.c		\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
 	schism/audio_playback.c		\
