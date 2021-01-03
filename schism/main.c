@@ -21,24 +21,15 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* This is the first thing I *ever* did with SDL. :) */
-
-/* Warning: spaghetti follows.... it just kind of ended up this way.
-   In other news, TODO: clean this mess on a rainy day.
-   and yes, that in fact rhymed :P */
-
 #define NEED_TIME
 #include "headers.h"
 
 #include "event.h"
 
 #include "it.h"
-#include "disko.h"
 
-#include "version.h"
 #include "song.h"
 #include "midi.h"
-#include "dmoz.h"
 
 #include "osdefs.h"
 
@@ -170,16 +161,6 @@ enum {
 	O_VERSION,
 };
 
-#if defined(WIN32)
-# define OPENGL_PATH "\\path\\to\\opengl.dll"
-#elif defined(MACOSX)
-# define OPENGL_PATH "/path/to/opengl.dylib"
-#else
-# define OPENGL_PATH "/path/to/opengl.so"
-#endif
-
-#define USAGE "Usage: %s [OPTIONS] [DIRECTORY] [FILE]\n"
-
 static void parse_only_initial_song(int argc, char **argv)
 {
 	char *cwd = get_current_directory();
@@ -221,10 +202,6 @@ static void schism_shutdown(void)
 		song_stop_unlocked(1);
 		song_unlock_audio();
 
-		// Clear to black on exit (nicer on Wii; I suppose it won't hurt elsewhere)
-//		video_refresh();
-//		video_blit();
-//		video_shutdown();
 		/*
 		If this is the atexit() handler, why are we calling SDL_Quit?
 
@@ -243,18 +220,7 @@ int main(int argc, char **argv)
 {
 	os_sysinit(&argc, &argv);
 
-	/* this needs to be done very early, because the version is used in the help text etc.
-	Also, this needs to happen before any locale stuff is initialized
-	(but we don't do that at all yet, anyway) */
-//	ver_init();
-
-	/* FIXME: make a config option for this, and stop abusing frickin' environment variables! */
-//	put_env_var("SCHISM_VIDEO_ASPECT", "full");
-
-//	vis_init();
 	atexit(schism_shutdown);
-
-//	video_fullscreen(0);
 
 	tzset(); // localtime_r wants this
 	srand(time(NULL));
@@ -277,7 +243,7 @@ int main(int argc, char **argv)
 #endif
 
 	/* Eh. */
-	log_append2(0, 3, 0, schism_banner(0));
+//	log_append2(0, 3, 0, schism_banner(0));
 	log_nl();
 	log_nl();
 
@@ -292,7 +258,7 @@ int main(int argc, char **argv)
 
 	sdl_init();
 	shutdown_process |= EXIT_SDLQUIT;
-	os_sdlinit();
+	os_sdlinit();	// only used by the Wii
 
 	midi_engine_start();
 	log_nl();
@@ -306,9 +272,6 @@ int main(int argc, char **argv)
 #endif
 
 	volume_setup();
-
-//	load_pages();
-//	main_song_changed_cb();
 
 	if (initial_song && !initial_dir) {
 		initial_dir = get_parent_directory(initial_song);
@@ -327,7 +290,6 @@ int main(int argc, char **argv)
 	}
 
 	if (initial_song) {
-//		set_page(PAGE_LOG);
 		if (song_load_unchecked(initial_song)) {
 //			if (diskwrite_to) {
 //				// make a guess?
@@ -339,12 +301,9 @@ int main(int argc, char **argv)
 //					exit(1); // ?
 //			} else if (startup_flags & SF_PLAY) {
 				song_start();
-//				set_page(PAGE_INFO);
 //			}
 		}
 		free(initial_song);
-	} else {
-//		set_page(PAGE_ABOUT);
 	}
 
 #if HAVE_NICE

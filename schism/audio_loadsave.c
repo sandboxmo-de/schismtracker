@@ -29,7 +29,6 @@
 #include "sndfile.h"
 #include "song.h"
 #include "slurp.h"
-#include "version.h"
 
 #include "fmt.h"
 #include "dmoz.h"
@@ -361,7 +360,8 @@ static void _save_it_instrument(int n, disko_t *fp, int iti_file)
 	iti.rv = i->vol_swing;
 	iti.rp = i->pan_swing;
 	if (iti_file) {
-		iti.trkvers = bswapLE16(0x1000 | ver_cwtv);
+		iti.trkvers = bswapLE16(0x1000);
+//		iti.trkvers = bswapLE16(0x1000 | ver_cwtv);
 	}
 	// reserved1
 	strncpy((char *) iti.name, (char *) i->name, 25);
@@ -636,8 +636,9 @@ static int _save_it(disko_t *fp, UNUSED song_t *song)
 	hdr.insnum = bswapLE16(nins);
 	hdr.smpnum = bswapLE16(nsmp);
 	hdr.patnum = bswapLE16(npat);
+	hdr.cwtv = bswapLE16(0x1000);
 	// No one else seems to be using the cwtv's tracker id number, so I'm gonna take 1. :)
-	hdr.cwtv = bswapLE16(0x1000 | ver_cwtv); // cwtv 0xtxyy = tracker id t, version x.yy
+//	hdr.cwtv = bswapLE16(0x1000 | ver_cwtv); // cwtv 0xtxyy = tracker id t, version x.yy
 	// compat:
 	//     really simple IT files = 1.00 (when?)
 	//     "normal" = 2.00
@@ -691,7 +692,7 @@ static int _save_it(disko_t *fp, UNUSED song_t *song)
 		hdr.msgoffset = bswapLE32(extra + 0xc0 + nord + 4 * (nins + nsmp + npat));
 		hdr.msglength = bswapLE16(msglen);
 	}
-	hdr.reserved = bswapLE32(ver_reserved);
+//	hdr.reserved = bswapLE32(ver_reserved);
 
 	for (n = 0; n < 64; n++) {
 		hdr.chnpan[n] = ((current_song->channels[n].flags & CHN_SURROUND)

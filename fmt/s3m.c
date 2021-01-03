@@ -25,7 +25,6 @@
 #include "headers.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "version.h"
 
 #include "sndfile.h"
 
@@ -417,7 +416,7 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, unsigned int lflags)
 		case 4:
 			tid = NULL;
 			strcpy(song->tracker_id, "Schism Tracker ");
-			ver_decode_cwtv(trkvers, reserved, song->tracker_id + strlen(song->tracker_id));
+//			ver_decode_cwtv(trkvers, reserved, song->tracker_id + strlen(song->tracker_id));
 			break;
 		case 5:
 			tid = "OpenMPT %d.%02x";
@@ -892,7 +891,8 @@ int fmt_s3m_save_song(disko_t *fp, song_t *song)
 	hdr.smpnum = bswapLE16(nsmp);
 	hdr.patnum = bswapLE16(npat);
 	hdr.flags = 0;
-	hdr.cwtv = bswapLE16(0x4000 | ver_cwtv);
+	hdr.cwtv = bswapLE16(0x4000);
+//	hdr.cwtv = bswapLE16(0x4000 | ver_cwtv);
 	hdr.ffi = bswapLE16(2); // format version; 1 = signed samples, 2 = unsigned
 	memcpy(hdr.scrm, "SCRM", 4);
 	hdr.gv = song->initial_global_volume / 2;
@@ -910,7 +910,7 @@ int fmt_s3m_save_song(disko_t *fp, song_t *song)
 		hdr.mv |= 128;
 	hdr.uc = 16; // ultraclick (the "Waste GUS channels" option)
 	hdr.dp = 252;
-	hdr.reserved = bswapLE16(ver_reserved);
+//	hdr.reserved = bswapLE16(ver_reserved);
 
 	/* The sample data parapointers are 24+4 bits, whereas pattern data and sample headers are only 16+4
 	bits -- so while the sample data can be written up to 268 MB within the file (starting at 0xffffff0),
