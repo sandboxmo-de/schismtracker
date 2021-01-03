@@ -26,7 +26,8 @@
 
 #include "headers.h"
 
-#include "it.h"
+#include "log.h"
+#include "util.h"
 
 #include <stdarg.h>
 #include <errno.h>
@@ -118,9 +119,4 @@ void log_perror(const char *prefix)
 	perror(prefix);
 	log_appendf(4, "%s: %s", prefix, e);
 }
-
-struct tracker_status status = {
-	.flags = 0,
-	// everything else set to 0/NULL/etc.
-};
 

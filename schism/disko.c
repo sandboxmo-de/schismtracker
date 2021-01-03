@@ -861,3 +861,10 @@ int _disko_writemidi(UNUSED const void *data, UNUSED unsigned int len, UNUSED un
 {
 	return DW_ERROR;
 }
+
+struct tracker_status status = {
+	.flags = 0,
+	// everything else set to 0/NULL/etc.
+};
+
+

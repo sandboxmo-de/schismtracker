@@ -113,9 +113,7 @@ noinst_HEADERS = \
 	include/snd_gm.h		\
 	include/song.h			\
 	include/tables.h		\
-	include/tree.h			\
 	include/util.h			\
-	include/version.h		\
 	sys/wii/isfs.h			\
 	sys/wii/certs_bin.h		\
 	sys/wii/su_tik_bin.h		\
@@ -243,8 +241,7 @@ endif
 schismtracker_SOURCES = \
 	schism/sample-edit.c		\
 	schism/dmoz.c			\
-	schism/page_log.c		\
-	schism/xpmdata.c		\
+	schism/log.c		\
 	schism/volume-core.c		\
 	schism/disko.c			\
 	schism/mplink.c			\
@@ -291,7 +288,6 @@ schismtracker_SOURCES = \
 	schism/audio_playback.c		\
 	schism/config-parser.c		\
 	schism/audio_loadsave.c		\
-	schism/version.c		\
 	player/csndfile.c		\
 	player/mixutil.c		\
 	player/equalizer.c		\
