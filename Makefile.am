@@ -282,7 +282,6 @@ schismtracker_SOURCES = \
 	schism/util.c			\
 	schism/slurp.c			\
 	schism/main.c			\
-	schism/config.c			\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
 	schism/audio_playback.c		\
