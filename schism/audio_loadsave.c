@@ -25,7 +25,6 @@
 #define NEED_TIME
 #include "headers.h"
 
-#include "it.h"
 #include "sndfile.h"
 #include "song.h"
 #include "slurp.h"
