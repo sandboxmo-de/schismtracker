@@ -27,7 +27,6 @@
 #include "sndfile.h"
 #include "song.h"
 #include "slurp.h"
-#include "config-parser.h"
 
 #include "event.h"
 
@@ -81,11 +80,6 @@ static int audio_writeout_count = 0;
 struct audio_settings audio_settings;
 
 static void _schism_midi_out_note(int chan, const song_note_t *m);
-
-/* Audio driver related stuff */
-
-/* The (short) name of the SDL driver in use, e.g. "alsa" */
-static char driver_name[256];
 
 /* This is the full driver spec for whatever device was successfully init'ed when audio was set up.
 When reinitializing the audio, this can be used to reacquire the same device. Hopefully. */

@@ -48,11 +48,11 @@ enum {
 };
 
 /* return codes for modules savers */
-enum {
-	SAVE_SUCCESS,           /* all's well */
-	SAVE_FILE_ERROR,        /* couldn't write the file; check errno */
-	SAVE_INTERNAL_ERROR,    /* something unrelated to disk i/o */
-};
+//enum {
+//	SAVE_SUCCESS,           /* all's well */
+//	SAVE_FILE_ERROR,        /* couldn't write the file; check errno */
+//	SAVE_INTERNAL_ERROR,    /* something unrelated to disk i/o */
+//};
 
 /* --------------------------------------------------------------------------------------------------------- */
 

@@ -9,7 +9,6 @@ noinst_HEADERS = \
 	include/auto/logoschism.h	\
 	include/auto/schismico.h	\
 	include/cmixer.h		\
-	include/config-parser.h		\
 	include/dmoz.h			\
 	include/event.h			\
 	include/fmopl2.h			\
@@ -34,7 +33,6 @@ noinst_HEADERS = \
 ## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
 schismtracker_SOURCES = \
 	schism/sample-edit.c		\
-	schism/dmoz.c			\
 	schism/log.c		\
 	schism/mplink.c			\
 	fmt/compression.c		\
