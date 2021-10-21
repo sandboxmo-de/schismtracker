@@ -141,11 +141,11 @@ static void _cfg_load_midi_part_locked(struct midi_port *q)
 		if (!*sp) sp = NULL;
 	}
 
-	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
-	cfg_init(&cfg, ptr);
+//	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
+//	cfg_init(&cfg, ptr);
 
 	/* look for MIDI port sections */
-	for (c = cfg.sections; c; c = c->next) {
+	for (c = NULL; c; c = c->next) {
 		j = -1;
 		sscanf(c->name, "MIDI Port %d", &j);
 		if (j < 1) continue;
@@ -164,8 +164,8 @@ static void _cfg_load_midi_part_locked(struct midi_port *q)
 		if (q->io && q->enable) q->enable(q);
 	}
 
-	cfg_free(&cfg);
-	free(ptr);
+//	cfg_free(&cfg);
+//	free(ptr);
 }
 
 
