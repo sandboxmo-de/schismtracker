@@ -200,20 +200,6 @@ static slurp_t *_slurp_open(const char *filename, struct stat * buf, size_t size
 		size = (buf ? buf->st_size : file_size(filename));
 	}
 
-#ifdef WIN32
-	switch (slurp_win32(t, filename, size)) {
-	case 0: free(t); return NULL;
-	case 1: return t;
-	};
-#endif
-
-#if HAVE_MMAP
-	switch (slurp_mmap(t, filename, size)) {
-	case 0: free(t); return NULL;
-	case 1: return t;
-	};
-#endif
-
 	fd = open(filename, O_RDONLY | O_BINARY);
 
 	if (fd < 0) {

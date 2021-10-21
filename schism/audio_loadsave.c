@@ -42,6 +42,17 @@
 #include <errno.h>
 #include <assert.h>
 
+#ifndef NAME_MAX
+# ifdef MAXPATHLEN
+#  define NAME_MAX MAXPATHLEN /* BSD name */
+# else
+#  ifdef FILENAME_MAX
+#   define NAME_MAX FILENAME_MAX
+#  else
+#   define NAME_MAX 256
+#  endif
+# endif
+#endif
 // ------------------------------------------------------------------------
 
 char song_filename[PATH_MAX + 1];

@@ -208,7 +208,6 @@ void csf_forget_history(song_t *csf)
 	free(csf->histdata);
 	csf->histdata = NULL;
 	csf->histlen = 0;
-	gettimeofday(&csf->editstart, NULL);
 }
 
 /* --------------------------------------------------------------------------------------------------------- */
