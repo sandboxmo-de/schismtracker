@@ -242,7 +242,6 @@ schismtracker_SOURCES = \
 	schism/sample-edit.c		\
 	schism/dmoz.c			\
 	schism/log.c		\
-	schism/volume-core.c		\
 	schism/disko.c			\
 	schism/mplink.c			\
 	fmt/compression.c		\

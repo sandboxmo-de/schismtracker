@@ -31,8 +31,6 @@
 #include "song.h"
 #include "midi.h"
 
-#include "osdefs.h"
-
 #include <errno.h>
 
 #include "sdlmain.h"
@@ -131,8 +129,6 @@ int main(int argc, char **argv)
 	midi_engine_start();
 	audio_init(audio_driver);
 	song_init_modplug();
-
-	volume_setup();
 
 	if (initial_song) {
 		if (song_load_unchecked(initial_song)) {

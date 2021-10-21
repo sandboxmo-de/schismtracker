@@ -265,52 +265,52 @@ disko_t *disko_open(const char *filename)
 	return ds;
 }
 
-int disko_close(disko_t *ds, int backup)
-{
-	int err = ds->error;
-
-	// try to preserve the *first* error set, because it's most likely to be interesting
-	if (fclose(ds->file) == EOF && !err) {
-		err = errno;
-	} else if (!err) {
-		// preserve file mode, or set it sanely -- mkstemp() sets file mode to 0600
-#ifndef GEKKO /* FIXME - autoconf check for this instead */
-		struct stat st;
-		if (stat(ds->filename, &st) < 0) {
-			/* Probably didn't exist already, let's make something up.
-			0777 is "safer" than 0, so we don't end up throwing around world-writable
-			files in case something weird happens.
-			See also: man 3 getumask */
-			mode_t m = umask(0777);
-			umask(m);
-			st.st_mode = 0666 & ~m;
-		}
-#endif
-		if (backup) {
-			// back up the old file
-			make_backup_file(ds->filename, (backup != 1));
-		}
-		if (rename_file(ds->tempname, ds->filename, 1) != 0) {
-			err = errno;
-		} else {
-#ifndef GEKKO
-			// Fix the permissions on the file
-			chmod(ds->filename, st.st_mode);
-#endif
-		}
-	}
-	// If anything failed so far, kill off the temp file
-	if (err) {
-		unlink(ds->tempname);
-	}
-	free(ds);
-	if (err) {
-		errno = err;
-		return DW_ERROR;
-	} else {
-		return DW_OK;
-	}
-}
+//int disko_close(disko_t *ds, int backup)
+//{
+//	int err = ds->error;
+//
+//	// try to preserve the *first* error set, because it's most likely to be interesting
+//	if (fclose(ds->file) == EOF && !err) {
+//		err = errno;
+//	} else if (!err) {
+//		// preserve file mode, or set it sanely -- mkstemp() sets file mode to 0600
+//#ifndef GEKKO /* FIXME - autoconf check for this instead */
+//		struct stat st;
+//		if (stat(ds->filename, &st) < 0) {
+//			/* Probably didn't exist already, let's make something up.
+//			0777 is "safer" than 0, so we don't end up throwing around world-writable
+//			files in case something weird happens.
+//			See also: man 3 getumask */
+//			mode_t m = umask(0777);
+//			umask(m);
+//			st.st_mode = 0666 & ~m;
+//		}
+//#endif
+//		if (backup) {
+//			// back up the old file
+//			make_backup_file(ds->filename, (backup != 1));
+//		}
+//		if (rename_file(ds->tempname, ds->filename, 1) != 0) {
+//			err = errno;
+//		} else {
+//#ifndef GEKKO
+//			// Fix the permissions on the file
+//			chmod(ds->filename, st.st_mode);
+//#endif
+//		}
+//	}
+//	// If anything failed so far, kill off the temp file
+//	if (err) {
+//		unlink(ds->tempname);
+//	}
+//	free(ds);
+//	if (err) {
+//		errno = err;
+//		return DW_ERROR;
+//	} else {
+//		return DW_OK;
+//	}
+//}
 
 
 disko_t *disko_memopen(void)
@@ -573,211 +573,185 @@ static song_t export_dwsong;
 static int export_bps;
 static disko_t *export_ds[MAX_CHANNELS + 1]; /* only [0] is used unless multichannel */
 static const struct save_format *export_format = NULL; /* NULL == not running */
-static struct timeval export_start_time;
-static int canceled = 0; /* this sucks, but so do I */
 
-static int disko_finish(void);
-
-
-// ---------------------------------------------------------------------------
-
-static char *get_filename(const char *template, int n)
-{
-	char *s, *sub, buf[4];
-
-	s = strdup(template);
-	if (!s)
-		return NULL;
-	sub = strcasestr(s, "%c");
-	if (!sub) {
-		errno = EINVAL;
-		free(s);
-		return NULL;
-	}
-	num99tostr(n, buf);
-	sub[0] = buf[0];
-	sub[1] = buf[1];
-	return s;
-}
-
-int disko_export_song(const char *filename, const struct save_format *format)
-{
-	int err = 0;
-	int numfiles, n;
-
-	if (export_format) {
-		log_appendf(4, "Another export is already active");
-		errno = EAGAIN;
-		return DW_ERROR;
-	}
-
-	gettimeofday(&export_start_time, NULL);
-
-	numfiles = format->f.export.multi ? MAX_CHANNELS : 1;
-
-	_export_setup(&export_dwsong, &export_bps);
-	if (numfiles > 1) {
-		export_dwsong.multi_write = calloc(numfiles, sizeof(struct multi_write));
-		if (!export_dwsong.multi_write)
-			err = errno ?: ENOMEM;
-	}
-
-	memset(export_ds, 0, sizeof(export_ds));
-	for (n = 0; n < numfiles; n++) {
-		if (numfiles > 1) {
-			char *tmp = get_filename(filename, n + 1);
-			if (tmp) {
-				export_ds[n] = disko_open(tmp);
-				free(tmp);
-			}
-		} else {
-			export_ds[n] = disko_open(filename);
-		}
-		if (!(export_ds[n] && format->f.export.head(export_ds[n], export_dwsong.mix_bits_per_sample,
-				export_dwsong.mix_channels, export_dwsong.mix_frequency) == DW_OK)) {
-			err = errno ?: EINVAL;
-			break;
-		}
-	}
-
-	if (err) {
-		_export_teardown();
-		free(export_dwsong.multi_write);
-		for (n = 0; export_ds[n]; n++) {
-			disko_seterror(export_ds[n], err); /* keep from writing a bunch of useless files */
-			disko_close(export_ds[n], 0);
-		}
-		errno = err ?: EINVAL;
-		log_perror(filename);
-		return DW_ERROR;
-	}
-
-	if (numfiles > 1) {
-		for (n = 0; n < numfiles; n++) {
-			export_dwsong.multi_write[n].data = export_ds[n];
-			/* Dumb casts, again */
-			export_dwsong.multi_write[n].write = (void *) format->f.export.body;
-			export_dwsong.multi_write[n].silence = (void *) format->f.export.silence;
-		}
-	}
-
-	log_appendf(5, " %d Hz, %d bit, %s",
-		export_dwsong.mix_frequency, export_dwsong.mix_bits_per_sample,
-		export_dwsong.mix_channels == 1 ? "mono" : "stereo");
-	export_format = format;
-	status.flags |= DISKWRITER_ACTIVE; /* tell main to care about us */
-
-//	disko_dialog_setup((csf_get_length(&export_dwsong) * export_dwsong.mix_frequency) ?: 1);
-
-	return DW_OK;
-}
+//int disko_export_song(const char *filename, const struct save_format *format)
+//{
+//	int err = 0;
+//	int numfiles, n;
+//
+//	if (export_format) {
+//		log_appendf(4, "Another export is already active");
+//		errno = EAGAIN;
+//		return DW_ERROR;
+//	}
+//
+//	gettimeofday(&export_start_time, NULL);
+//
+//	numfiles = format->f.export.multi ? MAX_CHANNELS : 1;
+//
+//	_export_setup(&export_dwsong, &export_bps);
+//	if (numfiles > 1) {
+//		export_dwsong.multi_write = calloc(numfiles, sizeof(struct multi_write));
+//		if (!export_dwsong.multi_write)
+//			err = errno ?: ENOMEM;
+//	}
+//
+//	memset(export_ds, 0, sizeof(export_ds));
+//	for (n = 0; n < numfiles; n++) {
+//		if (numfiles > 1) {
+//			char *tmp = get_filename(filename, n + 1);
+//			if (tmp) {
+//				export_ds[n] = disko_open(tmp);
+//				free(tmp);
+//			}
+//		} else {
+//			export_ds[n] = disko_open(filename);
+//		}
+//		if (!(export_ds[n] && format->f.export.head(export_ds[n], export_dwsong.mix_bits_per_sample,
+//				export_dwsong.mix_channels, export_dwsong.mix_frequency) == DW_OK)) {
+//			err = errno ?: EINVAL;
+//			break;
+//		}
+//	}
+//
+//	if (err) {
+//		_export_teardown();
+//		free(export_dwsong.multi_write);
+//		for (n = 0; export_ds[n]; n++) {
+//			disko_seterror(export_ds[n], err); /* keep from writing a bunch of useless files */
+//			disko_close(export_ds[n], 0);
+//		}
+//		errno = err ?: EINVAL;
+//		log_perror(filename);
+//		return DW_ERROR;
+//	}
+//
+//	if (numfiles > 1) {
+//		for (n = 0; n < numfiles; n++) {
+//			export_dwsong.multi_write[n].data = export_ds[n];
+//			/* Dumb casts, again */
+//			export_dwsong.multi_write[n].write = (void *) format->f.export.body;
+//			export_dwsong.multi_write[n].silence = (void *) format->f.export.silence;
+//		}
+//	}
+//
+//	log_appendf(5, " %d Hz, %d bit, %s",
+//		export_dwsong.mix_frequency, export_dwsong.mix_bits_per_sample,
+//		export_dwsong.mix_channels == 1 ? "mono" : "stereo");
+//	export_format = format;
+//	status.flags |= DISKWRITER_ACTIVE; /* tell main to care about us */
+//
+////	disko_dialog_setup((csf_get_length(&export_dwsong) * export_dwsong.mix_frequency) ?: 1);
+//
+//	return DW_OK;
+//}
 
 
 /* main calls this periodically when the .wav exporter is busy */
-int disko_sync(void)
-{
-	uint8_t buf[DW_BUFFER_SIZE];
-	size_t frames;
-	int n;
+//int disko_sync(void)
+//{
+//	uint8_t buf[DW_BUFFER_SIZE];
+//	size_t frames;
+//	int n;
+//
+//	if (!export_format) {
+//		log_appendf(4, "disko_sync: unexplained bacon");
+//		return DW_SYNC_ERROR; /* no writer running (why are we here?) */
+//	}
+//
+//	frames = csf_read(&export_dwsong, buf, sizeof(buf));
+//
+//	if (!export_dwsong.multi_write)
+//		export_format->f.export.body(export_ds[0], buf, frames * export_bps);
+//	/* always check if something died, multi-write or not */
+//	for (n = 0; export_ds[n]; n++) {
+//		if (export_ds[n]->error) {
+//			disko_finish();
+//			return DW_SYNC_ERROR;
+//		}
+//	}
+//
+//	/* update the progress bar (kind of messy, yes...) */
+//	export_ds[0]->length += frames;
+////	status.flags |= NEED_UPDATE;
+//
+//	if (export_dwsong.flags & SONG_ENDREACHED) {
+//		disko_finish();
+//		return DW_SYNC_DONE;
+//	} else {
+//		return DW_SYNC_MORE;
+//	}
+//}
 
-	if (!export_format) {
-		log_appendf(4, "disko_sync: unexplained bacon");
-		return DW_SYNC_ERROR; /* no writer running (why are we here?) */
-	}
-
-	frames = csf_read(&export_dwsong, buf, sizeof(buf));
-
-	if (!export_dwsong.multi_write)
-		export_format->f.export.body(export_ds[0], buf, frames * export_bps);
-	/* always check if something died, multi-write or not */
-	for (n = 0; export_ds[n]; n++) {
-		if (export_ds[n]->error) {
-			disko_finish();
-			return DW_SYNC_ERROR;
-		}
-	}
-
-	/* update the progress bar (kind of messy, yes...) */
-	export_ds[0]->length += frames;
-//	status.flags |= NEED_UPDATE;
-
-	if (export_dwsong.flags & SONG_ENDREACHED) {
-		disko_finish();
-		return DW_SYNC_DONE;
-	} else {
-		return DW_SYNC_MORE;
-	}
-}
-
-static int disko_finish(void)
-{
-	int ret = DW_OK, n, tmp;
-	struct timeval export_end_time;
-	double elapsed;
-	int num_files = 0;
-	size_t samples_0 = 0;
-
-	if (!export_format) {
-		log_appendf(4, "disko_finish: unexplained eggs");
-		return DW_ERROR; /* no writer running (why are we here?) */
-	}
-
-	if (!canceled) {
-//		dialog_destroy();
-	}
-
-	samples_0 = export_ds[0]->length;
-	for (n = 0; export_ds[n]; n++) {
-		if (export_dwsong.multi_write && !export_dwsong.multi_write[n].used) {
-			/* this channel was completely empty - don't bother with it */
-			disko_seterror(export_ds[n], EINVAL); /* kludge */
-			disko_close(export_ds[n], 0);
-		} else {
-			/* there was noise on this channel */
-			num_files++;
-			if (export_format->f.export.tail(export_ds[n]) != DW_OK)
-				disko_seterror(export_ds[n], errno);
-			tmp = disko_close(export_ds[n], 0);
-			if (ret == DW_OK)
-				ret = tmp;
-		}
-	}
-	memset(export_ds, 0, sizeof(export_ds));
-
-	_export_teardown();
-	free(export_dwsong.multi_write);
-	export_format = NULL;
-
-	status.flags &= ~DISKWRITER_ACTIVE; /* please unsubscribe me from your mailing list */
-
-	switch (ret) {
-	case DW_OK:
-		gettimeofday(&export_end_time, NULL);
-		elapsed = (export_end_time.tv_sec - export_start_time.tv_sec)
-			+ ((export_end_time.tv_usec - export_start_time.tv_usec) / 1000000.0);
-		char fmt[80] = " %.2f mb (%d:%02d) written in %.2lf sec";
-		if (elapsed >= 9.5 && elapsed < 10.5) {
-			strcpy(strrchr(fmt, '%'), "ten seconds flat");
-		}
-		log_appendf(5, fmt,
-			((double) samples_0 * (disko_output_bits / 8) * export_dwsong.mix_channels * num_files) / 1048576.0,
-			samples_0 / disko_output_rate / 60, (samples_0 / disko_output_rate) % 60,
-			elapsed);
-		break;
-	case DW_ERROR:
-		/* hey, what was the filename? oops */
-		if (canceled)
-			log_appendf(5, " Canceled");
-		else
-			log_perror(" Write error");
-		break;
-	default:
-		log_appendf(5, " Internal error exporting song");
-		break;
-	}
-
-	return ret;
-}
+//static int disko_finish(void)
+//{
+//	int ret = DW_OK, n, tmp;
+//	struct timeval export_end_time;
+//	double elapsed;
+//	int num_files = 0;
+//	size_t samples_0 = 0;
+//
+//	if (!export_format) {
+//		log_appendf(4, "disko_finish: unexplained eggs");
+//		return DW_ERROR; /* no writer running (why are we here?) */
+//	}
+//
+//	if (!canceled) {
+////		dialog_destroy();
+//	}
+//
+//	samples_0 = export_ds[0]->length;
+//	for (n = 0; export_ds[n]; n++) {
+//		if (export_dwsong.multi_write && !export_dwsong.multi_write[n].used) {
+//			/* this channel was completely empty - don't bother with it */
+//			disko_seterror(export_ds[n], EINVAL); /* kludge */
+//			disko_close(export_ds[n], 0);
+//		} else {
+//			/* there was noise on this channel */
+//			num_files++;
+//			if (export_format->f.export.tail(export_ds[n]) != DW_OK)
+//				disko_seterror(export_ds[n], errno);
+//			tmp = disko_close(export_ds[n], 0);
+//			if (ret == DW_OK)
+//				ret = tmp;
+//		}
+//	}
+//	memset(export_ds, 0, sizeof(export_ds));
+//
+//	_export_teardown();
+//	free(export_dwsong.multi_write);
+//	export_format = NULL;
+//
+//	status.flags &= ~DISKWRITER_ACTIVE; /* please unsubscribe me from your mailing list */
+//
+//	switch (ret) {
+//	case DW_OK:
+//		gettimeofday(&export_end_time, NULL);
+//		elapsed = (export_end_time.tv_sec - export_start_time.tv_sec)
+//			+ ((export_end_time.tv_usec - export_start_time.tv_usec) / 1000000.0);
+//		char fmt[80] = " %.2f mb (%d:%02d) written in %.2lf sec";
+//		if (elapsed >= 9.5 && elapsed < 10.5) {
+//			strcpy(strrchr(fmt, '%'), "ten seconds flat");
+//		}
+//		log_appendf(5, fmt,
+//			((double) samples_0 * (disko_output_bits / 8) * export_dwsong.mix_channels * num_files) / 1048576.0,
+//			samples_0 / disko_output_rate / 60, (samples_0 / disko_output_rate) % 60,
+//			elapsed);
+//		break;
+//	case DW_ERROR:
+//		/* hey, what was the filename? oops */
+//		if (canceled)
+//			log_appendf(5, " Canceled");
+//		else
+//			log_perror(" Write error");
+//		break;
+//	default:
+//		log_appendf(5, " Internal error exporting song");
+//		break;
+//	}
+//
+//	return ret;
+//}
 
 // ---------------------------------------------------------------------------
 

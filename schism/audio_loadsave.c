@@ -885,160 +885,160 @@ static char *mangle_filename(const char *in, const char *mid, const char *ext)
 	return ret;
 }
 
-int song_export(const char *filename, const char *type)
-{
-	const struct save_format *format = get_save_format(song_export_formats, type);
-	const char *mid;
-	char *mangle;
-	int r;
+//int song_export(const char *filename, const char *type)
+//{
+//	const struct save_format *format = get_save_format(song_export_formats, type);
+//	const char *mid;
+//	char *mangle;
+//	int r;
+//
+//	if (!format)
+//		return SAVE_INTERNAL_ERROR;
+//
+//	mid = (format->f.export.multi && strcasestr(filename, "%c") == NULL) ? ".%c" : NULL;
+//	mangle = mangle_filename(filename, mid, format->ext);
+//
+//	log_nl();
+//	log_nl();
+//	log_appendf(2, "Exporting to %s", format->name);
+//	log_underline(strlen(format->name) + 13);
+//
+//	/* disko does the rest of the log messages itself */
+//	r = disko_export_song(mangle, format);
+//	free(mangle);
+//	switch (r) {
+//	case DW_OK:
+//		return SAVE_SUCCESS;
+//	case DW_ERROR:
+//		return SAVE_FILE_ERROR;
+//	default:
+//		return SAVE_INTERNAL_ERROR;
+//	}
+//}
 
-	if (!format)
-		return SAVE_INTERNAL_ERROR;
 
-	mid = (format->f.export.multi && strcasestr(filename, "%c") == NULL) ? ".%c" : NULL;
-	mangle = mangle_filename(filename, mid, format->ext);
+//int song_save(const char *filename, const char *type)
+//{
+//	int ret, backup;
+//	const struct save_format *format = get_save_format(song_save_formats, type);
+//	char *mangle;
+//
+//	if (!format)
+//		return SAVE_INTERNAL_ERROR;
+//
+//	mangle = mangle_filename(filename, NULL, format->ext);
+//
+//	log_nl();
+//	log_nl();
+//	log_appendf(2, "Saving %s module", format->name);
+//	log_underline(strlen(format->name) + 14);
+//
+///* TODO: add or replace file extension as appropriate
+//
+//From IT 2.10 update:
+//  - Automatic filename extension replacement on Ctrl-S, so that if you press
+//    Ctrl-S after loading a .MOD, .669, .MTM or .XM, the filename will be
+//    automatically modified to have a .IT extension.
+//
+//In IT, if the filename given has no extension ("basename"), then the extension for the proper file type
+//(IT/S3M) will be appended to the name.
+//A filename with an extension is not modified, even if the extension is blank. (as in "basename.")
+//
+//This brings up a rather odd bit of behavior: what happens when saving a file with the deliberately wrong
+//extension? Selecting the IT type and saving as "test.s3m" works just as one would expect: an IT file is
+//written, with the name "test.s3m". No surprises yet, but as soon as Ctrl-S is used, the filename is "fixed",
+//producing a second file called "test.it". The reverse happens when trying to save an S3M named "test.it" --
+//it's rewritten to "test.s3m".
+//Note that in these scenarios, Impulse Tracker *DOES NOT* check if an existing file by that name exists; it
+//will GLADLY overwrite the old "test.s3m" (or .it) with the renamed file that's being saved. Presumably this
+//is NOT intentional behavior.
+//
+//Another note: if the file could not be saved for some reason or another, Impulse Tracker pops up a dialog
+//saying "Could not save file". This can be seen rather easily by trying to save a file with a malformed name,
+//such as "abc|def.it". This dialog is presented both when saving from F10 and Ctrl-S.
+//*/
+//
+//	disko_t *fp = disko_open(mangle);
+//	if (!fp) {
+//		log_perror(mangle);
+//		free(mangle);
+//		return SAVE_FILE_ERROR;
+//	}
+//
+//	ret = format->f.save_song(fp, current_song);
+//	if (ret != SAVE_SUCCESS)
+//		disko_seterror(fp, EINVAL);
+//	backup = ((status.flags & MAKE_BACKUPS)
+//		  ? (status.flags & NUMBERED_BACKUPS)
+//		  ? 65536 : 1 : 0);
+//	if (disko_close(fp, backup) == DW_ERROR && ret == SAVE_SUCCESS) {
+//		// this was not as successful as originally claimed!
+//		ret = SAVE_FILE_ERROR;
+//	}
+//
+//	switch (ret) {
+//	case SAVE_SUCCESS:
+//		status.flags &= ~SONG_NEEDS_SAVE;
+//		if (strcasecmp(song_filename, mangle))
+//			song_set_filename(mangle);
+//		log_appendf(5, " Done");
+//		break;
+//	case SAVE_FILE_ERROR:
+//		log_perror(mangle);
+//		break;
+//	case SAVE_INTERNAL_ERROR:
+//	default: // ???
+//		log_appendf(4, " Internal error saving song");
+//		break;
+//	}
+//
+//	free(mangle);
+//	return ret;
+//}
 
-	log_nl();
-	log_nl();
-	log_appendf(2, "Exporting to %s", format->name);
-	log_underline(strlen(format->name) + 13);
-
-	/* disko does the rest of the log messages itself */
-	r = disko_export_song(mangle, format);
-	free(mangle);
-	switch (r) {
-	case DW_OK:
-		return SAVE_SUCCESS;
-	case DW_ERROR:
-		return SAVE_FILE_ERROR;
-	default:
-		return SAVE_INTERNAL_ERROR;
-	}
-}
-
-
-int song_save(const char *filename, const char *type)
-{
-	int ret, backup;
-	const struct save_format *format = get_save_format(song_save_formats, type);
-	char *mangle;
-
-	if (!format)
-		return SAVE_INTERNAL_ERROR;
-
-	mangle = mangle_filename(filename, NULL, format->ext);
-
-	log_nl();
-	log_nl();
-	log_appendf(2, "Saving %s module", format->name);
-	log_underline(strlen(format->name) + 14);
-
-/* TODO: add or replace file extension as appropriate
-
-From IT 2.10 update:
-  - Automatic filename extension replacement on Ctrl-S, so that if you press
-    Ctrl-S after loading a .MOD, .669, .MTM or .XM, the filename will be
-    automatically modified to have a .IT extension.
-
-In IT, if the filename given has no extension ("basename"), then the extension for the proper file type
-(IT/S3M) will be appended to the name.
-A filename with an extension is not modified, even if the extension is blank. (as in "basename.")
-
-This brings up a rather odd bit of behavior: what happens when saving a file with the deliberately wrong
-extension? Selecting the IT type and saving as "test.s3m" works just as one would expect: an IT file is
-written, with the name "test.s3m". No surprises yet, but as soon as Ctrl-S is used, the filename is "fixed",
-producing a second file called "test.it". The reverse happens when trying to save an S3M named "test.it" --
-it's rewritten to "test.s3m".
-Note that in these scenarios, Impulse Tracker *DOES NOT* check if an existing file by that name exists; it
-will GLADLY overwrite the old "test.s3m" (or .it) with the renamed file that's being saved. Presumably this
-is NOT intentional behavior.
-
-Another note: if the file could not be saved for some reason or another, Impulse Tracker pops up a dialog
-saying "Could not save file". This can be seen rather easily by trying to save a file with a malformed name,
-such as "abc|def.it". This dialog is presented both when saving from F10 and Ctrl-S.
-*/
-
-	disko_t *fp = disko_open(mangle);
-	if (!fp) {
-		log_perror(mangle);
-		free(mangle);
-		return SAVE_FILE_ERROR;
-	}
-
-	ret = format->f.save_song(fp, current_song);
-	if (ret != SAVE_SUCCESS)
-		disko_seterror(fp, EINVAL);
-	backup = ((status.flags & MAKE_BACKUPS)
-		  ? (status.flags & NUMBERED_BACKUPS)
-		  ? 65536 : 1 : 0);
-	if (disko_close(fp, backup) == DW_ERROR && ret == SAVE_SUCCESS) {
-		// this was not as successful as originally claimed!
-		ret = SAVE_FILE_ERROR;
-	}
-
-	switch (ret) {
-	case SAVE_SUCCESS:
-		status.flags &= ~SONG_NEEDS_SAVE;
-		if (strcasecmp(song_filename, mangle))
-			song_set_filename(mangle);
-		log_appendf(5, " Done");
-		break;
-	case SAVE_FILE_ERROR:
-		log_perror(mangle);
-		break;
-	case SAVE_INTERNAL_ERROR:
-	default: // ???
-		log_appendf(4, " Internal error saving song");
-		break;
-	}
-
-	free(mangle);
-	return ret;
-}
-
-int song_save_sample(const char *filename, const char *type, song_sample_t *smp, int num)
-{
-	int ret;
-	const struct save_format *format = get_save_format(sample_save_formats, type);
-
-	if (!format)
-		return SAVE_INTERNAL_ERROR;
-
-	if (!filename || !filename[0]) {
-//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "No Filename?");
-		return SAVE_INTERNAL_ERROR; // ?
-	}
-
-	disko_t *fp = disko_open(filename);
-	if (fp) {
-		ret = format->f.save_sample(fp, smp);
-		if (ret != SAVE_SUCCESS)
-			disko_seterror(fp, EINVAL);
-		if (disko_close(fp, 0) == DW_ERROR && ret == SAVE_SUCCESS) {
-			// this was not as successful as originally claimed!
-			ret = SAVE_FILE_ERROR;
-		}
-	} else {
-		ret = SAVE_FILE_ERROR;
-	}
-
-	switch (ret) {
-	case SAVE_SUCCESS:
-//		status_text_flash("%s sample saved (sample %d)", format->name, num);
-		break;
-	case SAVE_FILE_ERROR:
-//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "File Error");
-		log_perror(get_basename(filename));
-		break;
-	case SAVE_INTERNAL_ERROR:
-	default: // ???
-//		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "Internal error");
-		log_appendf(4, "Internal error saving sample");
-		break;
-	}
-
-	return ret;
-}
+//int song_save_sample(const char *filename, const char *type, song_sample_t *smp, int num)
+//{
+//	int ret;
+//	const struct save_format *format = get_save_format(sample_save_formats, type);
+//
+//	if (!format)
+//		return SAVE_INTERNAL_ERROR;
+//
+//	if (!filename || !filename[0]) {
+////		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "No Filename?");
+//		return SAVE_INTERNAL_ERROR; // ?
+//	}
+//
+//	disko_t *fp = disko_open(filename);
+//	if (fp) {
+//		ret = format->f.save_sample(fp, smp);
+//		if (ret != SAVE_SUCCESS)
+//			disko_seterror(fp, EINVAL);
+//		if (disko_close(fp, 0) == DW_ERROR && ret == SAVE_SUCCESS) {
+//			// this was not as successful as originally claimed!
+//			ret = SAVE_FILE_ERROR;
+//		}
+//	} else {
+//		ret = SAVE_FILE_ERROR;
+//	}
+//
+//	switch (ret) {
+//	case SAVE_SUCCESS:
+////		status_text_flash("%s sample saved (sample %d)", format->name, num);
+//		break;
+//	case SAVE_FILE_ERROR:
+////		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "File Error");
+//		log_perror(get_basename(filename));
+//		break;
+//	case SAVE_INTERNAL_ERROR:
+//	default: // ???
+////		status_text_flash("Error: Sample %d NOT saved! (%s)", num, "Internal error");
+//		log_appendf(4, "Internal error saving sample");
+//		break;
+//	}
+//
+//	return ret;
+//}
 
 // ------------------------------------------------------------------------
 
@@ -1288,33 +1288,33 @@ void song_create_host_instrument(int smp, int ins)
 
 // ------------------------------------------------------------------------
 
-int song_save_instrument(int n, const char *file)
-{
-	song_instrument_t *ins = current_song->instruments[n];
-
-	log_appendf(2, "Saving instrument %s", file);
-	if (!ins) {
-		/* this should never happen */
-		log_appendf(4, "Instrument %d: there is no spoon", n);
-		return 0;
-	}
-
-	if (file[0] == '\0') {
-		log_appendf(4, "Instrument %d: no filename", n);
-		return 0;
-	}
-	disko_t *fp = disko_open(file);
-	if (!fp) {
-		log_perror(get_basename(file));
-		return 0;
-	}
-	_save_it_instrument(n-1 /* grr.... */, fp, 1);
-	if (disko_close(fp, 0) == DW_ERROR) {
-		log_perror(get_basename(file));
-		return 0;
-	}
-	return 1;
-}
+//int song_save_instrument(int n, const char *file)
+//{
+//	song_instrument_t *ins = current_song->instruments[n];
+//
+//	log_appendf(2, "Saving instrument %s", file);
+//	if (!ins) {
+//		/* this should never happen */
+//		log_appendf(4, "Instrument %d: there is no spoon", n);
+//		return 0;
+//	}
+//
+//	if (file[0] == '\0') {
+//		log_appendf(4, "Instrument %d: no filename", n);
+//		return 0;
+//	}
+//	disko_t *fp = disko_open(file);
+//	if (!fp) {
+//		log_perror(get_basename(file));
+//		return 0;
+//	}
+//	_save_it_instrument(n-1 /* grr.... */, fp, 1);
+//	if (disko_close(fp, 0) == DW_ERROR) {
+//		log_perror(get_basename(file));
+//		return 0;
+//	}
+//	return 1;
+//}
 
 // ------------------------------------------------------------------------
 // song information
