@@ -29,8 +29,6 @@
 #include "slurp.h"
 #include "util.h"
 
-#include "disko.h"
-
 #include "sndfile.h"
 
 /* --------------------------------------------------------------------------------------------------------- */
@@ -60,61 +58,20 @@ enum {
 
 #define PROTO_READ_INFO         (dmoz_file_t *file, const uint8_t *data, size_t length)
 #define PROTO_LOAD_SONG         (song_t *song, slurp_t *fp, unsigned int lflags)
-#define PROTO_SAVE_SONG         (disko_t *fp, song_t *song)
 #define PROTO_LOAD_SAMPLE       (const uint8_t *data, size_t length, song_sample_t *smp)
-#define PROTO_SAVE_SAMPLE       (disko_t *fp, song_sample_t *smp)
 #define PROTO_LOAD_INSTRUMENT   (const uint8_t *data, size_t length, int slot)
-#define PROTO_EXPORT_HEAD       (disko_t *fp, int bits, int channels, int rate)
-#define PROTO_EXPORT_SILENCE    (disko_t *fp, long bytes)
-#define PROTO_EXPORT_BODY       (disko_t *fp, const uint8_t *data, size_t length)
-#define PROTO_EXPORT_TAIL       (disko_t *fp)
 
 typedef int (*fmt_read_info_func)       PROTO_READ_INFO;
 typedef int (*fmt_load_song_func)       PROTO_LOAD_SONG;
-typedef int (*fmt_save_song_func)       PROTO_SAVE_SONG;
 typedef int (*fmt_load_sample_func)     PROTO_LOAD_SAMPLE;
-typedef int (*fmt_save_sample_func)     PROTO_SAVE_SAMPLE;
 typedef int (*fmt_load_instrument_func) PROTO_LOAD_INSTRUMENT;
-typedef int (*fmt_export_head_func)     PROTO_EXPORT_HEAD;
-typedef int (*fmt_export_silence_func)  PROTO_EXPORT_SILENCE;
-typedef int (*fmt_export_body_func)     PROTO_EXPORT_BODY;
-typedef int (*fmt_export_tail_func)     PROTO_EXPORT_TAIL;
 
 #define READ_INFO(t)            int fmt_##t##_read_info         PROTO_READ_INFO;
 #define LOAD_SONG(t)            int fmt_##t##_load_song         PROTO_LOAD_SONG;
-#define SAVE_SONG(t)            int fmt_##t##_save_song         PROTO_SAVE_SONG;
 #define LOAD_SAMPLE(t)          int fmt_##t##_load_sample       PROTO_LOAD_SAMPLE;
-#define SAVE_SAMPLE(t)          int fmt_##t##_save_sample       PROTO_SAVE_SAMPLE;
 #define LOAD_INSTRUMENT(t)      int fmt_##t##_load_instrument   PROTO_LOAD_INSTRUMENT;
-#define EXPORT(t)               int fmt_##t##_export_head       PROTO_EXPORT_HEAD; \
-				int fmt_##t##_export_silence    PROTO_EXPORT_SILENCE; \
-				int fmt_##t##_export_body       PROTO_EXPORT_BODY; \
-				int fmt_##t##_export_tail       PROTO_EXPORT_TAIL;
 
 #include "fmt-types.h"
-
-/* --------------------------------------------------------------------------------------------------------- */
-
-struct save_format {
-	const char *label; // label for the button on the save page
-	const char *name; // long name of format
-	const char *ext; // no dot
-	union {
-		fmt_save_song_func save_song;
-		fmt_save_sample_func save_sample;
-		struct {
-			fmt_export_head_func head;
-			fmt_export_silence_func silence;
-			fmt_export_body_func body;
-			fmt_export_tail_func tail;
-			int multi;
-		} export;
-	} f;
-};
-
-extern const struct save_format song_save_formats[];
-extern const struct save_format song_export_formats[];
-extern const struct save_format sample_save_formats[];
 
 /* --------------------------------------------------------------------------------------------------------- */
 struct instrumentloader {
@@ -136,7 +93,6 @@ uint16_t mdl_read_bits(uint32_t *bitbuf, uint32_t *bitnum, uint8_t **ibuf, int8_
 /* --------------------------------------------------------------------------------------------------------- */
 
 /* shared by the .it, .its, and .iti saving functions */
-void save_its_header(disko_t *fp, song_sample_t *smp);
 int load_its_sample(const uint8_t *header, const uint8_t *data, size_t length, song_sample_t *smp);
 
 /* --------------------------------------------------------------------------------------------------------- */
