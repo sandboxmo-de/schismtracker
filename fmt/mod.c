@@ -28,7 +28,6 @@
 
 #include "sndfile.h"
 
-#include "version.h"
 #include "disko.h"
 #include "log.h"
 
