@@ -172,30 +172,8 @@ char *pretty_name(const char *filename);
 int get_num_lines(const char *text);
 char *str_concat(const char *s, ...);
 
-
-/* filesystem */
-int make_backup_file(const char *filename, int numbered);
-int is_directory(const char *filename);
-/* following functions should free() the resulting strings */
-char *get_home_directory(void); /* "default" directory for user files, i.e. $HOME, My Documents, etc. */
-char *get_dot_directory(void); /* where settings files go (%AppData% on Windows, same as $HOME elsewhere) */
-char *get_current_directory(void); /* just a getcwd() wrapper */
-
-void put_env_var(const char *key, const char *value);
-void unset_env_var(const char *key);
-
-/* integer sqrt (very fast; 32 bits limited) */
-unsigned int i_sqrt(unsigned int r);
-
 /* sleep in msec */
 void ms_sleep(unsigned int m);
-
-/* run a hook */
-int run_hook(const char *dir, const char *name, const char *maybe_arg);
-
-/* Mostly a glorified rename(), with fixes for certain dumb OSes.
-If 'overwrite' is zero, attempts to rename over an existing file will fail with EEXIST. */
-int rename_file(const char *old, const char *newf, int overwrite);
 
 #endif /* ! UTIL_H */
 
