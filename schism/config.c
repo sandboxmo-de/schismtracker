@@ -35,8 +35,8 @@
 /* --------------------------------------------------------------------- */
 /* config settings */
 
-char cfg_dir_modules[PATH_MAX + 1], cfg_dir_samples[PATH_MAX + 1], cfg_dir_instruments[PATH_MAX + 1],
-	cfg_dir_dotschism[PATH_MAX + 1];
+//char cfg_dir_modules[PATH_MAX + 1], cfg_dir_samples[PATH_MAX + 1], cfg_dir_instruments[PATH_MAX + 1],
+//	cfg_dir_dotschism[PATH_MAX + 1];
 
 /* --------------------------------------------------------------------- */
 
@@ -59,19 +59,19 @@ void cfg_init_dir(void)
 
 	dot_dir = get_dot_directory();
 	ptr = dmoz_path_concat(dot_dir, DOT_SCHISM);
-	strncpy(cfg_dir_dotschism, ptr, PATH_MAX);
-	cfg_dir_dotschism[PATH_MAX] = 0;
+//	strncpy(cfg_dir_dotschism, ptr, PATH_MAX);
+//	cfg_dir_dotschism[PATH_MAX] = 0;
 	free(dot_dir);
 	free(ptr);
 
-	if (!is_directory(cfg_dir_dotschism)) {
-		printf("Creating directory %s\n", cfg_dir_dotschism);
-		printf("Schism Tracker uses this directory to store your settings.\n");
-		if (mkdir(cfg_dir_dotschism, 0777) != 0) {
-			perror("Error creating directory");
-			fprintf(stderr, "Everything will still work, but preferences will not be saved.\n");
-		}
-	}
+//	if (!is_directory(cfg_dir_dotschism)) {
+//		printf("Creating directory %s\n", cfg_dir_dotschism);
+//		printf("Schism Tracker uses this directory to store your settings.\n");
+//		if (mkdir(cfg_dir_dotschism, 0777) != 0) {
+//			perror("Error creating directory");
+//			fprintf(stderr, "Everything will still work, but preferences will not be saved.\n");
+//		}
+//	}
 #endif
 }
 
@@ -79,52 +79,29 @@ void cfg_init_dir(void)
 
 void cfg_load(void)
 {
-	char *tmp;
-//	int i;
-	cfg_file_t cfg;
-
-	tmp = dmoz_path_concat(cfg_dir_dotschism, "config");
-	cfg_init(&cfg, tmp);
-	free(tmp);
+	cfg_load_audio(NULL);
+	cfg_load_midi(NULL);
+	cfg_load_disko(NULL);
+	cfg_load_dmoz(NULL);
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-//	tmp = get_home_directory();
-//	cfg_get_string(&cfg, "Directories", "modules", cfg_dir_modules, PATH_MAX, tmp);
-//	cfg_get_string(&cfg, "Directories", "samples", cfg_dir_samples, PATH_MAX, tmp);
-//	cfg_get_string(&cfg, "Directories", "instruments", cfg_dir_instruments, PATH_MAX, tmp);
-//	free(tmp);
-
-	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-//	cfg_load_info(&cfg);
-//	cfg_load_patedit(&cfg);
-	cfg_load_audio(&cfg);
-	cfg_load_midi(&cfg);
-	cfg_load_disko(&cfg);
-	cfg_load_dmoz(&cfg);
-
-	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-	if (cfg_get_number(&cfg, "General", "classic_mode", 0))
+	if (cfg_get_number(NULL, "General", "classic_mode", 0))
 		status.flags |= CLASSIC_MODE;
 	else
 		status.flags &= ~CLASSIC_MODE;
-	if (cfg_get_number(&cfg, "General", "make_backups", 1))
+	if (cfg_get_number(NULL, "General", "make_backups", 1))
 		status.flags |= MAKE_BACKUPS;
 	else
 		status.flags &= ~MAKE_BACKUPS;
-	if (cfg_get_number(&cfg, "General", "numbered_backups", 0))
+	if (cfg_get_number(NULL, "General", "numbered_backups", 0))
 		status.flags |= NUMBERED_BACKUPS;
 	else
 		status.flags &= ~NUMBERED_BACKUPS;
 
-	if (cfg_get_number(&cfg, "General", "midi_like_tracker", 0))
+	if (cfg_get_number(NULL, "General", "midi_like_tracker", 0))
 		status.flags |= MIDI_LIKE_TRACKER;
 	else
 		status.flags &= ~MIDI_LIKE_TRACKER;
 
-	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-	cfg_free(&cfg);
 }

@@ -331,111 +331,15 @@ int cfg_read(cfg_file_t *cfg)
 	return 0;
 }
 
-int cfg_write(cfg_file_t *cfg)
-{
-	struct cfg_section *section;
-	struct cfg_key *key;
-	FILE *fp;
-
-	if (!cfg->filename) {
-		/* FIXME | don't print a message here! this should be considered library code.
-		 * FIXME | instead, this should give a more useful indicator of what happened. */
-		fprintf(stderr, "bbq, cfg_write called with no filename\n");
-		return -1;
-	}
-
-	if (!cfg->dirty)
-		return 0;
-	cfg->dirty = 0;
-
-	make_backup_file(cfg->filename, 0);
-
-	fp = fopen(cfg->filename, "wb");
-	if (!fp) {
-		/* FIXME: don't print a message here! */
-		perror(cfg->filename);
-		return -1;
-	}
-
-	/* I should be checking a lot more return values, but ... meh */
-
-	for (section = cfg->sections; section; section = section->next) {
-		if (section->comments)
-			fprintf(fp, "%s", section->comments);
-		if (section->omit) fputc('#', fp);
-		fprintf(fp, "[%s]\n", section->name);
-		for (key = section->keys; key; key = key->next) {
-			/* NOTE: key names are intentionally not escaped in any way;
-			 * it is up to the program to choose names that aren't stupid.
-			 * (cfg_delete_key uses this to comment out a key name) */
-			if (key->comments)
-				fprintf(fp, "%s", key->comments);
-			if (section->omit) fputc('#', fp);
-			/* TODO | if no keys in a section have defined values,
-			 * TODO | comment out the section header as well. (this
-			 * TODO | might be difficult since it's already been
-			 * TODO | written to the file) */
-			if (key->value) {
-				char *tmp = str_escape(key->value, 1);
-				fprintf(fp, "%s=%s\n", key->name, tmp);
-				free(tmp);
-			} else {
-				fprintf(fp, "# %s=(undefined)\n", key->name);
-			}
-		}
-	}
-	if (cfg->eof_comments)
-		fprintf(fp, "%s", cfg->eof_comments);
-
-	fclose(fp);
-
-	return 0;
-}
-
 const char *cfg_get_string(cfg_file_t *cfg, const char *section_name, const char *key_name,
 			   char *value, int len, const char *def)
 {
-	struct cfg_section *section;
-	struct cfg_key *key;
-	const char *r = def;
-
-	section = _get_section(cfg, section_name, 0);
-	if (section) {
-		key = _get_key(section, key_name, 0);
-		if (key && key->value)
-			r = key->value;
-	}
-	if (value && r) {
-		//copy up to len chars [0..len-1]
-		strncpy(value, r, len);
-		value[len] = 0;
-	}
-	return r;
+	return def;
 }
 
 int cfg_get_number(cfg_file_t *cfg, const char *section_name, const char *key_name, int def)
 {
-	struct cfg_section *section;
-	struct cfg_key *key;
-	char *e;
-	long r = def;
-
-	section = _get_section(cfg, section_name, 0);
-	if (section) {
-		key = _get_key(section, key_name, 0);
-		if (key && key->value && key->value[0]) {
-			r = strtol(key->value, &e, 10);
-			if (e == key->value) {
-				/* Not a number */
-				r = def;
-			} else if (*e) {
-				/* Junk at the end of the string. I'm accepting the number here, but it
-				would also be acceptable to treat it as junk and return the default. */
-				/* r = def; */
-			}
-		}
-	}
-	return r;
+	return def;
 }
 
 void cfg_set_string(cfg_file_t *cfg, const char *section_name, const char *key_name, const char *value)
