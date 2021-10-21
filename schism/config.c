@@ -50,31 +50,6 @@ char cfg_dir_modules[PATH_MAX + 1], cfg_dir_samples[PATH_MAX + 1], cfg_dir_instr
 # define DOT_SCHISM ".schism"
 #endif
 
-void cfg_init_dir(void)
-{
-#if defined(__amigaos4__)
-	strcpy(cfg_dir_dotschism, "PROGDIR:");
-#else
-	char *dot_dir, *ptr;
-
-	dot_dir = get_dot_directory();
-	ptr = dmoz_path_concat(dot_dir, DOT_SCHISM);
-	strncpy(cfg_dir_dotschism, ptr, PATH_MAX);
-	cfg_dir_dotschism[PATH_MAX] = 0;
-	free(dot_dir);
-	free(ptr);
-
-	if (!is_directory(cfg_dir_dotschism)) {
-		printf("Creating directory %s\n", cfg_dir_dotschism);
-		printf("Schism Tracker uses this directory to store your settings.\n");
-		if (mkdir(cfg_dir_dotschism, 0777) != 0) {
-			perror("Error creating directory");
-			fprintf(stderr, "Everything will still work, but preferences will not be saved.\n");
-		}
-	}
-#endif
-}
-
 /* --------------------------------------------------------------------------------------------------------- */
 
 void cfg_load(void)
@@ -89,11 +64,11 @@ void cfg_load(void)
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-	tmp = get_home_directory();
-	cfg_get_string(&cfg, "Directories", "modules", cfg_dir_modules, PATH_MAX, tmp);
-	cfg_get_string(&cfg, "Directories", "samples", cfg_dir_samples, PATH_MAX, tmp);
-	cfg_get_string(&cfg, "Directories", "instruments", cfg_dir_instruments, PATH_MAX, tmp);
-	free(tmp);
+//	tmp = get_home_directory();
+//	cfg_get_string(&cfg, "Directories", "modules", cfg_dir_modules, PATH_MAX, tmp);
+//	cfg_get_string(&cfg, "Directories", "samples", cfg_dir_samples, PATH_MAX, tmp);
+//	cfg_get_string(&cfg, "Directories", "instruments", cfg_dir_instruments, PATH_MAX, tmp);
+//	free(tmp);
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -129,56 +104,56 @@ void cfg_load(void)
 	cfg_free(&cfg);
 }
 
-void cfg_save(void)
-{
-	char *ptr;
-	cfg_file_t cfg;
+//void cfg_save(void)
+//{
+//	char *ptr;
+//	cfg_file_t cfg;
+//
+//	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
+//	cfg_init(&cfg, ptr);
+//	free(ptr);
+//
+//	// this wart is here because Storlek is retarded
+//	cfg_delete_key(&cfg, "Directories", "filename_pattern");
+//
+//	cfg_set_string(&cfg, "Directories", "modules", cfg_dir_modules);
+//	cfg_set_string(&cfg, "Directories", "samples", cfg_dir_samples);
+//	cfg_set_string(&cfg, "Directories", "instruments", cfg_dir_instruments);
+//
+////	cfg_save_info(&cfg);
+////	cfg_save_patedit(&cfg);
+//	cfg_save_audio(&cfg);
+////	cfg_save_palette(&cfg);
+//	cfg_save_disko(&cfg);
+//	cfg_save_dmoz(&cfg);
+//
+//	cfg_write(&cfg);
+//	cfg_free(&cfg);
+//}
 
-	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
-	cfg_init(&cfg, ptr);
-	free(ptr);
-
-	// this wart is here because Storlek is retarded
-	cfg_delete_key(&cfg, "Directories", "filename_pattern");
-
-	cfg_set_string(&cfg, "Directories", "modules", cfg_dir_modules);
-	cfg_set_string(&cfg, "Directories", "samples", cfg_dir_samples);
-	cfg_set_string(&cfg, "Directories", "instruments", cfg_dir_instruments);
-
-//	cfg_save_info(&cfg);
-//	cfg_save_patedit(&cfg);
-	cfg_save_audio(&cfg);
-//	cfg_save_palette(&cfg);
-	cfg_save_disko(&cfg);
-	cfg_save_dmoz(&cfg);
-
-	cfg_write(&cfg);
-	cfg_free(&cfg);
-}
-
-void cfg_atexit_save(void)
-{
-	char *ptr;
-	cfg_file_t cfg;
-
-	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
-	cfg_init(&cfg, ptr);
-	free(ptr);
-
-	cfg_atexit_save_audio(&cfg);
-
-	cfg_set_number(&cfg, "General", "classic_mode", !!(status.flags & CLASSIC_MODE));
-	cfg_set_number(&cfg, "General", "make_backups", !!(status.flags & MAKE_BACKUPS));
-	cfg_set_number(&cfg, "General", "numbered_backups", !!(status.flags & NUMBERED_BACKUPS));
-
-	cfg_set_number(&cfg, "General", "midi_like_tracker", !!(status.flags & MIDI_LIKE_TRACKER));
-
-	/* hm... most of the time probably nothing's different, so saving the
-	config file here just serves to make the backup useless. maybe add a
-	'dirty' flag to the config parser that checks if any settings are
-	actually *different* from those in the file? */
-
-	cfg_write(&cfg);
-	cfg_free(&cfg);
-}
+//void cfg_atexit_save(void)
+//{
+//	char *ptr;
+//	cfg_file_t cfg;
+//
+//	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
+//	cfg_init(&cfg, ptr);
+//	free(ptr);
+//
+//	cfg_atexit_save_audio(&cfg);
+//
+//	cfg_set_number(&cfg, "General", "classic_mode", !!(status.flags & CLASSIC_MODE));
+//	cfg_set_number(&cfg, "General", "make_backups", !!(status.flags & MAKE_BACKUPS));
+//	cfg_set_number(&cfg, "General", "numbered_backups", !!(status.flags & NUMBERED_BACKUPS));
+//
+//	cfg_set_number(&cfg, "General", "midi_like_tracker", !!(status.flags & MIDI_LIKE_TRACKER));
+//
+//	/* hm... most of the time probably nothing's different, so saving the
+//	config file here just serves to make the backup useless. maybe add a
+//	'dirty' flag to the config parser that checks if any settings are
+//	actually *different* from those in the file? */
+//
+//	cfg_write(&cfg);
+//	cfg_free(&cfg);
+//}
 

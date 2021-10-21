@@ -90,11 +90,11 @@ static void sdl_init(void)
 #if ENABLE_HOOKS
 static void run_startup_hook(void)
 {
-	run_hook(cfg_dir_dotschism, "startup-hook", NULL);
+//	run_hook(cfg_dir_dotschism, "startup-hook", NULL);
 }
 static void run_exit_hook(void)
 {
-	run_hook(cfg_dir_dotschism, "exit-hook", NULL);
+//	run_hook(cfg_dir_dotschism, "exit-hook", NULL);
 }
 #endif
 
@@ -149,43 +149,43 @@ static void parse_only_initial_song(int argc, char **argv)
 	free(cwd);
 }
 
-static void schism_shutdown(void)
-{
-#if ENABLE_HOOKS
-	if (shutdown_process & EXIT_HOOK)
-		run_exit_hook();
-#endif
-	if (shutdown_process & EXIT_SAVECFG)
-		cfg_atexit_save();
-
-#ifdef MACOSX
-	if (ibook_helper != -1)
-		macosx_ibook_fnswitch(ibook_helper);
-#endif
-	if (shutdown_process & EXIT_SDLQUIT) {
-		song_lock_audio();
-		song_stop_unlocked(1);
-		song_unlock_audio();
-
-		/*
-		If this is the atexit() handler, why are we calling SDL_Quit?
-
-		Simple, SDL's documentation says always call SDL_Quit. :) In
-		fact, in the examples they recommend writing atexit(SDL_Quit)
-		directly after SDL_Init. I'm not sure exactly why, but I don't
-		see a reason *not* to do it...
-			/ Storlek
-		*/
-		SDL_Quit();
-	}
-	os_sysexit();
-}
+//static void schism_shutdown(void)
+//{
+//#if ENABLE_HOOKS
+//	if (shutdown_process & EXIT_HOOK)
+//		run_exit_hook();
+//#endif
+////	if (shutdown_process & EXIT_SAVECFG)
+////		cfg_atexit_save();
+//
+//#ifdef MACOSX
+//	if (ibook_helper != -1)
+//		macosx_ibook_fnswitch(ibook_helper);
+//#endif
+//	if (shutdown_process & EXIT_SDLQUIT) {
+//		song_lock_audio();
+//		song_stop_unlocked(1);
+//		song_unlock_audio();
+//
+//		/*
+//		If this is the atexit() handler, why are we calling SDL_Quit?
+//
+//		Simple, SDL's documentation says always call SDL_Quit. :) In
+//		fact, in the examples they recommend writing atexit(SDL_Quit)
+//		directly after SDL_Init. I'm not sure exactly why, but I don't
+//		see a reason *not* to do it...
+//			/ Storlek
+//		*/
+//		SDL_Quit();
+//	}
+//	os_sysexit();
+//}
 
 int main(int argc, char **argv)
 {
 	os_sysinit(&argc, &argv);
 
-	atexit(schism_shutdown);
+//	atexit(schism_shutdown);
 
 	tzset(); // localtime_r wants this
 	srand(time(NULL));
@@ -195,7 +195,6 @@ int main(int argc, char **argv)
 	alsa_dlinit();
 #endif
 
-	cfg_init_dir();
 
 #if ENABLE_HOOKS
 	if (startup_flags & SF_HOOKS) {
@@ -206,11 +205,6 @@ int main(int argc, char **argv)
 #ifdef MACOSX
 	ibook_helper = macosx_ibook_fnswitch(1);
 #endif
-
-	/* Eh. */
-//	log_append2(0, 3, 0, schism_banner(0));
-	log_nl();
-	log_nl();
 
 	song_initialise();
 	cfg_load();
@@ -226,7 +220,6 @@ int main(int argc, char **argv)
 	os_sdlinit();	// only used by the Wii
 
 	midi_engine_start();
-	log_nl();
 	audio_init(audio_driver);
 	song_init_modplug();
 
@@ -244,15 +237,15 @@ int main(int argc, char **argv)
 			initial_dir = get_current_directory();
 		}
 	}
-	if (initial_dir) {
-		strncpy(cfg_dir_modules, initial_dir, PATH_MAX);
-		cfg_dir_modules[PATH_MAX] = 0;
-		strncpy(cfg_dir_samples, initial_dir, PATH_MAX);
-		cfg_dir_samples[PATH_MAX] = 0;
-		strncpy(cfg_dir_instruments, initial_dir, PATH_MAX);
-		cfg_dir_instruments[PATH_MAX] = 0;
-		free(initial_dir);
-	}
+//	if (initial_dir) {
+//		strncpy(cfg_dir_modules, initial_dir, PATH_MAX);
+//		cfg_dir_modules[PATH_MAX] = 0;
+//		strncpy(cfg_dir_samples, initial_dir, PATH_MAX);
+//		cfg_dir_samples[PATH_MAX] = 0;
+//		strncpy(cfg_dir_instruments, initial_dir, PATH_MAX);
+//		cfg_dir_instruments[PATH_MAX] = 0;
+//		free(initial_dir);
+//	}
 
 	if (initial_song) {
 		if (song_load_unchecked(initial_song)) {
