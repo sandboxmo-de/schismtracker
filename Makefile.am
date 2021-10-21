@@ -3,54 +3,6 @@
 AUTOMAKE_OPTIONS = foreign dist-bzip2 no-dist-gzip
 
 ## NOTE: helptexts should be in the same order as the enum in page.h
-helptexts = \
-	helptext/global-keys		\
-	helptext/copyright		\
-	helptext/info-page		\
-	helptext/instrument-list	\
-	helptext/message-editor		\
-	helptext/midi-output		\
-	helptext/orderlist-pan		\
-	helptext/orderlist-vol		\
-	helptext/pattern-editor		\
-	helptext/adlib-sample		\
-	helptext/sample-list
-fonts = \
-	font/default-lower.fnt		\
-	font/default-upper-alt.fnt	\
-	font/default-upper-itf.fnt	\
-	font/half-width.fnt
-icons = \
-	icons/appIcon.icns		\
-	icons/moduleIcon.icns		\
-	icons/schism-file-128.png	\
-	icons/schism-icon-128.png	\
-	icons/schism-icon-16.png	\
-	icons/schism-icon-192.png	\
-	icons/schism-icon-22.png	\
-	icons/schism-icon-24.png	\
-	icons/schism-icon-32.png	\
-	icons/schism-icon-36.png	\
-	icons/schism-icon-48.png	\
-	icons/schism-icon-64.png	\
-	icons/schism-icon-72.png	\
-	icons/schism-icon-96.png	\
-	icons/schism-icon.svg		\
-	icons/schism-itf-icon-128.png	\
-	icons/schism-itf-icon-16.png	\
-	icons/schism-itf-icon-192.png	\
-	icons/schism-itf-icon-22.png	\
-	icons/schism-itf-icon-24.png	\
-	icons/schism-itf-icon-32.png	\
-	icons/schism-itf-icon-36.png	\
-	icons/schism-itf-icon-48.png	\
-	icons/schism-itf-icon-64.png	\
-	icons/schism-itf-icon-72.png	\
-	icons/schism-itf-icon-96.png	\
-	icons/schism-itf-icon.svg	\
-	icons/it_logo.png		\
-	icons/schism_logo.png		\
-	icons/schismres.ico
 sysfiles = \
 	sys/fd.org/autopackage.apspec	\
 	sys/fd.org/itf.desktop		\
@@ -59,7 +11,6 @@ sysfiles = \
 	sys/sdl/README
 scripts = \
 	scripts/bin2h.sh		\
-	scripts/build-font.sh		\
 	scripts/genhelp.py		\
 	scripts/itf2half.py		\
 	scripts/half2itf.py		\
@@ -67,14 +18,6 @@ scripts = \
 	scripts/itmidicfg.py		\
 	scripts/lutgen.c		\
 	scripts/palette.py
-
-EXTRA_DIST = \
-	include/auto/README		\
-	$(helptexts)			\
-	$(fonts)			\
-	$(icons)			\
-	$(sysfiles)			\
-	$(scripts)
 
 bin_PROGRAMS = schismtracker
 
@@ -107,24 +50,10 @@ noinst_HEADERS = \
 	sys/win32/wine-ddraw.h
 
 desktopdir = $(datadir)/applications
-desktop_DATA = sys/fd.org/schism.desktop
 
 appicondir = $(datadir)/pixmaps
-appicon_DATA= icons/schism-icon-128.png
 
 noinst_SCRIPTS = $(scripts)
-
-nodist_schismtracker_SOURCES = \
-	auto/default-font.c		\
-	auto/helptext.c
-CLEANFILES = \
-	auto/default-font.c		\
-	auto/helptext.c
-
-auto/default-font.c: Makefile.am scripts/bin2h.sh scripts/build-font.sh $(fonts)
-	sh $(srcdir)/scripts/build-font.sh $(srcdir) $(fonts) >$@
-auto/helptext.c: Makefile.am scripts/genhelp.py $(helptexts)
-	$(PYTHON) $(srcdir)/scripts/genhelp.py $(srcdir) $(helptexts) >$@
 
 if USE_WIN32
 files_win32 = \
@@ -149,12 +78,8 @@ WRCFLAGS = --use-temp-file -I. -I$(srcdir) $(cflags_version) $(wrcflags_version)
 .rc.$(OBJEXT):
 	$(WINDRES) $(WRCFLAGS) -i $< -o $@
 files_windres=sys/win32/schismres.rc
-sys/win32/schismres.$(OBJEXT): icons/schismres.ico config.h Makefile.am
+sys/win32/schismres.$(OBJEXT): config.h Makefile.am
 endif HAVE_WINDRES
-
-if USE_NETWORK
-cflags_network=-DUSE_NETWORK
-endif
 
 
 ## Replacement functions for crappy systems
@@ -221,7 +146,6 @@ schismtracker_SOURCES = \
 	schism/main.c			\
 	schism/midi-core.c		\
 	schism/audio_playback.c		\
-	schism/config-parser.c		\
 	schism/audio_loadsave.c		\
 	player/csndfile.c		\
 	player/mixutil.c		\
@@ -246,9 +170,7 @@ schism/version.$(OBJEXT): $(filter-out schism/version.$(OBJEXT),$(schismtracker_
 cflags_fmopl=-DHAS_YM3812=1 -DHAS_Y8950=0 -DHAS_YM3526=0
 
 AM_CPPFLAGS = -D_USE_AUTOCONF -D_GNU_SOURCE -I$(srcdir)/include -I.
-AM_CFLAGS = $(SDL_CFLAGS) $(cflags_alsa) $(cflags_oss) \
-	$(cflags_network) $(cflags_x11) $(cflags_fmopl) \
-	$(cflags_version) $(cflags_win32) $(cflags_wii)
+AM_CFLAGS = $(SDL_CFLAGS) $(cflags_version) $(cflags_win32)
 AM_OBJCFLAGS = $(AM_CFLAGS)
 
 schismtracker_DEPENDENCIES = $(files_windres)
