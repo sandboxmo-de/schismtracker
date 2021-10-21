@@ -24,7 +24,7 @@
 /* General MIDI assignments used by Creative Labs' MIDI player (PLAY.EXE)
 (As found in dro2midi.) */
 
-#include "headers.h"
+#include <stdio.h>
 #include "sndfile.h"
 #include <string.h>
 
@@ -162,7 +162,7 @@ static const uint8_t patches[][11] = {
 void adlib_patch_apply(song_sample_t *smp, int patchnum)
 {
 	if (patchnum < 0 || patchnum > 127) {
-		printf("adlib_patch_apply: invalid patch %d\n", patchnum);
+//		printf("adlib_patch_apply: invalid patch %d\n", patchnum);
 		return;
 	}
 	memcpy(smp->adlib_bytes, patches[patchnum], 11);

@@ -24,31 +24,19 @@
 /* This is just a collection of some useful functions. None of these use any
 extraneous libraries (i.e. GLib). */
 
-
-#define NEED_DIRENT
-#define NEED_TIME
-#include "headers.h"
-
 #include "util.h"
+#include <stdint.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include "headers.h"
 
 #include <errno.h>
 
 #include <stdarg.h>
 
 #include <math.h>
-
-#if defined(__amigaos4__)
-# define FALLBACK_DIR "." /* not used... */
-#elif defined(WIN32)
-# define FALLBACK_DIR "C:\\"
-#elif defined(GEKKO)
-# define FALLBACK_DIR "isfs:/" // always exists, seldom useful
-#else /* POSIX? */
-# define FALLBACK_DIR "/"
-#endif
 
 #ifdef WIN32
 #include <windows.h>
@@ -201,48 +189,6 @@ short dB2_power_s(int noisefloor, int db, float correction_dBs)
 	return dB2_power((db*noisefloor/128.f)-noisefloor-correction_dBs);
 }
 
-char *num99tostr(int n, char *buf)
-{
-	static const char *qv = "HIJKLMNOPQRSTUVWXYZ";
-	if (n < 100) {
-		sprintf(buf, "%02d", n);
-	} else if (n <= 256) {
-		n -= 100;
-		sprintf(buf, "%c%d",
-			qv[(n/10)], (n % 10));
-	}
-	return buf;
-
-}
-char *numtostr(int digits, unsigned int n, char *buf)
-{
-	if (digits > 0) {
-		char fmt[] = "%03u";
-
-		digits %= 10;
-		fmt[2] = '0' + digits;
-		snprintf(buf, digits + 1, fmt, n);
-		buf[digits] = 0;
-	} else {
-		sprintf(buf, "%u", n);
-	}
-	return buf;
-}
-char *numtostr_signed(int digits, int n, char *buf)
-{
-	if (digits > 0) {
-		char fmt[] = "%03d";
-
-		digits %= 10;
-		fmt[2] = '0' + digits;
-		snprintf(buf, digits + 1, fmt, n);
-		buf[digits] = 0;
-	} else {
-		sprintf(buf, "%d", n);
-	}
-	return buf;
-}
-
 /* --------------------------------------------------------------------- */
 /* STRING HANDLING FUNCTIONS */
 
@@ -263,42 +209,6 @@ const char *get_basename(const char *filename)
 	}
 
 	return base;
-}
-
-const char *get_extension(const char *filename)
-{
-	filename = get_basename(filename);
-
-	const char *extension = strrchr(filename, '.');
-	if (!extension) {
-		/* no extension? bummer. point to the \0 at the end of the string. */
-		extension = strchr(filename, '\0');
-	}
-
-	return extension;
-}
-
-char *get_parent_directory(const char *dirname)
-{
-	char *ret, *pos;
-	int n;
-
-	if (!dirname || !dirname[0])
-		return NULL;
-
-	ret = str_dup(dirname);
-	if (!ret)
-		return NULL;
-	n = strlen(ret) - 1;
-	if (ret[n] == DIR_SEPARATOR)
-		ret[n] = 0;
-	pos = strrchr(ret, DIR_SEPARATOR);
-	if (!pos) {
-		free(ret);
-		return NULL;
-	}
-	pos[1] = 0;
-	return ret;
 }
 
 static const char *whitespace = " \t\v\r\n";
@@ -328,92 +238,6 @@ int trim_string(char *s)
 {
 	ltrim_string(s);
 	return rtrim_string(s);
-}
-
-
-/* break the string 's' with the character 'c', placing the two parts in 'first' and 'second'.
-return: 1 if the string contained the character (and thus could be split), 0 if not.
-the pointers returned in first/second should be free()'d by the caller. */
-int str_break(const char *s, char c, char **first, char **second)
-{
-	const char *p = strchr(s, c);
-	if (!p)
-		return 0;
-	*first = mem_alloc(p - s + 1);
-	strncpy(*first, s, p - s);
-	(*first)[p - s] = 0;
-	*second = str_dup(p + 1);
-	return 1;
-}
-
-/* adapted from glib. in addition to the normal c escapes, this also escapes the hashmark and semicolon
- * (comment characters). if space is true, the first/last character is also escaped if it is a space. */
-char *str_escape(const char *s, int space)
-{
-	/* Each source byte needs maximally four destination chars (\777) */
-	char *dest = calloc(4 * strlen(s) + 1, sizeof(char));
-	char *d = dest;
-
-	if (space && *s == ' ') {
-		*d++ = '\\';
-		*d++ = '0';
-		*d++ = '4';
-		*d++ = '0';
-		s++;
-	}
-
-	while (*s) {
-		switch (*s) {
-		case '\a':
-			*d++ = '\\';
-			*d++ = 'a';
-			break;
-		case '\b':
-			*d++ = '\\';
-			*d++ = 'b';
-			break;
-		case '\f':
-			*d++ = '\\';
-			*d++ = 'f';
-			break;
-		case '\n':
-			*d++ = '\\';
-			*d++ = 'n';
-			break;
-		case '\r':
-			*d++ = '\\';
-			*d++ = 'r';
-			break;
-		case '\t':
-			*d++ = '\\';
-			*d++ = 't';
-			break;
-		case '\v':
-			*d++ = '\\';
-			*d++ = 'v';
-			break;
-		case '\\': case '"':
-			*d++ = '\\';
-			*d++ = *s;
-			break;
-
-		default:
-			if (*s < ' ' || *s >= 127 || (space && *s == ' ' && s[1] == '\0')) {
-		case '#': case ';':
-				*d++ = '\\';
-				*d++ = '0' + ((((uint8_t) *s) >> 6) & 7);
-				*d++ = '0' + ((((uint8_t) *s) >> 3) & 7);
-				*d++ = '0' + ( ((uint8_t) *s)       & 7);
-			} else {
-				*d++ = *s;
-			}
-			break;
-		}
-		s++;
-	}
-
-	*d = 0;
-	return dest;
 }
 
 static inline int readhex(const char *s, int w)
@@ -502,69 +326,19 @@ char *str_unescape(const char *s)
 	return dest;
 }
 
-char *pretty_name(const char *filename)
-{
-	char *ret, *temp;
-	const char *ptr;
-	int len;
-
-	ptr = strrchr(filename, DIR_SEPARATOR);
-	ptr = ((ptr && ptr[1]) ? ptr + 1 : filename);
-	len = strrchr(ptr, '.') - ptr;
-	if (len <= 0) {
-		ret = str_dup(ptr);
-	} else {
-		ret = calloc(len + 1, sizeof(char));
-		strncpy(ret, ptr, len);
-		ret[len] = 0;
-	}
-
-	/* change underscores to spaces (of course, this could be adapted
-	 * to use strpbrk and strip any number of characters) */
-	while ((temp = strchr(ret, '_')) != NULL)
-		*temp = ' ';
-
-	/* TODO | the first letter, and any letter following a space,
-	 * TODO | should be capitalized; multiple spaces should be cut
-	 * TODO | down to one */
-
-	trim_string(ret);
-	return ret;
-}
-
-/* blecch */
-int get_num_lines(const char *text)
-{
-	const char *ptr = text;
-	int n = 0;
-
-	if (!text)
-		return 0;
-	for (;;) {
-		ptr = strpbrk(ptr, "\015\012");
-		if (!ptr)
-			return n;
-		if (ptr[0] == 13 && ptr[1] == 10)
-			ptr += 2;
-		else
-			ptr++;
-		n++;
-	}
-}
-
-long file_size(const char *filename)
-{
-	struct stat buf;
-
-	if (stat(filename, &buf) < 0) {
-		return EOF;
-	}
-	if (S_ISDIR(buf.st_mode)) {
-		errno = EISDIR;
-		return EOF;
-	}
-	return buf.st_size;
-}
+//long file_size(const char *filename)
+//{
+//	struct stat buf;
+//
+//	if (stat(filename, &buf) < 0) {
+//		return EOF;
+//	}
+//	if (S_ISDIR(buf.st_mode)) {
+//		errno = EISDIR;
+//		return EOF;
+//	}
+//	return buf.st_size;
+//}
 
 /* --------------------------------------------------------------------- */
 /* FILESYSTEM FUNCTIONS */
@@ -591,79 +365,6 @@ char *get_current_directory(void)
 	return str_dup(".");
 }
 
-/* this function is horrible */
-char *get_home_directory(void)
-{
-	char buf[PATH_MAX + 1];
-
-#if defined(__amigaos4__)
-	return str_dup("PROGDIR:");
-#elif defined(WIN32)
-	if (SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, buf) == ERROR_SUCCESS)
-		return strdup(buf);
-#else
-	char *ptr = getenv("HOME");
-	if (ptr)
-		return str_dup(ptr);
-#endif
-
-	/* hmm. fall back to the current dir */
-	if (getcwd(buf, PATH_MAX))
-		return str_dup(buf);
-
-	/* still don't have a directory? sheesh. */
-	return str_dup(FALLBACK_DIR);
-}
-
-char *get_dot_directory(void)
-{
-#ifdef WIN32
-	char buf[PATH_MAX + 1];
-	if (SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, buf) == ERROR_SUCCESS)
-		return strdup(buf);
-	// else fall back to home (but if this ever happens, things are really screwed...)
-#endif
-	return get_home_directory();
-}
-
-char *str_concat(const char *s, ...)
-{
-	va_list ap;
-	char *out = NULL;
-	int len = 0;
-
-	va_start(ap,s);
-	while (s) {
-		out = mem_realloc(out, (len += strlen(s)+1));
-		strcat(out, s);
-		s = va_arg(ap, const char *);
-	}
-	va_end(ap);
-	return out;
-
-}
-
-void unset_env_var(const char *key)
-{
-#ifdef HAVE_UNSETENV
-	unsetenv(key);
-#else
-	/* assume POSIX-style semantics */
-	putenv(key);
-#endif
-}
-
-void put_env_var(const char *key, const char *value)
-{
-	char *x;
-	x = mem_alloc(strlen(key) + strlen(value)+2);
-	sprintf(x, "%s=%s", key,value);
-	if (putenv(x) == -1) {
-		perror("putenv");
-		exit(255); /* memory exception */
-	}
-}
-
 /* fast integer sqrt */
 unsigned int i_sqrt(unsigned int r)
 {
@@ -677,54 +378,4 @@ unsigned int i_sqrt(unsigned int r)
 		}
 	}
 	return(c);
-}
-
-int run_hook(const char *dir, const char *name, const char *maybe_arg)
-{
-#ifdef WIN32
-	char buf[PATH_MAX];
-	const char *ptr;
-	char buf2[PATH_MAX];
-	struct stat sb;
-	int r;
-
-	if (!GetCurrentDirectory(PATH_MAX-1,buf)) return 0;
-	snprintf(buf2, PATH_MAX-2, "%s.bat", name);
-	if (chdir(dir) == -1) return 0;
-	if (stat(buf2, &sb) == -1) {
-		r = 0;
-	} else {
-		ptr = getenv("COMSPEC") ?: "command.com";
-		r = _spawnlp(_P_WAIT, ptr, ptr, "/c", buf2, maybe_arg, 0);
-	}
-	SetCurrentDirectory(buf);
-	chdir(buf);
-	if (r == 0) return 1;
-	return 0;
-#elif defined(GEKKO)
-	// help how do I operating system
-	(void) dir;
-	(void) name;
-	(void) maybe_arg;
-	return 0;
-#else
-	char *tmp;
-	int st;
-
-	switch (fork()) {
-	case -1: return 0;
-	case 0:
-		if (chdir(dir) == -1) _exit(255);
-		tmp = malloc(strlen(name)+4);
-		if (!tmp) _exit(255);
-		sprintf(tmp, "./%s", name);
-		execl(tmp, tmp, maybe_arg, NULL);
-		free(tmp);
-		_exit(255);
-	};
-	while (wait(&st) == -1) {
-	}
-	if (WIFEXITED(st) && WEXITSTATUS(st) == 0) return 1;
-	return 0;
-#endif
 }

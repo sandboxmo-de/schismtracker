@@ -39,7 +39,6 @@ schismtracker_SOURCES = \
 	schism/mplink.c			\
 	fmt/compression.c		\
 	fmt/generic.c			\
-	fmt/mmcmp.c			\
 	fmt/669.c			\
 	fmt/aiff.c			\
 	fmt/ams.c			\
