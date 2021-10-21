@@ -1173,14 +1173,6 @@ void song_stop_audio(void)
 }
 
 
-static void song_print_info_top(const char *d)
-{
-	log_append(2, 0, "Audio initialised");
-	log_underline(17);
-	log_appendf(5, " Using driver '%s'", d);
-}
-
-
 /* --------------------------------------------------------------------------------------------------------- */
 /* Nasty stuff here */
 
@@ -1289,14 +1281,6 @@ static int _audio_open(const char *driver_spec, int verbose)
 	audio_output_bits = obtained.format & 255;
 	audio_sample_size = audio_output_channels * (audio_output_bits/8);
 	audio_buffer_samples = obtained.samples;
-
-	if (verbose) {
-		song_print_info_top(driver_name);
-
-		log_appendf(5, " %d Hz, %d bit, %s", obtained.freq, (obtained.format & 0xff),
-			obtained.channels == 1 ? "mono" : "stereo");
-		log_appendf(5, " Buffer size: %d samples", obtained.samples);
-	}
 
 	return 1;
 }
