@@ -173,8 +173,10 @@ int main(int argc, char **argv)
 #endif
 
 	song_initialise();
-	cfg_init_dir();	// Needed?????
-	cfg_load();
+	cfg_load_audio(NULL);
+	cfg_load_midi(NULL);
+	cfg_load_disko(NULL);
+	cfg_load_dmoz(NULL);
 
 	if (!(startup_flags & SF_NETWORK)) {
 		status.flags |= NO_NETWORK;
