@@ -27,7 +27,6 @@
 #include "headers.h"
 
 #include "log.h"
-#include "it.h" // needed for status.flags
 #include "sndfile.h"
 #include "song.h" // for 'current_song', which we shouldn't need
 #include "snd_gm.h"
@@ -131,9 +130,6 @@ static void MPU_SendCommand(const unsigned char* buf, unsigned nbytes, int c)
 
 static void MPU_Ctrl(int c, int i, int v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
-		return;
-
 	unsigned char buf[3] = {0xB0 + c, i, v};
 	MPU_SendCommand(buf, 3, c);
 }
@@ -141,9 +137,6 @@ static void MPU_Ctrl(int c, int i, int v)
 
 static void MPU_Patch(int c, int p)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
-		return;
-
 	unsigned char buf[2] = {0xC0 + c, p};
 	MPU_SendCommand(buf, 2, c);
 }
@@ -151,9 +144,6 @@ static void MPU_Patch(int c, int p)
 
 static void MPU_Bend(int c, int w)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
-		return;
-
 	unsigned char buf[3] = {0xE0 + c, w & 127, w >> 7};
 	MPU_SendCommand(buf, 3, c);
 }
@@ -161,9 +151,6 @@ static void MPU_Bend(int c, int w)
 
 static void MPU_NoteOn(int c, int k, int v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
-		return;
-
 	unsigned char buf[3] = {0x90 + c, k, v};
 	MPU_SendCommand(buf, 3, c);
 }
@@ -171,9 +158,6 @@ static void MPU_NoteOn(int c, int k, int v)
 
 static void MPU_NoteOff(int c, int k, int v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
-		return;
-
 	if (((unsigned char) RunningStatus) == 0x90 + c) {
 		// send a zero-velocity keyoff instead for optimization
 		MPU_NoteOn(c, k, 0);

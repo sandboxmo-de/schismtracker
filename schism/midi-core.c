@@ -298,23 +298,8 @@ void cfg_save_midi(cfg_file_t *cfg)
 
 static void _midi_engine_connect(void)
 {
-#ifdef USE_NETWORK
-	ip_midi_setup();
-#endif
-//Prefer ALSA MIDI over OSS, but do not enable both since ALSA's OSS emulation can cause conflicts
-#if defined(USE_ALSA) && defined(USE_OSS)
-	if (!alsa_midi_setup())
-		oss_midi_setup();
-#elif !defined(USE_ALSA) && defined(USE_OSS)
-	oss_midi_setup();
-#elif defined(USE_ALSA) && !defined(USE_OSS)
-	alsa_midi_setup();
-#endif
 #ifdef WIN32
 	win32mm_midi_setup();
-#endif
-#ifdef MACOSX
-	macosx_midi_setup();
 #endif
 }
 
