@@ -288,36 +288,6 @@ int song_load_unchecked(const char *file)
 
 /* ------------------------------------------------------------------------- */
 
-//const struct save_format song_save_formats[] = {
-//	{"IT", "Impulse Tracker", ".it", {.save_song = _save_it}},
-//	{"S3M", "Scream Tracker 3", ".s3m", {.save_song = fmt_s3m_save_song}},
-//	{"MOD", "Amiga ProTracker", ".mod", {.save_song = fmt_mod_save_song}},
-//	{.label = NULL}
-//};
-
-//#define EXPORT_FUNCS(t) \
-//	fmt_##t##_export_head, fmt_##t##_export_silence, fmt_##t##_export_body, fmt_##t##_export_tail
-//
-//const struct save_format song_export_formats[] = {
-//	{"WAV", "WAV", ".wav", {.export = {EXPORT_FUNCS(wav), 0}}},
-//	{"MWAV", "WAV multi-write", ".wav", {.export = {EXPORT_FUNCS(wav), 1}}},
-//	{"AIFF", "Audio IFF", ".aiff", {.export = {EXPORT_FUNCS(aiff), 0}}},
-//	{"MAIFF", "Audio IFF multi-write", ".aiff", {.export = {EXPORT_FUNCS(aiff), 1}}},
-//	{.label = NULL}
-//};
-//// <distance> and maiff sounds like something you'd want to hug
-//// <distance> .. dont ask
-//
-//const struct save_format sample_save_formats[] = {
-//	{"ITS", "Impulse Tracker", ".its", {.save_sample = fmt_its_save_sample}},
-//	//{"S3I", "Scream Tracker", ".s3i", {.save_sample = fmt_s3i_save_sample}},
-//	{"AIFF", "Audio IFF", ".aiff", {.save_sample = fmt_aiff_save_sample}},
-//	{"AU", "Sun/NeXT", ".au", {.save_sample = fmt_au_save_sample}},
-//	{"WAV", "WAV", ".wav", {.save_sample = fmt_wav_save_sample}},
-//	{"RAW", "Raw", ".raw", {.save_sample = fmt_raw_save_sample}},
-//	{.label = NULL}
-//};
-
 #define LOAD_SAMPLE(x) fmt_##x##_load_sample,
 static fmt_load_sample_func load_sample_funcs[] = {
 #include "fmt-types.h"
