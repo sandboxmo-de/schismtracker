@@ -981,47 +981,6 @@ void cfg_load_audio(cfg_file_t *cfg)
 	}
 }
 
-#define CFG_SET_A(v) cfg_set_number(cfg, "Audio", #v, audio_settings.v)
-#define CFG_SET_M(v) cfg_set_number(cfg, "Mixer Settings", #v, audio_settings.v)
-void cfg_atexit_save_audio(cfg_file_t *cfg)
-{
-	CFG_SET_A(sample_rate);
-	CFG_SET_A(bits);
-	CFG_SET_A(channels);
-	CFG_SET_A(buffer_size);
-
-	CFG_SET_M(channel_limit);
-	CFG_SET_M(interpolation_mode);
-	CFG_SET_M(no_ramping);
-
-	// Say, what happened to the switch for this in the gui?
-	CFG_SET_M(surround_effect);
-
-	// hmmm....
-	//     [Equalizer]
-	//     low_band=freq/gain
-	//     med_low_band=freq/gain
-	//     etc.
-	// would be a cleaner way of storing this
-
-	cfg_set_number(cfg, "EQ Low Band", "freq", audio_settings.eq_freq[0]);
-	cfg_set_number(cfg, "EQ Med Low Band", "freq", audio_settings.eq_freq[1]);
-	cfg_set_number(cfg, "EQ Med High Band", "freq", audio_settings.eq_freq[2]);
-	cfg_set_number(cfg, "EQ High Band", "freq", audio_settings.eq_freq[3]);
-
-	cfg_set_number(cfg, "EQ Low Band", "gain", audio_settings.eq_gain[0]);
-	cfg_set_number(cfg, "EQ Med Low Band", "gain", audio_settings.eq_gain[1]);
-	cfg_set_number(cfg, "EQ Med High Band", "gain", audio_settings.eq_gain[2]);
-	cfg_set_number(cfg, "EQ High Band", "gain", audio_settings.eq_gain[3]);
-}
-
-void cfg_save_audio(cfg_file_t *cfg)
-{
-	cfg_atexit_save_audio(cfg);
-
-	cfg_set_number(cfg, "General", "stop_on_load", !(status.flags & PLAY_AFTER_LOAD));
-}
-
 // ------------------------------------------------------------------------------------------------------------
 static void _schism_midi_out_note(int chan, const song_note_t *starting_note)
 {
