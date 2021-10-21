@@ -1,6 +1,5 @@
 //vi:set bd=syn\ c:
 #include <winver.h>
-#include "config.h" // grab PACKAGE_VERSION
 
 #ifndef WRC_VERSION
 # define WRC_VERSION 0,0,0,0
@@ -31,10 +30,7 @@ BEGIN
                         VALUE "Comments", "http://schismtracker.org/"
                         VALUE "ProductName", VER_PRODUCTNAME
                         VALUE "FileDescription", VER_PRODUCTNAME
-                        VALUE "InternalName", PACKAGE_NAME
                         VALUE "OriginalFilename", "schismtracker.exe"
-                        VALUE "FileVersion", WRC_PRODUCTVER_STR
-                        VALUE "ProductVersion", WRC_PRODUCTVER_STR
                 END
         END
 
