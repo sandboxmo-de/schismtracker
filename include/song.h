@@ -28,7 +28,6 @@
 
 #include "sndfile.h"
 #include "util.h"
-#include "disko.h"
 #include "fmt.h"
 
 /* --------------------------------------------------------------------- */
