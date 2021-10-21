@@ -43,7 +43,7 @@
    like IS_VISIBLE or whatever */
 enum {
 	/* if this flag is set, the screen will be redrawn */
-	NEED_UPDATE = (1 << 0),
+//	NEED_UPDATE = (1 << 0),
 
 	/* is the current palette "backwards"? (used to make the borders look right) */
 //	INVERTED_PALETTE = (1 << 1),
