@@ -30,7 +30,6 @@ extraneous libraries (i.e. GLib). */
 #include "headers.h"
 
 #include "util.h"
-#include "osdefs.h" /* need this for win32_filecreated_callback */
 
 #include <sys/types.h>
 #include <sys/stat.h>
