@@ -37,6 +37,136 @@ static void sdl_init(void)
 	exit(1);
 }
 
+/* Path handling functions */
+
+/* Normalize a path (remove /../ and stuff, condense multiple slashes, etc.)
+this will return NULL if the path could not be normalized (not well-formed?).
+the returned string must be free()'d. */
+char *dmoz_path_normal(const char *path);
+
+/* Return nonzero if the path is an absolute path (e.g. /bin, c:\progra~1, sd:/apps, etc.) */
+int dmoz_path_is_absolute(const char *path);
+
+/* Concatenate two paths, adding separators between them as necessary. The returned string must be free()'d.
+The second version can be used if the string lengths are already known to avoid redundant strlen() calls.
+Additionally, if 'b' is an absolute path (as determined by dmoz_path_is_absolute), ignore 'a' and return a
+copy of 'b'. */
+char *dmoz_path_concat(const char *a, const char *b);
+char *dmoz_path_concat_len(const char *a, const char *b, int alen, int blen);
+
+char *dmoz_path_normal(const char *path)
+{
+	char stub_char;
+	char *result, *p, *q, *base, *dotdot;
+	int rooted;
+
+	/* The result cannot be larger than the input PATH. */
+	result = strdup(path);
+
+	rooted = dmoz_path_is_absolute(path);
+	base = result + rooted;
+	stub_char = rooted ? DIR_SEPARATOR : '.';
+
+#ifdef WIN32
+	/* Stupid hack -- fix up any initial slashes in the absolute part of the path.
+	(The rest of them will be handled as the path components are processed.) */
+	for (q = result; q < base; q++)
+		if (*q == '/')
+			*q = '\\';
+#endif
+
+	/* invariants:
+		base points to the portion of the path we want to modify
+		p points at beginning of path element we're considering.
+		q points just past the last path element we wrote (no slash).
+		dotdot points just past the point where .. cannot backtrack
+		any further (no slash). */
+	p = q = dotdot = base;
+
+	while (*p) {
+		if (IS_DIR_SEPARATOR(p[0])) {
+			/* null element */
+			p++;
+		} else if (p[0] == '.' && (!p[1] || IS_DIR_SEPARATOR(p[1]))) {
+			/* . and ./ */
+			p += 1; /* don't count the separator in case it is nul */
+		} else if (p[0] == '.' && p[1] == '.' && (!p[2] || IS_DIR_SEPARATOR(p[2]))) {
+			/* .. and ../ */
+			p += 2; /* skip `..' */
+			if (q > dotdot) {       /* can backtrack */
+				while (--q > dotdot && !IS_DIR_SEPARATOR(*q)) {
+					/* nothing */
+				}
+			} else if (!rooted) {
+				/* /.. is / but ./../ is .. */
+				if (q != base)
+					*q++ = DIR_SEPARATOR;
+				*q++ = '.';
+				*q++ = '.';
+				dotdot = q;
+			}
+		} else {
+			/* real path element */
+			/* add separator if not at start of work portion of result */
+			if (q != base)
+				*q++ = DIR_SEPARATOR;
+			while (*p && !IS_DIR_SEPARATOR(*p))
+				*q++ = *p++;
+		}
+	}
+
+	/* Empty string is really ``.'' or `/', depending on what we started with. */
+	if (q == result)
+		*q++ = stub_char;
+	*q = '\0';
+
+	return result;
+}
+
+int dmoz_path_is_absolute(const char *path)
+{
+	if (!path || !*path)
+		return 0;
+	if (isalpha(path[0]) && path[1] == ':')
+		return IS_DIR_SEPARATOR(path[2]) ? 3 : 2;
+	/* presumably, /foo (or \foo) is an absolute path on all platforms */
+	if (!IS_DIR_SEPARATOR(path[0]))
+		return 0;
+	/* POSIX says to allow two leading slashes, but not more.
+	(This also catches win32 \\share\blah\blah semantics) */
+	return (IS_DIR_SEPARATOR(path[1]) && !IS_DIR_SEPARATOR(path[2])) ? 2 : 1;
+}
+
+
+/* See dmoz_path_concat_len. This function is a convenience for when the lengths aren't already known. */
+char *dmoz_path_concat(const char *a, const char *b)
+{
+	return dmoz_path_concat_len(a, b, strlen(a), strlen(b));
+}
+
+/* Concatenate two paths. Additionally, if 'b' is an absolute path, ignore 'a' and return a copy of 'b'. */
+char *dmoz_path_concat_len(const char *a, const char *b, int alen, int blen)
+{
+	char *ret;
+	if (dmoz_path_is_absolute(b))
+		return strdup(b);
+
+	ret = mem_alloc(alen + blen + 2);
+
+	if (alen) {
+		char last = a[alen - 1];
+
+		strcpy(ret, a);
+
+		/* need a slash? */
+		if (last != DIR_SEPARATOR)
+			strcat(ret, DIR_SEPARATOR_STR);
+	}
+	strcat(ret, b);
+
+	return ret;
+}
+
 static char *initial_song = NULL;
 /* initial module directory */
 static char *initial_dir = NULL;

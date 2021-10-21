@@ -21,8 +21,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define NEED_BYTESWAP
-#define NEED_TIME
 #include "headers.h"
 
 #include "sndfile.h"
@@ -41,29 +39,6 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-
-#ifndef NAME_MAX
-# ifdef MAXPATHLEN
-#  define NAME_MAX MAXPATHLEN /* BSD name */
-# else
-#  ifdef FILENAME_MAX
-#   define NAME_MAX FILENAME_MAX
-#  else
-#   define NAME_MAX 256
-#  endif
-# endif
-#endif
-// ------------------------------------------------------------------------
-
-char song_filename[PATH_MAX + 1];
-char song_basename[NAME_MAX + 1];
-
-// ------------------------------------------------------------------------
-// replace any '\0' chars with spaces, mostly to make the string handling
-// much easier.
-// TODO | Maybe this should be done with the filenames and the song title
-// TODO | as well? (though I've never come across any cases of either of
-// TODO | these having null characters in them...)
 
 static void _fix_names(song_t *qq)
 {
@@ -84,22 +59,6 @@ static void _fix_names(song_t *qq)
 	}
 }
 
-// ------------------------------------------------------------------------
-// file stuff
-
-static void song_set_filename(const char *file)
-{
-	if (file && file[0]) {
-		strncpy(song_filename, file, PATH_MAX);
-		strncpy(song_basename, get_basename(file), NAME_MAX);
-		song_filename[PATH_MAX] = '\0';
-		song_basename[NAME_MAX] = '\0';
-	} else {
-		song_filename[0] = '\0';
-		song_basename[0] = '\0';
-	}
-}
-
 // clear patterns => clear filename and save flag
 // clear orderlist => clear title, message, and channel settings
 void song_new(int flags)
@@ -111,7 +70,7 @@ void song_new(int flags)
 	song_stop_unlocked(0);
 
 	if ((flags & KEEP_PATTERNS) == 0) {
-		song_set_filename(NULL);
+//		song_set_filename(NULL);
 //		status.flags &= ~SONG_NEEDS_SAVE;
 
 		for (i = 0; i < MAX_PATTERNS; i++) {
@@ -287,7 +246,7 @@ int song_load_unchecked(const char *file)
 	}
 
 
-	song_set_filename(file);
+//	song_set_filename(file);
 
 	song_lock_audio();
 	csf_free(current_song);
@@ -592,122 +551,6 @@ void song_create_host_instrument(int smp, int ins)
 	} else {
 //		status_text_flash("Error: No available Instruments!");
 	}
-}
-
-// ------------------------------------------------------------------------
-// song information
-
-const char *song_get_filename(void)
-{
-	return song_filename;
-}
-
-const char *song_get_basename(void)
-{
-	return song_basename;
-}
-
-// ------------------------------------------------------------------------
-// sample library browsing
-
-// FIXME: unload the module when leaving the library 'directory'
-static song_t *library = NULL;
-
-
-// TODO: stat the file?
-int dmoz_read_instrument_library(const char *path, dmoz_filelist_t *flist, UNUSED dmoz_dirlist_t *dlist)
-{
-	unsigned int j;
-	int x;
-
-	csf_stop_sample(current_song, current_song->samples + 0);
-	csf_free(library);
-
-	const char *base = get_basename(path);
-	library = song_create_load(path);
-	if (!library) {
-		return -1;
-	}
-
-	for (int n = 1; n < MAX_INSTRUMENTS; n++) {
-		if (!library->instruments[n])
-			continue;
-
-		dmoz_file_t *file = dmoz_add_file(flist,
-			str_dup(path), str_dup(base), NULL, n);
-		file->title = str_dup(library->instruments[n]->name);
-
-		int count[128] = {};
-
-		file->sampsize = 0;
-		file->filesize = 0;
-		file->instnum = n;
-		for (j = 0; j < 128; j++) {
-			x = library->instruments[n]->sample_map[j];
-			if (!count[x]) {
-				if (x > 0 && x < MAX_INSTRUMENTS) {
-					file->filesize += library->samples[x].length;
-					file->sampsize++;
-				}
-			}
-			count[x]++;
-		}
-
-		file->type = TYPE_INST_ITI;
-		file->description = "Fishcakes";
-		// IT doesn't support this, despite it being useful.
-		// Simply "unrecognized"
-	}
-
-	return 0;
-}
-
-
-int dmoz_read_sample_library(const char *path, dmoz_filelist_t *flist, UNUSED dmoz_dirlist_t *dlist)
-{
-	csf_stop_sample(current_song, current_song->samples + 0);
-	csf_free(library);
-
-	const char *base = get_basename(path);
-	library = song_create_load(path);
-	if (!library) {
-		/* FIXME: try loading as an instrument before giving up */
-		errno = ENOTDIR;
-		return -1;
-	}
-
-	for (int n = 1; n < MAX_SAMPLES; n++) {
-		if (library->samples[n].length) {
-			for (int c = 0; c < 25; c++) {
-				if (library->samples[n].name[c] == 0)
-					library->samples[n].name[c] = 32;
-				library->samples[n].name[25] = 0;
-			}
-			dmoz_file_t *file = dmoz_add_file(flist, str_dup(path), str_dup(base), NULL, n);
-			file->type = TYPE_SAMPLE_EXTD;
-			file->description = "Fishcakes"; // FIXME - what does IT say?
-			file->smp_speed = library->samples[n].c5speed;
-			file->smp_loop_start = library->samples[n].loop_start;
-			file->smp_loop_end = library->samples[n].loop_end;
-			file->smp_sustain_start = library->samples[n].sustain_start;
-			file->smp_sustain_end = library->samples[n].sustain_end;
-			file->smp_length = library->samples[n].length;
-			file->smp_flags = library->samples[n].flags;
-			file->smp_defvol = library->samples[n].volume>>2;
-			file->smp_gblvol = library->samples[n].global_volume;
-			file->smp_vibrato_speed = library->samples[n].vib_speed;
-			file->smp_vibrato_depth = library->samples[n].vib_depth;
-			file->smp_vibrato_rate = library->samples[n].vib_rate;
-			// don't screw this up...
-			if (((unsigned char)library->samples[n].name[23]) == 0xFF) {
-				library->samples[n].name[23] = ' ';
-			}
-			file->title = str_dup(library->samples[n].name);
-			file->sample = (song_sample_t *) library->samples + n;
-		}
-	}
-
-	return 0;
 }
 
 // ------------------------------------------------------------------------
