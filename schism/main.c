@@ -149,43 +149,9 @@ static void parse_only_initial_song(int argc, char **argv)
 	free(cwd);
 }
 
-//static void schism_shutdown(void)
-//{
-//#if ENABLE_HOOKS
-//	if (shutdown_process & EXIT_HOOK)
-//		run_exit_hook();
-//#endif
-////	if (shutdown_process & EXIT_SAVECFG)
-////		cfg_atexit_save();
-//
-//#ifdef MACOSX
-//	if (ibook_helper != -1)
-//		macosx_ibook_fnswitch(ibook_helper);
-//#endif
-//	if (shutdown_process & EXIT_SDLQUIT) {
-//		song_lock_audio();
-//		song_stop_unlocked(1);
-//		song_unlock_audio();
-//
-//		/*
-//		If this is the atexit() handler, why are we calling SDL_Quit?
-//
-//		Simple, SDL's documentation says always call SDL_Quit. :) In
-//		fact, in the examples they recommend writing atexit(SDL_Quit)
-//		directly after SDL_Init. I'm not sure exactly why, but I don't
-//		see a reason *not* to do it...
-//			/ Storlek
-//		*/
-//		SDL_Quit();
-//	}
-//	os_sysexit();
-//}
-
 int main(int argc, char **argv)
 {
 	os_sysinit(&argc, &argv);
-
-//	atexit(schism_shutdown);
 
 	tzset(); // localtime_r wants this
 	srand(time(NULL));
@@ -207,6 +173,7 @@ int main(int argc, char **argv)
 #endif
 
 	song_initialise();
+	cfg_init_dir();	// Needed?????
 	cfg_load();
 
 	if (!(startup_flags & SF_NETWORK)) {
@@ -230,22 +197,6 @@ int main(int argc, char **argv)
 #endif
 
 	volume_setup();
-
-	if (initial_song && !initial_dir) {
-		initial_dir = get_parent_directory(initial_song);
-		if (!initial_dir) {
-			initial_dir = get_current_directory();
-		}
-	}
-//	if (initial_dir) {
-//		strncpy(cfg_dir_modules, initial_dir, PATH_MAX);
-//		cfg_dir_modules[PATH_MAX] = 0;
-//		strncpy(cfg_dir_samples, initial_dir, PATH_MAX);
-//		cfg_dir_samples[PATH_MAX] = 0;
-//		strncpy(cfg_dir_instruments, initial_dir, PATH_MAX);
-//		cfg_dir_instruments[PATH_MAX] = 0;
-//		free(initial_dir);
-//	}
 
 	if (initial_song) {
 		if (song_load_unchecked(initial_song)) {
