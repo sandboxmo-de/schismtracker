@@ -31,34 +31,19 @@
 #include "song.h"
 #include "midi.h"
 
-#include <errno.h>
 
 #include "sdlmain.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 
 
 static const char *audio_driver = NULL;
 
-/* --------------------------------------------------------------------- */
-
-/* If we're not not debugging, don't not dump core. (Have I ever mentioned
- * that NDEBUG is poorly named -- or that identifiers for settings in the
- * negative form are a bad idea?) */
-#if defined(NDEBUG)
-# define SDL_INIT_FLAGS SDL_INIT_TIMER
-#else
-# define SDL_INIT_FLAGS SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE
-#endif
-
 static void sdl_init(void)
 {
 	char *err;
-	if (SDL_Init(SDL_INIT_FLAGS) == 0)
+	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE) == 0)
 		return;
 	err = SDL_GetError();
 	fprintf(stderr, "SDL_Init: %s\n", err);

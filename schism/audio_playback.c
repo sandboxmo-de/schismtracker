@@ -330,7 +330,7 @@ static int song_keydown_ex(int samp, int ins, int note, int vol, int chan, int e
 
 			i->played = 1;
 
-			if ((status.flags & MIDI_LIKE_TRACKER) && i) {
+			if (i) {
 				if (i->midi_channel_mask) {
 					GM_KeyOff(chan_internal);
 					GM_DPatch(chan_internal, i->midi_program, i->midi_bank, i->midi_channel_mask);
@@ -381,7 +381,7 @@ static int song_keydown_ex(int samp, int ins, int note, int vol, int chan, int e
 		c->increment = -c->increment; // lousy hack
 	csf_note_change(current_song, chan_internal, note, 0, 0, 1);
 
-	if (!(status.flags & MIDI_LIKE_TRACKER) && i) {
+	if (0 && i) {
 		/* midi keyjazz shouldn't require a sample */
 		mc.note = note ? note : midi_note;
 
@@ -973,12 +973,6 @@ void cfg_load_audio(cfg_file_t *cfg)
 	audio_settings.eq_gain[1] = cfg_get_number(cfg, "EQ Med Low Band", "gain", 0);
 	audio_settings.eq_gain[2] = cfg_get_number(cfg, "EQ Med High Band", "gain", 0);
 	audio_settings.eq_gain[3] = cfg_get_number(cfg, "EQ High Band", "gain", 0);
-
-	if (cfg_get_number(cfg, "General", "stop_on_load", 1)) {
-		status.flags &= ~PLAY_AFTER_LOAD;
-	} else {
-		status.flags |= PLAY_AFTER_LOAD;
-	}
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -993,7 +987,7 @@ static void _schism_midi_out_note(int chan, const song_note_t *starting_note)
 	int need_note, need_velocity;
 	song_voice_t *c;
 
-	if (!current_song || !song_is_instrument_mode() || (status.flags & MIDI_LIKE_TRACKER)) return;
+//	if (!current_song || !song_is_instrument_mode()) return;
 
     /*if(m)
     fprintf(stderr, "midi_out_note called (ch %d)note(%d)instr(%d)volcmd(%02X)cmd(%02X)vol(%02X)p(%02X)\n",
@@ -1351,7 +1345,7 @@ static void _audio_init_tail(void)
 {
 	free(audio_buffer);
 	audio_buffer = mem_calloc(audio_buffer_samples, audio_sample_size);
-	samples_played = (status.flags & CLASSIC_MODE) ? SMP_INIT : 0;
+	samples_played = 0;
 
 	song_unlock_audio();
 	song_start_audio();
@@ -1365,10 +1359,6 @@ void audio_init(const char *driver_spec)
 
 void audio_reinit(void)
 {
-	if (status.flags & (DISKWRITER_ACTIVE|DISKWRITER_ACTIVE_PATTERN)) {
-		/* never allowed */
-		return;
-	}
 	song_stop();
 	_audio_init_head(active_audio_driver, 0);
 	_audio_init_tail();
