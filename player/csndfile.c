@@ -21,8 +21,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define NEED_BYTESWAP
-#define NEED_TIME
 #include "headers.h"
 
 #include <math.h>
@@ -373,7 +371,6 @@ int csf_first_blank_instrument(song_t *csf, int start)
 	}
 	return -1;
 }
-
 
 // FIXME this function sucks
 int csf_get_highest_used_channel(song_t *csf)

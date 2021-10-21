@@ -150,14 +150,6 @@ extern short pdB_s(int noisefloor, float power, float correction_dBs);
 /* correction_dBs corrects the dB after converted, but before scaling.*/
 extern short dB2_power_s(int noisefloor, int db, float correction_dBs);
 
-/* formatting */
-/* for get_{time,date}_string, buf should be (at least) 27 chars; anything past that isn't used. */
-char *get_date_string(time_t when, char *buf);
-char *get_time_string(time_t when, char *buf);
-char *numtostr(int digits, unsigned int n, char *buf);
-char *numtostr_signed(int digits, int n, char *buf);
-char *num99tostr(int n, char *buf);
-
 /* string handling */
 const char *get_basename(const char *filename);
 const char *get_extension(const char *filename); // including dot; "" if no extension (note: used to strip dot)
@@ -165,12 +157,6 @@ char *get_parent_directory(const char *dirname);
 int ltrim_string(char *s); // return: length of string after trimming
 int rtrim_string(char *s);
 int trim_string(char *s);
-int str_break(const char *s, char c, char **first, char **second);
-char *str_escape(const char *source, int space_hack);
-char *str_unescape(const char *source);
-char *pretty_name(const char *filename);
-int get_num_lines(const char *text);
-char *str_concat(const char *s, ...);
 
 /* sleep in msec */
 void ms_sleep(unsigned int m);
