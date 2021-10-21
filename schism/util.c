@@ -593,31 +593,31 @@ int get_num_lines(const char *text)
 /* FILE INFO FUNCTIONS */
 
 /* 0 = success, !0 = failed (check errno) */
-int make_backup_file(const char *filename, int numbered)
-{
-	char buf[PATH_MAX];
-
-	/* ensure plenty of room to breathe */
-	if (strlen(filename) > PATH_MAX - 16) {
-		errno = ENAMETOOLONG;
-		return -1;
-	}
-
-	if (numbered) {
-		/* If some crazy person needs more than 65536 backup files,
-		   they probably have more serious issues to tend to. */
-		int n = 1, ret;
-		do {
-			sprintf(buf, "%s.%d~", filename, n++);
-			ret = rename_file(filename, buf, 0);
-		} while (ret != 0 && errno == EEXIST && n < 65536);
-		return ret;
-	} else {
-		strcpy(buf, filename);
-		strcat(buf, "~");
-		return rename_file(filename, buf, 1);
-	}
-}
+//int make_backup_file(const char *filename, int numbered)
+//{
+//	char buf[PATH_MAX];
+//
+//	/* ensure plenty of room to breathe */
+//	if (strlen(filename) > PATH_MAX - 16) {
+//		errno = ENAMETOOLONG;
+//		return -1;
+//	}
+//
+//	if (numbered) {
+//		/* If some crazy person needs more than 65536 backup files,
+//		   they probably have more serious issues to tend to. */
+//		int n = 1, ret;
+//		do {
+//			sprintf(buf, "%s.%d~", filename, n++);
+//			ret = rename_file(filename, buf, 0);
+//		} while (ret != 0 && errno == EEXIST && n < 65536);
+//		return ret;
+//	} else {
+//		strcpy(buf, filename);
+//		strcat(buf, "~");
+//		return rename_file(filename, buf, 1);
+//	}
+//}
 
 long file_size(const char *filename)
 {
@@ -835,72 +835,72 @@ static int _rename_nodestroy(const char *old, const char *new)
 }
 
 /* 0 = success, !0 = failed (check errno) */
-int rename_file(const char *old, const char *new, int overwrite)
-{
-	if (!overwrite)
-		return _rename_nodestroy(old, new);
-
-#ifdef WIN32
-	UINT em;
-	em = SetErrorMode(0);
-	if (MoveFile(old, new)) {
-		win32_filecreated_callback(new);
-		return 0;
-	}
-	switch (GetLastError()) {
-	case ERROR_ALREADY_EXISTS:
-	case ERROR_FILE_EXISTS:
-		break;
-	default:
-		/* eh... */
-		SetErrorMode(em);
-		return -1;
-	};
-
-	if (MoveFileEx(old, new, MOVEFILE_REPLACE_EXISTING)) {
-		/* yay */
-		SetErrorMode(em);
-		return 0;
-	}
-	/* this sometimes work with win95 and novell shares */
-	chmod(new, 0777);
-	chmod(old, 0777);
-	/* more junk */
-	SetFileAttributesA(new, FILE_ATTRIBUTE_NORMAL);
-	SetFileAttributesA(new, FILE_ATTRIBUTE_TEMPORARY);
-
-	if (MoveFile(old, new)) {
-		/* err.. yay! */
-		win32_filecreated_callback(new);
-		SetErrorMode(em);
-		return 0;
-	}
-	/* okay, let's try again */
-	if (!DeleteFileA(new)) {
-		/* no chance! */
-		SetErrorMode(em);
-		return -1;
-	}
-	if (MoveFile(old, new)) {
-		/* .... */
-		win32_filecreated_callback(new);
-		SetErrorMode(em);
-		return 0;
-	}
-	/* alright, thems the breaks. win95 eats your files,
-	and not a damn thing I can do about it.
-	*/
-	SetErrorMode(em);
-	return -1;
-#else
-	int r = rename(old, new);
-	if (r != 0 && errno == EEXIST) {
-		/* Broken rename()? Try smashing the old file first,
-		and hope *that* doesn't also fail ;) */
-		if (unlink(old) != 0 || rename(old, new) == -1)
-			return -1;
-	}
-	return r;
-#endif
-}
+//int rename_file(const char *old, const char *new, int overwrite)
+//{
+//	if (!overwrite)
+//		return _rename_nodestroy(old, new);
+//
+//#ifdef WIN32
+//	UINT em;
+//	em = SetErrorMode(0);
+//	if (MoveFile(old, new)) {
+//		win32_filecreated_callback(new);
+//		return 0;
+//	}
+//	switch (GetLastError()) {
+//	case ERROR_ALREADY_EXISTS:
+//	case ERROR_FILE_EXISTS:
+//		break;
+//	default:
+//		/* eh... */
+//		SetErrorMode(em);
+//		return -1;
+//	};
+//
+//	if (MoveFileEx(old, new, MOVEFILE_REPLACE_EXISTING)) {
+//		/* yay */
+//		SetErrorMode(em);
+//		return 0;
+//	}
+//	/* this sometimes work with win95 and novell shares */
+//	chmod(new, 0777);
+//	chmod(old, 0777);
+//	/* more junk */
+//	SetFileAttributesA(new, FILE_ATTRIBUTE_NORMAL);
+//	SetFileAttributesA(new, FILE_ATTRIBUTE_TEMPORARY);
+//
+//	if (MoveFile(old, new)) {
+//		/* err.. yay! */
+//		win32_filecreated_callback(new);
+//		SetErrorMode(em);
+//		return 0;
+//	}
+//	/* okay, let's try again */
+//	if (!DeleteFileA(new)) {
+//		/* no chance! */
+//		SetErrorMode(em);
+//		return -1;
+//	}
+//	if (MoveFile(old, new)) {
+//		/* .... */
+//		win32_filecreated_callback(new);
+//		SetErrorMode(em);
+//		return 0;
+//	}
+//	/* alright, thems the breaks. win95 eats your files,
+//	and not a damn thing I can do about it.
+//	*/
+//	SetErrorMode(em);
+//	return -1;
+//#else
+//	int r = rename(old, new);
+//	if (r != 0 && errno == EEXIST) {
+//		/* Broken rename()? Try smashing the old file first,
+//		and hope *that* doesn't also fail ;) */
+//		if (unlink(old) != 0 || rename(old, new) == -1)
+//			return -1;
+//	}
+//	return r;
+//#endif
+//}
 
