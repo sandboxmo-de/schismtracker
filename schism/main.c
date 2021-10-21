@@ -24,8 +24,6 @@
 #define NEED_TIME
 #include "headers.h"
 
-#include "event.h"
-
 #include "song.h"
 #include "midi.h"
 
@@ -106,6 +104,7 @@ int main(int argc, char **argv)
 	while (SDL_WaitEvent(&event)) {
 		continue;
 	}
+
 	while(1){}
 	fprintf(stdout, "SDL_Init:\n");
 	volatile int j;
