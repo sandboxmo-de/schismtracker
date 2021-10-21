@@ -26,8 +26,6 @@
 
 #include "event.h"
 
-#include "it.h"
-
 #include "song.h"
 #include "midi.h"
 
@@ -84,9 +82,8 @@ int main(int argc, char **argv)
 	parse_only_initial_song(argc, argv);
 
 	song_initialise();
-	cfg_load_audio();
-	cfg_load_midi();
-	cfg_load_dmoz(NULL);
+	load_audio();
+	load_midi();
 
 	sdl_init();
 

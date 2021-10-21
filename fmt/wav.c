@@ -24,7 +24,6 @@
 #define NEED_BYTESWAP
 #include "headers.h"
 #include "fmt.h"
-#include "it.h"
 #include "sndfile.h"
 #include "log.h"
 #include <stdint.h>

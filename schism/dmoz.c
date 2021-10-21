@@ -640,23 +640,6 @@ void dmoz_sort(dmoz_filelist_t *flist, dmoz_dirlist_t *dlist)
 		qsort(dlist->dirs, dlist->num_dirs, sizeof(dmoz_dir_t *), qsort_cmp_dir);
 }
 
-void cfg_load_dmoz(cfg_file_t *cfg)
-{
-	const char *ptr;
-	int i;
-
-	ptr = cfg_get_string(cfg, "Directories", "sort_with", NULL, 0, NULL);
-	if (ptr) {
-		for (i = 0; compare_funcs[i].name; i++) {
-			if (strcasecmp(compare_funcs[i].name, ptr) == 0) {
-				dmoz_file_cmp = compare_funcs[i].fcmp;
-				dmoz_dir_cmp = compare_funcs[i].dcmp;
-				break;
-			}
-		}
-	}
-}
-
 /* --------------------------------------------------------------------------------------------------------- */
 /* platform-specific directory navigation */
 

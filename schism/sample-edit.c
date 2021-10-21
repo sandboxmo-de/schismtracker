@@ -23,7 +23,6 @@
 
 #include "headers.h"
 
-#include "it.h"
 #include "util.h"
 #include "song.h"
 #include "cmixer.h"

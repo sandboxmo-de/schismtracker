@@ -23,7 +23,6 @@
 
 #include "headers.h"
 
-#include "it.h"
 #include "song.h"
 #include "sndfile.h"
 #include "slurp.h"

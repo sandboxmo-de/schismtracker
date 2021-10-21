@@ -92,7 +92,6 @@ noinst_HEADERS = \
 	include/fmt-types.h		\
 	include/headers.h		\
 	include/it_defs.h		\
-	include/it.h			\
 	include/log.h			\
 	include/midi.h			\
 	include/precomp_lut.h		\

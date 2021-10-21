@@ -237,6 +237,7 @@ void audio_reinit(void);
 void song_init_eq(int do_reset, uint32_t mix_freq);
 
 /* --------------------------------------------------------------------- */
+void load_audio(void);
 /* playback */
 void song_lock_audio(void);
 void song_unlock_audio(void);

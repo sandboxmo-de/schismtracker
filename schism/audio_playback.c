@@ -23,7 +23,6 @@
 
 #include "headers.h"
 
-#include "it.h"
 #include "cmixer.h"
 #include "sndfile.h"
 #include "song.h"
@@ -941,7 +940,7 @@ void song_set_surround(int on)
 
 #define CFG_GET_A(v,d) audio_settings.v = d
 #define CFG_GET_M(v,d) audio_settings.v = d
-void cfg_load_audio(void)
+void load_audio(void)
 {
 	CFG_GET_A(sample_rate, DEF_SAMPLE_RATE);
 	CFG_GET_A(bits, 16);
@@ -1126,21 +1125,6 @@ printf("channel = %d note=%d starting_note=%p\n",chan,m_note,starting_note);
 	}
 
 }
-//static void _schism_midi_out_raw(const unsigned char *data, unsigned int len, unsigned int pos)
-//{
-//#if 0
-//	i = (8000*(audio_buffer_samples - delay));
-//	i /= (current_song->mix_frequency);
-//#endif
-//#if 0
-//	for (int i=0; i < len; i++) {
-//		printf("%02x ",data[i]);
-//	}puts("");
-//#endif
-//
-//	if (!_disko_writemidi(data,len,pos)) midi_send_buffer(data,len,pos);
-//}
-
 
 
 // ------------------------------------------------------------------------------------------------------------
