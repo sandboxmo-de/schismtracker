@@ -51,62 +51,6 @@ static SDL_cond *midi_play_cond = NULL;
 
 static struct midi_provider *port_providers = NULL;
 
-
-/* all this just for usleep?! (maybe we should have sys/win32/usleep.c) */
-#ifdef WIN32
-#include <windows.h>
-
-static void (*__win32_usleep)(unsigned int usec) = NULL;
-static void __win32_old_usleep(unsigned int u)
-{
-	/* bah, only Win95 and "earlier" actually needs this... */
-	SleepEx(u/1000,FALSE);
-}
-
-static FARPROC __ihatewindows_f1 = NULL;
-static FARPROC __ihatewindows_f2 = NULL;
-static FARPROC __ihatewindows_f3 = NULL;
-static HANDLE __midi_timer = NULL;
-
-static void __win32_new_usleep(unsigned int u)
-{
-	LARGE_INTEGER due;
-	due.QuadPart = -(10 * (__int64)u);
-	__ihatewindows_f2(__midi_timer, &due, 0, NULL, NULL, 0);
-	__ihatewindows_f3(__midi_timer, INFINITE);
-}
-
-static void __win32_pick_usleep(void)
-{
-	HINSTANCE k32;
-
-	k32 = GetModuleHandle("KERNEL32.DLL");
-	if (!k32) k32 = LoadLibrary("KERNEL32.DLL");
-	if (!k32) k32 = GetModuleHandle("KERNEL32.DLL");
-	if (!k32) goto FAIL;
-	__ihatewindows_f1 = (FARPROC)GetProcAddress(k32,"CreateWaitableTimer");
-	__ihatewindows_f2 = (FARPROC)GetProcAddress(k32,"SetWaitableTimer");
-	__ihatewindows_f3 = (FARPROC)GetProcAddress(k32,"WaitForSingleObject");
-	if (!__ihatewindows_f1 || !__ihatewindows_f2 || !__ihatewindows_f3)
-		goto FAIL;
-	__midi_timer = (HANDLE)__ihatewindows_f1(NULL,TRUE,NULL);
-	if (!__midi_timer) goto FAIL;
-
-	/* grumble */
-	__win32_usleep = __win32_new_usleep;
-	return;
-FAIL:
-	__win32_usleep = __win32_old_usleep;
-}
-
-#define SLEEP_FUNC(x)   __win32_usleep(x)
-
-#else
-
-#define SLEEP_FUNC(x)   usleep(x)
-
-#endif
-
 /* configurable midi stuff */
 int midi_flags = MIDI_TICK_QUANTIZE | MIDI_RECORD_NOTEOFF
 		| MIDI_RECORD_VELOCITY | MIDI_RECORD_AFTERTOUCH
@@ -160,13 +104,6 @@ void load_midi(void)
 	song_unlock_audio();
 }
 
-static void _midi_engine_connect(void)
-{
-#ifdef WIN32
-	win32mm_midi_setup();
-#endif
-}
-
 void midi_engine_poll_ports(void)
 {
 	struct midi_provider *n;
@@ -202,7 +139,7 @@ int midi_engine_start(void)
 		return 0;
 	}
 
-	_midi_engine_connect();
+//	_midi_engine_connect();
 	_connected = 1;
 	return 1;
 }
@@ -211,7 +148,7 @@ void midi_engine_reset(void)
 {
 	if (!_connected) return;
 	midi_engine_stop();
-	_midi_engine_connect();
+//	_midi_engine_connect();
 }
 
 void midi_engine_stop(void)
@@ -504,12 +441,12 @@ static int _midi_queue_run(UNUSED void *xtop)
 {
 	int i;
 
-#ifdef WIN32
-	__win32_pick_usleep();
-	SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS);
-	SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_TIME_CRITICAL);
-	/*SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_HIGHEST);*/
-#endif
+//#ifdef WIN32
+//	__win32_pick_usleep();
+//	SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS);
+//	SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_TIME_CRITICAL);
+//	/*SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_HIGHEST);*/
+//#endif
 
 	SDL_mutexP(midi_play_mutex);
 	for (;;) {
@@ -519,7 +456,7 @@ static int _midi_queue_run(UNUSED void *xtop)
 			SDL_mutexP(midi_record_mutex);
 			_midi_send_unlocked(qq[i].b, qq[i].used, 0, 1);
 			SDL_mutexV(midi_record_mutex);
-			SLEEP_FUNC(10000); /* 10msec */
+//			SLEEP_FUNC(10000); /* 10msec */
 			qq[i].used = 0;
 		}
 	}

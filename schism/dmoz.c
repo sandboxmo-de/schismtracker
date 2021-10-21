@@ -722,101 +722,101 @@ static void add_platform_dirs(const char *path, dmoz_filelist_t *flist, dmoz_dir
 
 /* on success, this will fill the lists and return 0. if something goes
 wrong, it adds a 'stub' entry for the root directory, and returns -1. */
-int dmoz_read(const char *path, dmoz_filelist_t *flist, dmoz_dirlist_t *dlist,
-		int (*load_library)(const char *path, dmoz_filelist_t *flist, dmoz_dirlist_t *dlist))
-{
-	DIR *dir;
-	struct dirent *ent;
-	char *ptr;
-	struct stat st;
-	int pathlen, namlen, lib = 0, err = 0;
-
-	if (!path || !*path)
-		path = FAILSAFE_PATH;
-	pathlen = strlen(path);
-
-#ifdef GEKKO
-	/* awful hack: libfat's file reads bail if a device is given without a slash. */
-	if (strchr(path, ':') != NULL && strchr(path, '/') == NULL) {
-		int i;
-		for (i = 0; devices[i]; i++) {
-			if (strncmp(path, devices[i], pathlen) == 0) {
-				path = devices[i];
-				break;
-			}
-		}
-	}
-#endif
-	dir = opendir(path);
-	if (dir) {
-		while ((ent = readdir(dir)) != NULL) {
-			namlen = _D_EXACT_NAMLEN(ent);
-			/* ignore hidden/backup files (TODO: make this code more portable;
-			some OSes have different ideas of whether a file is hidden) */
-#if defined(WIN32)
-			/* hide these, windows makes its later */
-			if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
-				continue;
-#else
-			if (ent->d_name[0] == '.')
-				continue;
-#endif
-			if (ent->d_name[namlen - 1] == '~')
-				continue;
-
-			ptr = dmoz_path_concat_len(path, ent->d_name, pathlen, namlen);
-
-#if defined(WIN32)
-			if (GetFileAttributes(ptr) & (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)) {
-				free(ptr);
-				continue;
-			}
-#endif
-
-			if (stat(ptr, &st) < 0) {
-				/* doesn't exist? */
-				free(ptr);
-				continue; /* better luck next time */
-			}
-			if (st.st_mtime < 0) st.st_mtime = 0;
-			if (S_ISDIR(st.st_mode))
-				dmoz_add_file_or_dir(flist, dlist, ptr, str_dup(ent->d_name), &st, 0);
-			else if (S_ISREG(st.st_mode))
-				dmoz_add_file(flist, ptr, str_dup(ent->d_name), &st, 1);
-			else
-				free(ptr);
-		}
-		closedir(dir);
-	} else if (errno == ENOTDIR) {
-		/* oops, it's a file! -- load it as a library */
-		if (load_library && load_library(path, flist, dlist) != 0)
-			err = errno;
-		else
-			lib = 1;
-	} else {
-		/* opendir failed? that's unpossible! */
-		err = errno;
-	}
-
-	/* more directories!
-	 * If this is actually a file, make a fake "." that actually points to the directory.
-	 * If something weird happens when trying to get the directory name, this falls back
-	 * to add_platform_dirs to keep from getting "stuck". */
-	if (lib && (ptr = get_parent_directory(path)) != NULL)
-		dmoz_add_file_or_dir(flist, dlist, ptr, str_dup("."), NULL, -10);
-	else
-		add_platform_dirs(path, flist, dlist);
-
-	/* finally... sort it */
-	dmoz_sort(flist, dlist);
-
-	if (err) {
-		errno = err;
-		return -1;
-	} else {
-		return 0;
-	}
-}
+//int dmoz_read(const char *path, dmoz_filelist_t *flist, dmoz_dirlist_t *dlist,
+//		int (*load_library)(const char *path, dmoz_filelist_t *flist, dmoz_dirlist_t *dlist))
+//{
+//	DIR *dir;
+//	struct dirent *ent;
+//	char *ptr;
+//	struct stat st;
+//	int pathlen, namlen, lib = 0, err = 0;
+//
+//	if (!path || !*path)
+//		path = FAILSAFE_PATH;
+//	pathlen = strlen(path);
+//
+//#ifdef GEKKO
+//	/* awful hack: libfat's file reads bail if a device is given without a slash. */
+//	if (strchr(path, ':') != NULL && strchr(path, '/') == NULL) {
+//		int i;
+//		for (i = 0; devices[i]; i++) {
+//			if (strncmp(path, devices[i], pathlen) == 0) {
+//				path = devices[i];
+//				break;
+//			}
+//		}
+//	}
+//#endif
+//	dir = opendir(path);
+//	if (dir) {
+//		while ((ent = readdir(dir)) != NULL) {
+//			namlen = _D_EXACT_NAMLEN(ent);
+//			/* ignore hidden/backup files (TODO: make this code more portable;
+//			some OSes have different ideas of whether a file is hidden) */
+//#if defined(WIN32)
+//			/* hide these, windows makes its later */
+//			if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+//				continue;
+//#else
+//			if (ent->d_name[0] == '.')
+//				continue;
+//#endif
+//			if (ent->d_name[namlen - 1] == '~')
+//				continue;
+//
+//			ptr = dmoz_path_concat_len(path, ent->d_name, pathlen, namlen);
+//
+//#if defined(WIN32)
+//			if (GetFileAttributes(ptr) & (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)) {
+//				free(ptr);
+//				continue;
+//			}
+//#endif
+//
+//			if (stat(ptr, &st) < 0) {
+//				/* doesn't exist? */
+//				free(ptr);
+//				continue; /* better luck next time */
+//			}
+//			if (st.st_mtime < 0) st.st_mtime = 0;
+//			if (S_ISDIR(st.st_mode))
+//				dmoz_add_file_or_dir(flist, dlist, ptr, str_dup(ent->d_name), &st, 0);
+//			else if (S_ISREG(st.st_mode))
+//				dmoz_add_file(flist, ptr, str_dup(ent->d_name), &st, 1);
+//			else
+//				free(ptr);
+//		}
+//		closedir(dir);
+//	} else if (errno == ENOTDIR) {
+//		/* oops, it's a file! -- load it as a library */
+//		if (load_library && load_library(path, flist, dlist) != 0)
+//			err = errno;
+//		else
+//			lib = 1;
+//	} else {
+//		/* opendir failed? that's unpossible! */
+//		err = errno;
+//	}
+//
+//	/* more directories!
+//	 * If this is actually a file, make a fake "." that actually points to the directory.
+//	 * If something weird happens when trying to get the directory name, this falls back
+//	 * to add_platform_dirs to keep from getting "stuck". */
+//	if (lib && (ptr = get_parent_directory(path)) != NULL)
+//		dmoz_add_file_or_dir(flist, dlist, ptr, str_dup("."), NULL, -10);
+//	else
+//		add_platform_dirs(path, flist, dlist);
+//
+//	/* finally... sort it */
+//	dmoz_sort(flist, dlist);
+//
+//	if (err) {
+//		errno = err;
+//		return -1;
+//	} else {
+//		return 0;
+//	}
+//}
 
 /* --------------------------------------------------------------------------------------------------------- */
 
