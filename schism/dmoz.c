@@ -492,7 +492,7 @@ int dmoz_worker(void)
 			(*current_dmoz_file_pointer) = (current_dmoz_filelist->num_files-1);
 			if (dmoz_worker_onmove) dmoz_worker_onmove();
 		}
-		status.flags |= NEED_UPDATE;
+//		status.flags |= NEED_UPDATE;
 	} else {
 		current_dmoz_file++;
 	}
