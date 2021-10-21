@@ -33,8 +33,6 @@
 
 #include "sdlmain.h"
 
-#include "it.h"
-
 #include "dmoz.h"
 
 #include <ctype.h>
@@ -123,8 +121,6 @@ int midi_c5note = 60;
 static void _cfg_load_midi_part_locked(struct midi_port *q)
 {
 	struct cfg_section *c;
-	/*struct midi_provider *p;*/
-	cfg_file_t cfg;
 	const char *sn;
 	char *ptr, *ss, *sp;
 	char buf[256];
@@ -140,36 +136,10 @@ static void _cfg_load_midi_part_locked(struct midi_port *q)
 		while (isspace(*sp)) sp++;
 		if (!*sp) sp = NULL;
 	}
-
-//	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
-//	cfg_init(&cfg, ptr);
-
-	/* look for MIDI port sections */
-	for (c = NULL; c; c = c->next) {
-		j = -1;
-		sscanf(c->name, "MIDI Port %d", &j);
-		if (j < 1) continue;
-		sn = cfg_get_string(&cfg, c->name, "name", buf, 255, NULL);
-		if (!sn) continue;
-		if (strcasecmp(ss, sn) != 0) continue;
-		sn = cfg_get_string(&cfg, c->name, "provider", buf, 255, NULL);
-		if (sn && sp && strcasecmp(sp, sn) != 0) continue;
-		/* okay found port */
-		if ((q->iocap & MIDI_INPUT) && cfg_get_number(&cfg, c->name, "input", 0)) {
-			q->io |= MIDI_INPUT;
-		}
-		if ((q->iocap & MIDI_OUTPUT) && cfg_get_number(&cfg, c->name, "output", 0)) {
-			q->io |= MIDI_OUTPUT;
-		}
-		if (q->io && q->enable) q->enable(q);
-	}
-
-//	cfg_free(&cfg);
-//	free(ptr);
 }
 
 
-void cfg_load_midi(void)
+void load_midi(void)
 {
 	midi_config_t *md, *mc;
 	char buf[17], buf2[33];
