@@ -27,7 +27,8 @@
 #define NEED_TIME
 #include "headers.h"
 
-#include "it.h"
+/* each page with configurable settings has a function to load/save them... */
+#include "config-parser.h" /* FIXME: shouldn't need this here */
 #include "song.h"
 #include "dmoz.h"
 #include "slurp.h"
@@ -656,18 +657,6 @@ void cfg_load_dmoz(cfg_file_t *cfg)
 	}
 }
 
-void cfg_save_dmoz(cfg_file_t *cfg)
-{
-	int i;
-
-	for (i = 0; compare_funcs[i].name; i++) {
-		if (dmoz_file_cmp == compare_funcs[i].fcmp) {
-			cfg_set_string(cfg, "Directories", "sort_with", compare_funcs[i].name);
-			break;
-		}
-	}
-}
-
 /* --------------------------------------------------------------------------------------------------------- */
 /* platform-specific directory navigation */
 
@@ -803,7 +792,6 @@ int dmoz_read(const char *path, dmoz_filelist_t *flist, dmoz_dirlist_t *dlist,
 
 			if (stat(ptr, &st) < 0) {
 				/* doesn't exist? */
-				log_perror(ptr);
 				free(ptr);
 				continue; /* better luck next time */
 			}
@@ -908,7 +896,6 @@ int dmoz_filter_ext_data(dmoz_file_t *file)
 		/* It would be nice to use the error string for the description, but there doesn't seem to be
 		any easy/portable way to do that without dynamically allocating it (since strerror might
 		return a static buffer), and str_dup'ing EVERY description is kind of a waste of memory. */
-		log_perror(file->base);
 		file->description = "File error";
 		break;
 	default:

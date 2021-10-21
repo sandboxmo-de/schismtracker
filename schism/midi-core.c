@@ -118,7 +118,7 @@ int midi_pitch_depth = 12;
 int midi_amplification = 100;
 int midi_c5note = 60;
 
-#define CFG_GET_MI(v,d) midi_ ## v = cfg_get_number(cfg, "MIDI", #v, d)
+#define CFG_GET_MI(v,d) midi_ ## v = d
 
 static void _cfg_load_midi_part_locked(struct midi_port *q)
 {
@@ -169,7 +169,7 @@ static void _cfg_load_midi_part_locked(struct midi_port *q)
 }
 
 
-void cfg_load_midi(cfg_file_t *cfg)
+void cfg_load_midi(void)
 {
 	midi_config_t *md, *mc;
 	char buf[17], buf2[33];
@@ -184,117 +184,11 @@ void cfg_load_midi(cfg_file_t *cfg)
 
 	song_lock_audio();
 	md = &default_midi_config;
-	cfg_get_string(cfg,"MIDI","start", md->start, 31, "FF");
-	cfg_get_string(cfg,"MIDI","stop", md->stop, 31, "FC");
-	cfg_get_string(cfg,"MIDI","tick", md->tick, 31, "");
-	cfg_get_string(cfg,"MIDI","note_on", md->note_on, 31, "9c n v");
-	cfg_get_string(cfg,"MIDI","note_off", md->note_off, 31, "9c n 0");
-	cfg_get_string(cfg,"MIDI","set_volume", md->set_volume, 31, "");
-	cfg_get_string(cfg,"MIDI","set_panning", md->set_panning, 31, "");
-	cfg_get_string(cfg,"MIDI","set_bank", md->set_bank, 31, "");
-	cfg_get_string(cfg,"MIDI","set_program", md->set_program, 31, "Cc p");
-	for (i = 0; i < 16; i++) {
-		snprintf(buf, 16, "SF%X", i);
-		cfg_get_string(cfg, "MIDI", buf, md->sfx[i], 31,
-				i == 0 ? "F0F000z" : "");
-	}
-
-	for (i = 0; i < 128; i++) {
-		snprintf(buf, 16, "Z%02X", i + 0x80);
-		if (i < 16)
-			snprintf(buf2, 32, "F0F001%02x", i * 8);
-		else
-			buf2[0] = '\0';
-		cfg_get_string(cfg, "MIDI", buf, md->zxx[i], 31, buf2);
-	}
-
 	mc = &current_song->midi_config;
 	memcpy(mc, md, sizeof(midi_config_t));
 
-
 	song_unlock_audio();
 }
-
-#define CFG_SET_MI(v) cfg_set_number(cfg, "MIDI", #v, midi_ ## v)
-void cfg_save_midi(cfg_file_t *cfg)
-{
-	struct cfg_section *c;
-	struct midi_provider *p;
-	struct midi_port *q;
-	midi_config_t *md, *mc;
-	char buf[33];
-	char *ss;
-	int i, j;
-
-	CFG_SET_MI(flags);
-	CFG_SET_MI(pitch_depth);
-	CFG_SET_MI(amplification);
-	CFG_SET_MI(c5note);
-
-	song_lock_audio();
-	md = &default_midi_config;
-
-	/* overwrite default */
-	mc = &current_song->midi_config;
-	memcpy(md, mc, sizeof(midi_config_t));
-
-	cfg_set_string(cfg,"MIDI","start", md->start);
-	cfg_set_string(cfg,"MIDI","stop", md->stop);
-	cfg_set_string(cfg,"MIDI","tick", md->tick);
-	cfg_set_string(cfg,"MIDI","note_on", md->note_on);
-	cfg_set_string(cfg,"MIDI","note_off", md->note_off);
-	cfg_set_string(cfg,"MIDI","set_volume", md->set_volume);
-	cfg_set_string(cfg,"MIDI","set_panning", md->set_panning);
-	cfg_set_string(cfg,"MIDI","set_bank", md->set_bank);
-	cfg_set_string(cfg,"MIDI","set_program", md->set_program);
-	for (i = 0; i < 16; i++) {
-		snprintf(buf, 32, "SF%X", i);
-		cfg_set_string(cfg, "MIDI", buf, md->sfx[i]);
-	}
-	for (i = 0; i < 128; i++) {
-		snprintf(buf, 32, "Z%02X", i + 0x80);
-		cfg_set_string(cfg, "MIDI", buf, md->zxx[i]);
-	}
-	song_unlock_audio();
-
-	/* write out only enabled midi ports */
-	i = 1;
-	SDL_mutexP(midi_mutex);
-	q = NULL;
-	for (p = port_providers; p; p = p->next) {
-		while (midi_port_foreach(p, &q)) {
-			ss = q->name;
-			if (!ss) continue;
-			while (isspace(*ss)) ss++;
-			if (!*ss) continue;
-			if (!q->io) continue;
-
-			snprintf(buf, 32, "MIDI Port %d", i); i++;
-			cfg_set_string(cfg, buf, "name", ss);
-			ss = p->name;
-			if (ss) {
-				while (isspace(*ss)) ss++;
-				if (*ss) {
-					cfg_set_string(cfg, buf, "provider", ss);
-				}
-			}
-			cfg_set_number(cfg, buf, "input", q->io & MIDI_INPUT ? 1 : 0);
-			cfg_set_number(cfg, buf, "output", q->io & MIDI_OUTPUT ? 1 : 0);
-		}
-	}
-	//TODO: Save number of MIDI-IP ports
-	SDL_mutexV(midi_mutex);
-
-	/* delete other MIDI port sections */
-	for (c = cfg->sections; c; c = c->next) {
-		j = -1;
-		sscanf(c->name, "MIDI Port %d", &j);
-		if (j < i) continue;
-		c->omit = 1;
-	}
-
-}
-
 
 static void _midi_engine_connect(void)
 {
@@ -707,11 +601,6 @@ void midi_send_flush(void)
 
 	if (!midi_queue_thread) {
 		midi_queue_thread = SDL_CreateThread(_midi_queue_run, NULL);
-		if (midi_queue_thread) {
-			log_appendf(3, "Started MIDI queue thread");
-		} else {
-			log_appendf(2, "ACK: Couldn't start MIDI thread; things are likely going to go boom!");
-		}
 	}
 
 	SDL_mutexP(midi_play_mutex);

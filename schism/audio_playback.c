@@ -30,7 +30,6 @@
 #include "slurp.h"
 #include "config-parser.h"
 
-#include "disko.h"
 #include "event.h"
 
 #include <assert.h>
@@ -83,7 +82,6 @@ static int audio_writeout_count = 0;
 struct audio_settings audio_settings;
 
 static void _schism_midi_out_note(int chan, const song_note_t *m);
-static void _schism_midi_out_raw(const unsigned char *data, unsigned int len, unsigned int delay);
 
 /* Audio driver related stuff */
 
@@ -939,16 +937,14 @@ void song_set_surround(int on)
 // well this is certainly a dopey place to put this, config having nothing to do with playback... maybe i
 // should put all the cfg_ stuff in config.c :/
 
-#define CFG_GET_A(v,d) audio_settings.v = cfg_get_number(cfg, "Audio", #v, d)
-#define CFG_GET_M(v,d) audio_settings.v = cfg_get_number(cfg, "Mixer Settings", #v, d)
-void cfg_load_audio(cfg_file_t *cfg)
+#define CFG_GET_A(v,d) audio_settings.v = d
+#define CFG_GET_M(v,d) audio_settings.v = d
+void cfg_load_audio(void)
 {
 	CFG_GET_A(sample_rate, DEF_SAMPLE_RATE);
 	CFG_GET_A(bits, 16);
 	CFG_GET_A(channels, 2);
 	CFG_GET_A(buffer_size, DEF_BUFFER_SIZE);
-
-	cfg_get_string(cfg, "Audio", "driver", cfg_audio_driver, 255, NULL);
 
 	CFG_GET_M(channel_limit, DEF_CHANNEL_LIMIT);
 	CFG_GET_M(interpolation_mode, SRCMODE_LINEAR);
@@ -962,15 +958,15 @@ void cfg_load_audio(cfg_file_t *cfg)
 	audio_settings.channel_limit = CLAMP(audio_settings.channel_limit, 4, MAX_VOICES);
 	audio_settings.interpolation_mode = CLAMP(audio_settings.interpolation_mode, 0, 3);
 
-	audio_settings.eq_freq[0] = cfg_get_number(cfg, "EQ Low Band", "freq", 0);
-	audio_settings.eq_freq[1] = cfg_get_number(cfg, "EQ Med Low Band", "freq", 16);
-	audio_settings.eq_freq[2] = cfg_get_number(cfg, "EQ Med High Band", "freq", 96);
-	audio_settings.eq_freq[3] = cfg_get_number(cfg, "EQ High Band", "freq", 127);
+	audio_settings.eq_freq[0] = 0; 	 // EQ Low Band freq
+	audio_settings.eq_freq[1] = 16;  // EQ Med Low Band freq
+	audio_settings.eq_freq[2] = 96;  // EQ Med High Band freq
+	audio_settings.eq_freq[3] = 127; // EQ High Band freq
 
-	audio_settings.eq_gain[0] = cfg_get_number(cfg, "EQ Low Band", "gain", 0);
-	audio_settings.eq_gain[1] = cfg_get_number(cfg, "EQ Med Low Band", "gain", 0);
-	audio_settings.eq_gain[2] = cfg_get_number(cfg, "EQ Med High Band", "gain", 0);
-	audio_settings.eq_gain[3] = cfg_get_number(cfg, "EQ High Band", "gain", 0);
+	audio_settings.eq_gain[0] = 0; // EQ Low Band gain
+	audio_settings.eq_gain[1] = 0; // EQ Med Low Band gain
+	audio_settings.eq_gain[2] = 0; // EQ Med High Band gain
+	audio_settings.eq_gain[3] = 0; // EQ High Band gain
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -1128,20 +1124,20 @@ printf("channel = %d note=%d starting_note=%p\n",chan,m_note,starting_note);
 	}
 
 }
-static void _schism_midi_out_raw(const unsigned char *data, unsigned int len, unsigned int pos)
-{
-#if 0
-	i = (8000*(audio_buffer_samples - delay));
-	i /= (current_song->mix_frequency);
-#endif
-#if 0
-	for (int i=0; i < len; i++) {
-		printf("%02x ",data[i]);
-	}puts("");
-#endif
-
-	if (!_disko_writemidi(data,len,pos)) midi_send_buffer(data,len,pos);
-}
+//static void _schism_midi_out_raw(const unsigned char *data, unsigned int len, unsigned int pos)
+//{
+//#if 0
+//	i = (8000*(audio_buffer_samples - delay));
+//	i /= (current_song->mix_frequency);
+//#endif
+//#if 0
+//	for (int i=0; i < len; i++) {
+//		printf("%02x ",data[i]);
+//	}puts("");
+//#endif
+//
+//	if (!_disko_writemidi(data,len,pos)) midi_send_buffer(data,len,pos);
+//}
 
 
 
@@ -1314,10 +1310,6 @@ static void _audio_init_head(const char *driver_spec, int verbose)
 				err = ugh;
 			}
 		}
-
-		log_appendf(4, "%s: %s", driver_spec, err);
-		log_appendf(4, "Retrying with default device...");
-		log_nl();
 	}
 
 	/* Try the default device? */
@@ -1325,7 +1317,6 @@ static void _audio_init_head(const char *driver_spec, int verbose)
 		return;
 
 	err_default = SDL_GetError();
-	log_appendf(4, "%s", err_default);
 
 	if (!_audio_open("dummy", 0)) {
 		/* yarrr, abandon ship! */
@@ -1408,8 +1399,6 @@ void song_init_modplug(void)
 void song_initialise(void)
 {
 	csf_midi_out_note = _schism_midi_out_note;
-	csf_midi_out_raw = _schism_midi_out_raw;
-
 
 	current_song = csf_allocate();
 

@@ -54,17 +54,6 @@ static char *initial_song = NULL;
 /* initial module directory */
 static char *initial_dir = NULL;
 
-/* startup flags */
-enum {
-	SF_PLAY = 1, /* -p: start playing after loading initial_song */
-	SF_HOOKS = 2, /* --no-hooks: don't run startup/exit scripts */
-//	SF_FONTEDIT = 4,
-	SF_CLASSIC = 8,
-	SF_NETWORK = 16,
-};
-static int startup_flags = SF_HOOKS | SF_NETWORK;
-
-
 static void parse_only_initial_song(int argc, char **argv)
 {
 	char *cwd = get_current_directory();
@@ -95,14 +84,9 @@ int main(int argc, char **argv)
 	parse_only_initial_song(argc, argv);
 
 	song_initialise();
-	cfg_load_audio(NULL);
-	cfg_load_midi(NULL);
-	cfg_load_disko(NULL);
+	cfg_load_audio();
+	cfg_load_midi();
 	cfg_load_dmoz(NULL);
-
-	if (!(startup_flags & SF_NETWORK)) {
-		status.flags |= NO_NETWORK;
-	}
 
 	sdl_init();
 

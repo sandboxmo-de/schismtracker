@@ -84,7 +84,6 @@ noinst_HEADERS = \
 	include/auto/schismico.h	\
 	include/cmixer.h		\
 	include/config-parser.h		\
-	include/disko.h			\
 	include/dmoz.h			\
 	include/event.h			\
 	include/fmopl2.h			\
@@ -183,7 +182,6 @@ schismtracker_SOURCES = \
 	schism/sample-edit.c		\
 	schism/dmoz.c			\
 	schism/log.c		\
-	schism/disko.c			\
 	schism/mplink.c			\
 	fmt/compression.c		\
 	fmt/generic.c			\

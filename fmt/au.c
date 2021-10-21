@@ -146,36 +146,36 @@ int fmt_au_load_sample(const uint8_t *data, size_t length, song_sample_t *smp)
 
 /* --------------------------------------------------------------------------------------------------------- */
 
-int fmt_au_save_sample(disko_t *fp, song_sample_t *smp)
-{
-	struct au_header au;
-	uint32_t ln;
-
-	memcpy(au.magic, ".snd", 4);
-
-	au.data_offset = bswapBE32(49); // header is 24 bytes, sample name is 25
-	ln = smp->length;
-	if (smp->flags & CHN_16BIT) {
-		ln *= 2;
-		au.encoding = bswapBE32(AU_PCM_16);
-	} else {
-		au.encoding = bswapBE32(AU_PCM_8);
-	}
-	au.sample_rate = bswapBE32(smp->c5speed);
-	if (smp->flags & CHN_STEREO) {
-		ln *= 2;
-		au.channels = bswapBE32(2);
-	} else {
-		au.channels = bswapBE32(1);
-	}
-	au.data_size = bswapBE32(ln);
-
-	disko_write(fp, &au, sizeof(au));
-	disko_write(fp, smp->name, 25);
-	csf_write_sample(fp, smp, SF_BE | SF_PCMS
-			| ((smp->flags & CHN_16BIT) ? SF_16 : SF_8)
-			| ((smp->flags & CHN_STEREO) ? SF_SI : SF_M),
-			UINT32_MAX);
-
-	return SAVE_SUCCESS;
-}
+//int fmt_au_save_sample(disko_t *fp, song_sample_t *smp)
+//{
+//	struct au_header au;
+//	uint32_t ln;
+//
+//	memcpy(au.magic, ".snd", 4);
+//
+//	au.data_offset = bswapBE32(49); // header is 24 bytes, sample name is 25
+//	ln = smp->length;
+//	if (smp->flags & CHN_16BIT) {
+//		ln *= 2;
+//		au.encoding = bswapBE32(AU_PCM_16);
+//	} else {
+//		au.encoding = bswapBE32(AU_PCM_8);
+//	}
+//	au.sample_rate = bswapBE32(smp->c5speed);
+//	if (smp->flags & CHN_STEREO) {
+//		ln *= 2;
+//		au.channels = bswapBE32(2);
+//	} else {
+//		au.channels = bswapBE32(1);
+//	}
+//	au.data_size = bswapBE32(ln);
+//
+//	disko_write(fp, &au, sizeof(au));
+//	disko_write(fp, smp->name, 25);
+//	csf_write_sample(fp, smp, SF_BE | SF_PCMS
+//			| ((smp->flags & CHN_16BIT) ? SF_16 : SF_8)
+//			| ((smp->flags & CHN_STEREO) ? SF_SI : SF_M),
+//			UINT32_MAX);
+//
+//	return SAVE_SUCCESS;
+//}
