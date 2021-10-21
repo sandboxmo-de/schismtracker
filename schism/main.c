@@ -48,19 +48,6 @@
 
 #include <getopt.h>
 
-#if !defined(__amigaos4__) && !defined(GEKKO)
-# define ENABLE_HOOKS 1
-#endif
-
-/* --------------------------------------------------------------------- */
-/* globals */
-
-enum {
-	EXIT_HOOK = 1,
-	EXIT_SAVECFG = 4,
-	EXIT_SDLQUIT = 16,
-};
-static int shutdown_process = 0;
 
 static const char *audio_driver = NULL;
 
@@ -85,33 +72,7 @@ static void sdl_init(void)
 	exit(1);
 }
 
-/* --------------------------------------------------------------------- */
-
-#if ENABLE_HOOKS
-static void run_startup_hook(void)
-{
-//	run_hook(cfg_dir_dotschism, "startup-hook", NULL);
-}
-static void run_exit_hook(void)
-{
-//	run_hook(cfg_dir_dotschism, "exit-hook", NULL);
-}
-#endif
-
-/* --------------------------------------------------------------------- */
-/* arg parsing */
-
-/* filename of song to load on startup, or NULL for none */
-#ifdef MACOSX
-char *initial_song = NULL;
-#else
 static char *initial_song = NULL;
-#endif
-
-#ifdef MACOSX
-static int ibook_helper = -1;
-#endif
-
 /* initial module directory */
 static char *initial_dir = NULL;
 
@@ -151,26 +112,9 @@ static void parse_only_initial_song(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	os_sysinit(&argc, &argv);
-
 	tzset(); // localtime_r wants this
 	srand(time(NULL));
 	parse_only_initial_song(argc, argv);
-
-#ifdef USE_DLTRICK_ALSA
-	alsa_dlinit();
-#endif
-
-
-#if ENABLE_HOOKS
-	if (startup_flags & SF_HOOKS) {
-		run_startup_hook();
-		shutdown_process |= EXIT_HOOK;
-	}
-#endif
-#ifdef MACOSX
-	ibook_helper = macosx_ibook_fnswitch(1);
-#endif
 
 	song_initialise();
 	cfg_load_audio(NULL);
@@ -182,45 +126,21 @@ int main(int argc, char **argv)
 		status.flags |= NO_NETWORK;
 	}
 
-	shutdown_process |= EXIT_SAVECFG;
-
 	sdl_init();
-	shutdown_process |= EXIT_SDLQUIT;
-	os_sdlinit();	// only used by the Wii
 
 	midi_engine_start();
 	audio_init(audio_driver);
 	song_init_modplug();
 
-#ifndef WIN32
-	signal(SIGINT, exit);
-	signal(SIGQUIT, exit);
-	signal(SIGTERM, exit);
-#endif
-
 	volume_setup();
 
 	if (initial_song) {
 		if (song_load_unchecked(initial_song)) {
-//			if (diskwrite_to) {
-//				// make a guess?
-//				const char *multi = strcasestr(diskwrite_to, "%c");
-//				const char *driver = (strcasestr(diskwrite_to, ".aif")
-//						      ? (multi ? "MAIFF" : "AIFF")
-//						      : (multi ? "MWAV" : "WAV"));
-//				if (song_export(diskwrite_to, driver) != SAVE_SUCCESS)
-//					exit(1); // ?
-//			} else if (startup_flags & SF_PLAY) {
-				song_start();
-//			}
+			song_start();
 		}
 		free(initial_song);
 	}
 
-#if HAVE_NICE
-	if (nice(1) == -1) {
-	}
-#endif
 	/* poll once */
 	midi_engine_poll_ports();
 
@@ -237,4 +157,3 @@ int main(int argc, char **argv)
 	}
 	return 0; /* blah */
 }
-
