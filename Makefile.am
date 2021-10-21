@@ -55,14 +55,7 @@ sysfiles = \
 	sys/fd.org/autopackage.apspec	\
 	sys/fd.org/itf.desktop		\
 	sys/fd.org/schism.desktop	\
-	sys/macosx/Schism_Tracker.app/Contents/Info.plist			\
-	sys/macosx/Schism_Tracker.app/Contents/PkgInfo				\
-	sys/macosx/Schism_Tracker.app/Contents/Resources/AppSettings.plist	\
-	sys/macosx/Schism_Tracker.app/Contents/Resources/appIcon.icns		\
-	sys/macosx/Schism_Tracker.app/Contents/Resources/moduleIcon.icns	\
 	sys/win32/schism.nsis		\
-	sys/wii/schismtracker/icon.png	\
-	sys/wii/schismtracker/meta.xml	\
 	sys/sdl/README
 scripts = \
 	scripts/bin2h.sh		\
@@ -103,7 +96,6 @@ noinst_HEADERS = \
 	include/it.h			\
 	include/log.h			\
 	include/midi.h			\
-	include/osdefs.h		\
 	include/precomp_lut.h		\
 	include/sample-edit.h		\
 	include/sdlmain.h		\
@@ -114,13 +106,7 @@ noinst_HEADERS = \
 	include/song.h			\
 	include/tables.h		\
 	include/util.h			\
-	sys/wii/isfs.h			\
-	sys/wii/certs_bin.h		\
-	sys/wii/su_tik_bin.h		\
-	sys/wii/su_tmd_bin.h		\
 	sys/win32/wine-ddraw.h
-
-dist_man_MANS = sys/posix/schismtracker.1
 
 desktopdir = $(datadir)/applications
 desktop_DATA = sys/fd.org/schism.desktop
@@ -142,41 +128,10 @@ auto/default-font.c: Makefile.am scripts/bin2h.sh scripts/build-font.sh $(fonts)
 auto/helptext.c: Makefile.am scripts/genhelp.py $(helptexts)
 	$(PYTHON) $(srcdir)/scripts/genhelp.py $(srcdir) $(helptexts) >$@
 
-if USE_X11
-files_x11 = sys/x11/xscreensaver.c sys/x11/xkb.c
-cflags_x11 = -DUSE_X11
-if USE_XV
-files_x11 += sys/x11/xv.c
-cflags_x11 += -DUSE_XV
-endif
-endif
-
-if USE_ALSA
-files_alsa = sys/alsa/init.c sys/alsa/volume-alsa.c sys/alsa/midi-alsa.c
-if USE_ALSA_DLTRICK
-cflags_alsa=-DUSE_ALSA -DUSE_DLTRICK_ALSA
-else
-cflags_alsa=-DUSE_ALSA
-lib_asound=-lasound
-endif
-endif
-
-if USE_OSS
-files_oss = sys/oss/volume-oss.c sys/oss/midi-oss.c
-cflags_oss=-DUSE_OSS
-endif
-
-if USE_MMAP
-files_mmap = sys/posix/slurp-mmap.c
-endif
-
 if USE_WIN32
 files_win32 = \
-	sys/win32/osdefs.c		\
 	sys/win32/slurp-win32.c		\
-	sys/win32/volume-win32mm.c	\
 	sys/win32/midi-win32mm.c	\
-	sys/win32/filetype.c		\
 	sys/win32/localtime_r.c
 cflags_win32=-I$(srcdir)/sys/win32
 lib_win32=-lwinmm
@@ -198,21 +153,6 @@ WRCFLAGS = --use-temp-file -I. -I$(srcdir) $(cflags_version) $(wrcflags_version)
 files_windres=sys/win32/schismres.rc
 sys/win32/schismres.$(OBJEXT): icons/schismres.ico config.h Makefile.am
 endif HAVE_WINDRES
-
-if USE_WII
-files_wii=sys/wii/isfs.c sys/wii/osdefs.c
-cflags_wii=-I$(srcdir)/sys/wii
-endif
-
-if USE_MACOSX
-files_macosx = \
-	sys/macosx/macosx-sdlmain.m	\
-	sys/macosx/ibook-support.c	\
-	sys/macosx/midi-macosx.c	\
-	sys/macosx/volume-macosx.c	\
-	sys/macosx/osdefs.c
-cflags_macosx=-mmacosx-version-min=10.9
-endif
 
 if USE_NETWORK
 cflags_network=-DUSE_NETWORK
@@ -301,15 +241,8 @@ schismtracker_SOURCES = \
 	player/effects.c		\
 	player/snd_gm.c			\
 	player/tables.c			\
-	$(files_macosx)			\
-	$(files_alsa)			\
-	$(files_oss)			\
 	$(files_win32)			\
-	$(files_x11)			\
-	$(files_stdlib)			\
-	$(files_mmap)			\
-	$(files_wii)			\
-	$(files_windres)
+	$(files_stdlib)
 
 # have version.o rely on all files
 schism/version.$(OBJEXT): $(filter-out schism/version.$(OBJEXT),$(schismtracker_OBJECTS)) $(HEADERS)

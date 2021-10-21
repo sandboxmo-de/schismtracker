@@ -40,11 +40,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#ifndef WIN32
-# include <signal.h>
-#endif
-
-#include <getopt.h>
 
 
 static const char *audio_driver = NULL;
