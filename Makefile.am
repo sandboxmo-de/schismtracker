@@ -5,9 +5,6 @@ AUTOMAKE_OPTIONS = foreign dist-bzip2 no-dist-gzip
 bin_PROGRAMS = schismtracker
 
 noinst_HEADERS = \
-	include/auto/logoit.h		\
-	include/auto/logoschism.h	\
-	include/auto/schismico.h	\
 	include/cmixer.h		\
 	include/dmoz.h			\
 	include/event.h			\
@@ -30,7 +27,6 @@ noinst_HEADERS = \
 	include/tables.h		\
 	include/util.h
 
-## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
 schismtracker_SOURCES = \
 	schism/sample-edit.c		\
 	schism/log.c		\
