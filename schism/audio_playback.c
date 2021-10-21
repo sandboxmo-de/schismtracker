@@ -1150,72 +1150,14 @@ void song_stop_audio(void)
 /* --------------------------------------------------------------------------------------------------------- */
 /* Nasty stuff here */
 
-const char *song_audio_driver(void)
-{
-	return driver_name;
-}
-
-/* NOTE: driver_spec must not be NULL here */
-static void _audio_set_envvars(const char *driver_spec)
-{
-	char *driver = NULL, *device = NULL;
-
-	unset_env_var("AUDIODEV");
-	unset_env_var("SDL_PATH_DSP");
-
-	if (!*driver_spec) {
-		unset_env_var("SDL_AUDIODRIVER");
-	} else if (str_break(driver_spec, ':', &driver, &device)) {
-		/* "nosound" and "none" are for the sake of older versions: --help suggested using
-		"none", but the name presented in the rest of the interface was "nosound".
-		"oss" is a synonym for "dsp" because everyone should know what "oss" is and "dsp"
-		is a lousy name for an audio driver */
-		put_env_var("SDL_AUDIODRIVER",
-			(strcmp(driver, "oss") == 0) ? "dsp"
-			: (strcmp(driver, "nosound") == 0) ? "dummy"
-			: (strcmp(driver, "none") == 0) ? "dummy"
-			: driver);
-		if (*device) {
-			/* Documentation says that SDL_PATH_DSP overrides AUDIODEV if it's set,
-			but the SDL alsa code only looks at AUDIODEV. Annoying. */
-			put_env_var("AUDIODEV", device);
-			put_env_var("SDL_PATH_DSP", device);
-		}
-
-		free(driver);
-		free(device);
-	} else {
-		/* Assuming just the driver was given.
-		(Old behavior was trying to guess -- selecting 'dsp' driver for /dev/dsp, etc.
-		but this is rather flaky and problematic) */
-		put_env_var("SDL_AUDIODRIVER", driver_spec);
-	}
-
-	strncpy(active_audio_driver, driver_spec, sizeof(active_audio_driver));
-	active_audio_driver[sizeof(active_audio_driver) - 1] = '\0';
-}
-
 /* NOTE: driver_spec must not be NULL here
 'verbose' => print stuff to the log about what device/driver was configured */
 static int _audio_open(const char *driver_spec, int verbose)
 {
-	_audio_set_envvars(driver_spec);
-
 	if (SDL_WasInit(SDL_INIT_AUDIO))
 		SDL_QuitSubSystem(SDL_INIT_AUDIO);
 	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
 		return 0;
-
-	/* This is needed in order to coax alsa into actually respecting the buffer size, since it's evidently
-	ignored entirely for "fake" devices such as "default" -- which SDL happens to use if no device name
-	is set. (see SDL_alsa_audio.c: http://tinyurl.com/ybf398f)
-	If hw doesn't exist, so be it -- let this fail, we'll fall back to the dummy device, and the
-	user can pick a more reasonable device later. */
-	if (SDL_AudioDriverName(driver_name, sizeof(driver_name)) != NULL && !strcmp(driver_name, "alsa")) {
-		char *dev = getenv("AUDIODEV");
-		if (!dev || !*dev)
-			put_env_var("AUDIODEV", "hw");
-	}
 
 	/* ... THIS is needed because, if the buffer size isn't a power of two, the dsp driver will punt since
 	it's not nice enough to fix it for us. (contrast alsa, which is TOO nice and fixes it even when we
@@ -1241,9 +1183,6 @@ static int _audio_open(const char *driver_spec, int verbose)
 
 	if (SDL_OpenAudio(&desired, &obtained) < 0)
 		return 0;
-
-	/* I don't know why this would change between SDL_AudioInit and SDL_OpenAudio, but I'm paranoid */
-	SDL_AudioDriverName(driver_name, sizeof(driver_name));
 
 	song_lock_audio();
 
