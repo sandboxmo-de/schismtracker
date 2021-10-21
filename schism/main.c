@@ -41,6 +41,28 @@ static char *initial_song = NULL;
 /* initial module directory */
 static char *initial_dir = NULL;
 
+static int is_directory(const char *filename)
+{
+	struct stat buf;
+
+	if (stat(filename, &buf) == -1) {
+		/* Well, at least we tried. */
+		return 0;
+	}
+
+	return S_ISDIR(buf.st_mode);
+}
+
+static char *get_current_directory(void)
+{
+	char buf[PATH_MAX + 1];
+
+	/* hmm. fall back to the current dir */
+	if (getcwd(buf, PATH_MAX))
+		return str_dup(buf);
+	return str_dup(".");
+}
+
 static void parse_only_initial_song(int argc, char **argv)
 {
 	char *cwd = get_current_directory();
