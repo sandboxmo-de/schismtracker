@@ -21,18 +21,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define NEED_TIME
-#include "headers.h"
+//#define NEED_TIME
+//#include "headers.h"
 
 #include "song.h"
 #include "midi.h"
 
-
 #include "sdlmain.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-
 
 static const char *audio_driver = NULL;
 
@@ -42,7 +37,6 @@ static void sdl_init(void)
 	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE) == 0)
 		return;
 	err = SDL_GetError();
-	fprintf(stderr, "SDL_Init: %s\n", err);
 	exit(1);
 }
 
@@ -75,8 +69,6 @@ static void parse_only_initial_song(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	tzset(); // localtime_r wants this
-	srand(time(NULL));
 	parse_only_initial_song(argc, argv);
 
 	song_initialise();
@@ -106,7 +98,6 @@ int main(int argc, char **argv)
 	}
 
 	while(1){}
-	fprintf(stdout, "SDL_Init:\n");
 	volatile int j;
 	j = 1 / 0;
 	while(1){
