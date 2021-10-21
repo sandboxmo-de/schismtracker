@@ -699,7 +699,7 @@ int disko_sync(void)
 
 	/* update the progress bar (kind of messy, yes...) */
 	export_ds[0]->length += frames;
-	status.flags |= NEED_UPDATE;
+//	status.flags |= NEED_UPDATE;
 
 	if (export_dwsong.flags & SONG_ENDREACHED) {
 		disko_finish();
