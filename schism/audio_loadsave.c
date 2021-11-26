@@ -228,7 +228,7 @@ song_t *song_create_load(const char *file)
 
 int song_load_unchecked(const char *file)
 {
-	const char *base = get_basename(file);
+	// const char *base = get_basename(file);
 	int was_playing;
 	song_t *newsong;
 
