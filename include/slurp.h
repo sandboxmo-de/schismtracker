@@ -25,29 +25,29 @@
 #define SLURP_H
 
 #ifdef HAVE_CONFIG_H
-# include <config.h>
+#include <config.h>
 #endif
 
 #include "util.h"
 
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <unistd.h>
 
 /* --------------------------------------------------------------------- */
 
 typedef struct _slurp_struct slurp_t;
 struct _slurp_struct {
-	size_t length;
-	uint8_t *data;
-	int extra;
-	void *bextra;
-	void (*closure)(slurp_t *);
-	/* for reading streams */
-	size_t pos;
+  size_t length;
+  uint8_t *data;
+  int extra;
+  void *bextra;
+  void (*closure)(slurp_t *);
+  /* for reading streams */
+  size_t pos;
 };
 
 /* --------------------------------------------------------------------- */
@@ -56,17 +56,9 @@ struct _slurp_struct {
 the file; in most cases it can simply be NULL. If size is nonzero, it overrides the file's size as
 returned by stat -- this can be used to read only part of a file, or if the file size is known but
 a stat structure is not available. */
-slurp_t *slurp(const char *filename, struct stat *buf, size_t size);
+// slurp_t *slurp(const char *filename, struct stat *buf, size_t size);
 
-void unslurp(slurp_t * t);
-
-#ifdef WIN32
-int slurp_win32(slurp_t *useme, const char *filename, size_t st);
-#endif
-
-#if HAVE_MMAP
-int slurp_mmap(slurp_t *useme, const char *filename, size_t st);
-#endif
+// void unslurp(slurp_t * t);
 
 /* stdio-style file processing */
 int slurp_seek(slurp_t *t, long offset, int whence); /* whence => SEEK_SET, SEEK_CUR, SEEK_END */
@@ -76,10 +68,9 @@ long slurp_tell(slurp_t *t);
 size_t slurp_read(slurp_t *t, void *ptr, size_t count); /* i never realy liked fread */
 size_t slurp_peek(slurp_t *t, void *ptr, size_t count);
 int slurp_getc(slurp_t *t); /* returns unsigned char cast to int, or EOF */
-int slurp_eof(slurp_t *t); /* 1 = end of file */
+int slurp_eof(slurp_t *t);  /* 1 = end of file */
 
 /* used internally by slurp, nothing else should need this */
 int mmcmp_unpack(uint8_t **data, size_t *length);
 
 #endif /* ! SLURP_H */
-

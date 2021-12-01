@@ -21,21 +21,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "headers.h"
 #include "fmt.h"
+#include "headers.h"
 
 /* --------------------------------------------------------------------- */
 
-int fmt_liq_read_info(dmoz_file_t *file, const uint8_t *data, size_t length)
-{
-	if (!(length > 64 && data[64] == 0x1a && memcmp(data, "Liquid Module:", 14) == 0))
-		return 0;
+int fmt_liq_read_info(dmoz_file_t *file, const uint8_t *data, size_t length) {
+  if (!(length > 64 && data[64] == 0x1a && memcmp(data, "Liquid Module:", 14) == 0))
+    return 0;
 
-	file->description = "Liquid Tracker";
-	/*file->extension = str_dup("liq");*/
-	file->artist = strn_dup((const char *)data + 44, 20);
-	file->title = strn_dup((const char *)data + 14, 30);
-	file->type = TYPE_MODULE_S3M;
+  // file->description = "Liquid Tracker";
+  /*file->extension = str_dup("liq");*/
+  // file->artist = strn_dup((const char *)data + 44, 20);
+  // file->title = strn_dup((const char *)data + 14, 30);
+  file->type = TYPE_MODULE_S3M;
 
-	return 1;
+  return 1;
 }

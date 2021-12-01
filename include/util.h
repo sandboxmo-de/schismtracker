@@ -24,74 +24,74 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <sys/stat.h> /* roundabout way to get time_t */
-#include <sys/types.h>
+// #include <sys/stat.h> /* roundabout way to get time_t */
+// #include <sys/types.h>
+#include <string.h>
 
 /* --------------------------------------------------------------------- */
 
-#define ARRAY_SIZE(a) ((signed)(sizeof(a)/sizeof(*(a))))
-
+#define ARRAY_SIZE(a) ((signed)(sizeof(a) / sizeof(*(a))))
 
 /* macros stolen from glib */
 #ifndef MAX
-# define MAX(X,Y) (((X)>(Y))?(X):(Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 #endif
 #ifndef MIN
-# define MIN(X,Y) (((X)<(Y))?(X):(Y))
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #endif
 #ifndef CLAMP
-# define CLAMP(N,L,H) (((N)>(H))?(H):(((N)<(L))?(L):(N)))
+#define CLAMP(N, L, H) (((N) > (H)) ? (H) : (((N) < (L)) ? (L) : (N)))
 #endif
 
 #ifdef __GNUC__
-# ifndef LIKELY
-#  define LIKELY(x) __builtin_expect(!!(x),1)
-# endif
-# ifndef UNLIKELY
-#  define UNLIKELY(x) __builtin_expect(!!(x),0)
-# endif
-# ifndef UNUSED
-#  define UNUSED __attribute__((unused))
-# endif
-# ifndef NORETURN
-#  define NORETURN __attribute__((noreturn))
-# endif
-# ifndef PACKED
-#  define PACKED __attribute__((packed))
-# endif
-# ifndef MALLOC
-#  define MALLOC __attribute__ ((malloc))
-# endif
+#ifndef LIKELY
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#endif
+#ifndef UNLIKELY
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
+#ifndef UNUSED
+#define UNUSED __attribute__((unused))
+#endif
+#ifndef NORETURN
+#define NORETURN __attribute__((noreturn))
+#endif
+#ifndef PACKED
+#define PACKED __attribute__((packed))
+#endif
+#ifndef MALLOC
+#define MALLOC __attribute__((malloc))
+#endif
 #else
-# ifndef UNUSED
-#  define UNUSED
-# endif
-# ifndef PACKED
-#  define PACKED
-# endif
-# ifndef NORETURN
-#  define NORETURN
-# endif
-# ifndef LIKELY
-#  define LIKELY(x)
-# endif
-# ifndef UNLIKELY
-#  define UNLIKELY(x)
-# endif
-# ifndef MALLOC
-#  define MALLOC
-# endif
+#ifndef UNUSED
+#define UNUSED
+#endif
+#ifndef PACKED
+#define PACKED
+#endif
+#ifndef NORETURN
+#define NORETURN
+#endif
+#ifndef LIKELY
+#define LIKELY(x)
+#endif
+#ifndef UNLIKELY
+#define UNLIKELY(x)
+#endif
+#ifndef MALLOC
+#define MALLOC
+#endif
 #endif
 
 /* Path stuff that differs by platform */
 #ifdef WIN32
-# define DIR_SEPARATOR '\\'
-# define DIR_SEPARATOR_STR "\\"
-# define IS_DIR_SEPARATOR(c) ((c) == '/' || (c) == '\\')
+#define DIR_SEPARATOR '\\'
+#define DIR_SEPARATOR_STR "\\"
+#define IS_DIR_SEPARATOR(c) ((c) == '/' || (c) == '\\')
 #else
-# define DIR_SEPARATOR '/'
-# define DIR_SEPARATOR_STR "/"
-# define IS_DIR_SEPARATOR(c) ((c) == '/')
+#define DIR_SEPARATOR '/'
+#define DIR_SEPARATOR_STR "/"
+#define IS_DIR_SEPARATOR(c) ((c) == '/')
 #endif
 
 /* --------------------------------------------------------------------- */
@@ -100,12 +100,12 @@
 passed to them in the 'buf' parameter. */
 
 /* memory */
-extern MALLOC void *mem_alloc(size_t);
-extern MALLOC void *mem_calloc(size_t, size_t);
-extern MALLOC char *str_dup(const char *);
-extern MALLOC char *strn_dup(const char *, size_t);
-extern void *mem_realloc(void *,size_t);
-extern void mem_free(void *);
+void *mem_alloc(size_t);
+void *mem_calloc(size_t, size_t);
+// extern MALLOC char *str_dup(const char *);
+// extern MALLOC char *strn_dup(const char *, size_t);
+void *mem_realloc(void *, size_t);
+void mem_free(void *);
 
 /*Conversion*/
 /* linear -> deciBell*/
@@ -151,15 +151,11 @@ extern short pdB_s(int noisefloor, float power, float correction_dBs);
 extern short dB2_power_s(int noisefloor, int db, float correction_dBs);
 
 /* string handling */
-const char *get_basename(const char *filename);
-const char *get_extension(const char *filename); // including dot; "" if no extension (note: used to strip dot)
+// const char *get_basename(const char *filename);
+// const char *get_extension(const char *filename); // including dot; "" if no extension (note: used to strip dot)
 char *get_parent_directory(const char *dirname);
 int ltrim_string(char *s); // return: length of string after trimming
 int rtrim_string(char *s);
 int trim_string(char *s);
 
-/* sleep in msec */
-void ms_sleep(unsigned int m);
-
 #endif /* ! UTIL_H */
-

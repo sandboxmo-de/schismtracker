@@ -29,24 +29,11 @@
 #include "log.h"
 #include "util.h"
 
-inline void log_append2(int bios_font, int color, int must_free, const char *text)
-{
-}
-inline void log_append(int color, int must_free, const char *text)
-{
-}
-inline void log_nl(void)
-{
-}
-void log_appendf(int color, const char *format, ...)
-{
-}
+inline void log_append2(int bios_font, int color, int must_free, const char *text) {}
+inline void log_append(int color, int must_free, const char *text) {}
+inline void log_nl(void) {}
+void log_appendf(int color, const char *format, ...) {}
 
-void log_underline(int chars)
-{
-}
+void log_underline(int chars) {}
 
-void log_perror(const char *prefix)
-{
-}
-
+void log_perror(const char *prefix) {}

@@ -24,10 +24,10 @@
 #ifndef FMT_H
 #define FMT_H
 
-#include <stdint.h>
 #include "dmoz.h"
 #include "slurp.h"
 #include "util.h"
+#include <stdint.h>
 
 #include "sndfile.h"
 
@@ -36,19 +36,19 @@
 
 /* flags to skip loading some data (mainly for scraping titles)
 this is only a suggestion in order to speed loading; don't be surprised if the loader ignores these */
-#define LOAD_NOSAMPLES  1
+#define LOAD_NOSAMPLES 1
 #define LOAD_NOPATTERNS 2
 
 /* return codes for module loaders */
 enum {
-	LOAD_SUCCESS,           /* all's well */
-	LOAD_UNSUPPORTED,       /* wrong file type for the loader */
-	LOAD_FILE_ERROR,        /* couldn't read the file; check errno */
-	LOAD_FORMAT_ERROR,      /* it appears to be the correct type, but there's something wrong */
+  LOAD_SUCCESS,      /* all's well */
+  LOAD_UNSUPPORTED,  /* wrong file type for the loader */
+  LOAD_FILE_ERROR,   /* couldn't read the file; check errno */
+  LOAD_FORMAT_ERROR, /* it appears to be the correct type, but there's something wrong */
 };
 
 /* return codes for modules savers */
-//enum {
+// enum {
 //	SAVE_SUCCESS,           /* all's well */
 //	SAVE_FILE_ERROR,        /* couldn't write the file; check errno */
 //	SAVE_INTERNAL_ERROR,    /* something unrelated to disk i/o */
@@ -56,28 +56,28 @@ enum {
 
 /* --------------------------------------------------------------------------------------------------------- */
 
-#define PROTO_READ_INFO         (dmoz_file_t *file, const uint8_t *data, size_t length)
-#define PROTO_LOAD_SONG         (song_t *song, slurp_t *fp, unsigned int lflags)
-#define PROTO_LOAD_SAMPLE       (const uint8_t *data, size_t length, song_sample_t *smp)
-#define PROTO_LOAD_INSTRUMENT   (const uint8_t *data, size_t length, int slot)
+#define PROTO_READ_INFO (dmoz_file_t * file, const uint8_t *data, size_t length)
+#define PROTO_LOAD_SONG (song_t * song, slurp_t * fp, unsigned int lflags)
+#define PROTO_LOAD_SAMPLE (const uint8_t *data, size_t length, song_sample_t *smp)
+#define PROTO_LOAD_INSTRUMENT (const uint8_t *data, size_t length, int slot)
 
-typedef int (*fmt_read_info_func)       PROTO_READ_INFO;
-typedef int (*fmt_load_song_func)       PROTO_LOAD_SONG;
-typedef int (*fmt_load_sample_func)     PROTO_LOAD_SAMPLE;
-typedef int (*fmt_load_instrument_func) PROTO_LOAD_INSTRUMENT;
+typedef int(*fmt_read_info_func) PROTO_READ_INFO;
+typedef int(*fmt_load_song_func) PROTO_LOAD_SONG;
+typedef int(*fmt_load_sample_func) PROTO_LOAD_SAMPLE;
+typedef int(*fmt_load_instrument_func) PROTO_LOAD_INSTRUMENT;
 
-#define READ_INFO(t)            int fmt_##t##_read_info         PROTO_READ_INFO;
-#define LOAD_SONG(t)            int fmt_##t##_load_song         PROTO_LOAD_SONG;
-#define LOAD_SAMPLE(t)          int fmt_##t##_load_sample       PROTO_LOAD_SAMPLE;
-#define LOAD_INSTRUMENT(t)      int fmt_##t##_load_instrument   PROTO_LOAD_INSTRUMENT;
+#define READ_INFO(t) int fmt_##t##_read_info PROTO_READ_INFO;
+#define LOAD_SONG(t) int fmt_##t##_load_song PROTO_LOAD_SONG;
+#define LOAD_SAMPLE(t) int fmt_##t##_load_sample PROTO_LOAD_SAMPLE;
+#define LOAD_INSTRUMENT(t) int fmt_##t##_load_instrument PROTO_LOAD_INSTRUMENT;
 
 #include "fmt-types.h"
 
 /* --------------------------------------------------------------------------------------------------------- */
 struct instrumentloader {
-	song_instrument_t *inst;
-	int sample_map[MAX_SAMPLES];
-	int basex, slot, expect_samples;
+  song_instrument_t *inst;
+  int sample_map[MAX_SAMPLES];
+  int basex, slot, expect_samples;
 };
 song_instrument_t *instrument_loader_init(struct instrumentloader *ii, int slot);
 int instrument_loader_abort(struct instrumentloader *ii);
@@ -110,7 +110,7 @@ void swap_effects(song_note_t *note);
 /* Convert volume column data from FX_* to VOLFX_*, if possible.
 Return: 1 = it was properly converted, 0 = couldn't do so without loss of information. */
 int convert_voleffect(uint8_t *effect, uint8_t *param, int force);
-#define convert_voleffect_of(note,force) convert_voleffect(&((note)->voleffect), &((note)->volparam), (force))
+#define convert_voleffect_of(note, force) convert_voleffect(&((note)->voleffect), &((note)->volparam), (force))
 
 // load a .mod-style 4-byte packed note
 void mod_import_note(const uint8_t p[4], song_note_t *note);
@@ -118,14 +118,12 @@ void mod_import_note(const uint8_t p[4], song_note_t *note);
 // Read a message with fixed-size line lengths
 void read_lined_message(char *msg, slurp_t *fp, int len, int linelen);
 
-
 // get L-R-R-L panning value from a (zero-based!) channel number
 #define PROTRACKER_PANNING(n) (((((n) + 1) >> 1) & 1) * 256)
 
 // convert .mod finetune byte value to c5speed
-#define MOD_FINETUNE(b) (finetune_table[((b) & 0xf) ^ 8])
+#define MOD_FINETUNE(b) (finetune_table[((b)&0xf) ^ 8])
 
 /* --------------------------------------------------------------------------------------------------------- */
 
 #endif /* ! FMT_H */
-

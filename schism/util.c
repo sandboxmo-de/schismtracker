@@ -27,8 +27,10 @@ extraneous libraries (i.e. GLib). */
 #include "util.h"
 #include <stdint.h>
 
-#include <sys/types.h>
+#include "sdram.h"
+
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "headers.h"
 
@@ -39,124 +41,100 @@ extraneous libraries (i.e. GLib). */
 #include <math.h>
 
 #ifdef WIN32
-#include <windows.h>
 #include <process.h>
 #include <shlobj.h>
+#include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/wait.h>
 #endif
 
-void ms_sleep(unsigned int ms)
-{
-#ifdef WIN32
-	SleepEx(ms,FALSE);
-#else
-	usleep(ms*1000);
-#endif
+// char *str_dup(const char *s) {
+//   char *q;
+//   q = strdup(s);
+//   if (!q) {
+//     /* throw out of memory exception */
+//     perror("strdup");
+//     exit(255);
+//   }
+//   return q;
+// }
+
+// char *strn_dup(const char *s, size_t n) {
+//   char *q;
+//   q = malloc(n + 1);
+//   if (!q) {
+//     /* throw out of memory exception */
+//     // perror("strndup");
+//     exit(255);
+//   }
+//   memcpy(q, s, n);
+//   q[n] = '\0';
+//   return q;
+// }
+
+void *mem_alloc(size_t amount) {
+  void *q;
+  //   q = malloc(amount);
+  q = reserve_space(amount);
+  if (!q) {
+    /* throw out of memory exception */
+    // perror("malloc");
+    exit(255);
+  }
+  return q;
 }
 
-char *str_dup(const char *s)
-{
-	char *q;
-	q = strdup(s);
-	if (!q) {
-		/* throw out of memory exception */
-		perror("strdup");
-		exit(255);
-	}
-	return q;
+void *mem_calloc(size_t nmemb, size_t size) {
+  void *q;
+  //   q = calloc(nmemb, size);
+  q = reserve_space(nmemb * size);
+  memset(q, 0, nmemb * size);
+  if (!q) {
+    /* throw out of memory exception */
+    // perror("calloc");
+    exit(255);
+  }
+  return q;
 }
 
-char *strn_dup(const char *s, size_t n)
-{
-	char *q;
-	q = malloc(n + 1);
-	if (!q) {
-		/* throw out of memory exception */
-		perror("strndup");
-		exit(255);
-	}
-	memcpy(q, s, n);
-	q[n] = '\0';
-	return q;
-}
-
-void *mem_alloc(size_t amount)
-{
-	void *q;
-	q = malloc(amount);
-	if (!q) {
-		/* throw out of memory exception */
-		perror("malloc");
-		exit(255);
-	}
-	return q;
-}
-
-void *mem_calloc(size_t nmemb, size_t size)
-{
-	void *q;
-	q = calloc(nmemb, size);
-	if (!q) {
-		/* throw out of memory exception */
-		perror("calloc");
-		exit(255);
-	}
-	return q;
-}
-
-void *mem_realloc(void *orig, size_t amount)
-{
-	void *q;
-	if (!orig) return mem_alloc(amount);
-	q = realloc(orig, amount);
-	if (!q) {
-		/* throw out of memory exception */
-		perror("malloc");
-		exit(255);
-	}
-	return q;
-}
-
+// void *mem_realloc(void *orig, size_t amount) {
+//   void *q;
+//   if (!orig)
+//     return mem_alloc(amount);
+//   q = realloc(orig, amount);
+//   if (!q) {
+//     /* throw out of memory exception */
+//     // perror("malloc");
+//     exit(255);
+//   }
+//   return q;
+// }
 
 /* --------------------------------------------------------------------- */
 /* CONVERSION FUNCTIONS */
 
 /* linear -> deciBell */
 /* amplitude normalized to 1.0f. */
-float dB(float amplitude)
-{
-	return 20.0f * log10f(amplitude);
-}
+float dB(float amplitude) { return 20.0f * log10f(amplitude); }
 
 /* deciBell -> linear */
-float dB2_amp(float db)
-{
-	return powf(10.0f, db / 20.0f);
-}
+float dB2_amp(float db) { return powf(10.0f, db / 20.0f); }
 
 /* linear -> deciBell */
 /* power normalized to 1.0f. */
-float pdB(float power)
-{
-	return 10.0f * log10f(power);
-}
+float pdB(float power) { return 10.0f * log10f(power); }
 
 /* deciBell -> linear */
-float dB2_power(float db)
-{
-	return powf(10.0f, db / 10.0f);
-}
+float dB2_power(float db) { return powf(10.0f, db / 10.0f); }
 /* linear -> deciBell */
 /* amplitude normalized to 1.0f. */
 /* Output scaled (and clipped) to 128 lines with noisefloor range. */
 /* ([0..128] = [-noisefloor..0dB]) */
 /* correction_dBs corrects the dB after converted, but before scaling.*/
-short dB_s(int noisefloor, float amplitude, float correction_dBs)
-{
-	float db = dB(amplitude) + correction_dBs;
-	return CLAMP((int)(128.f*(db+noisefloor))/noisefloor, 0, 127);
+short dB_s(int noisefloor, float amplitude, float correction_dBs) {
+  float db = dB(amplitude) + correction_dBs;
+  return CLAMP((int)(128.f * (db + noisefloor)) / noisefloor, 0, 127);
 }
 
 /* deciBell -> linear */
@@ -164,19 +142,17 @@ short dB_s(int noisefloor, float amplitude, float correction_dBs)
 /* ([0..128] = [-noisefloor..0dB]) */
 /* amplitude normalized to 1.0f. */
 /* correction_dBs corrects the dB after converted, but before scaling.*/
-short dB2_amp_s(int noisefloor, int db, float correction_dBs)
-{
-	return dB2_amp((db*noisefloor/128.f)-noisefloor-correction_dBs);
+short dB2_amp_s(int noisefloor, int db, float correction_dBs) {
+  return dB2_amp((db * noisefloor / 128.f) - noisefloor - correction_dBs);
 }
 /* linear -> deciBell */
 /* power normalized to 1.0f. */
 /* Output scaled (and clipped) to 128 lines with noisefloor range. */
 /* ([0..128] = [-noisefloor..0dB]) */
 /* correction_dBs corrects the dB after converted, but before scaling.*/
-short pdB_s(int noisefloor, float power, float correction_dBs)
-{
-	float db = pdB(power)+correction_dBs;
-	return CLAMP((int)(128.f*(db+noisefloor))/noisefloor, 0, 127);
+short pdB_s(int noisefloor, float power, float correction_dBs) {
+  float db = pdB(power) + correction_dBs;
+  return CLAMP((int)(128.f * (db + noisefloor)) / noisefloor, 0, 127);
 }
 
 /* deciBell -> linear */
@@ -184,9 +160,8 @@ short pdB_s(int noisefloor, float power, float correction_dBs)
 /* ([0..128] = [-noisefloor..0dB]) */
 /* power normalized to 1.0f. */
 /* correction_dBs corrects the dB after converted, but before scaling.*/
-short dB2_power_s(int noisefloor, int db, float correction_dBs)
-{
-	return dB2_power((db*noisefloor/128.f)-noisefloor-correction_dBs);
+short dB2_power_s(int noisefloor, int db, float correction_dBs) {
+  return dB2_power((db * noisefloor / 128.f) - noisefloor - correction_dBs);
 }
 
 /* --------------------------------------------------------------------- */
@@ -196,46 +171,42 @@ short dB2_power_s(int noisefloor, int db, float correction_dBs)
 but it doesn't do what I want (i.e. not bother with the string) and thanks
 to the stupid libgen.h basename that's totally different, it'd cause some
 possible portability issues. */
-const char *get_basename(const char *filename)
-{
-	const char *base = strrchr(filename, DIR_SEPARATOR);
-	if (base) {
-		/* skip the slash */
-		base++;
-	}
-	if (!(base && *base)) {
-		/* well, there isn't one, so just return the filename */
-		base = filename;
-	}
+// const char *get_basename(const char *filename) {
+//   const char *base = strrchr(filename, DIR_SEPARATOR);
+//   if (base) {
+//     /* skip the slash */
+//     base++;
+//   }
+//   if (!(base && *base)) {
+//     /* well, there isn't one, so just return the filename */
+//     base = filename;
+//   }
 
-	return base;
-}
+//   return base;
+// }
 
 static const char *whitespace = " \t\v\r\n";
 
-inline int ltrim_string(char *s)
-{
-	int ws = strspn(s, whitespace);
-	int len = strlen(s) - ws;
+inline int ltrim_string(char *s) {
+  int ws = strspn(s, whitespace);
+  int len = strlen(s) - ws;
 
-	if (ws)
-		memmove(s, s + ws, len + 1);
-	return len;
+  if (ws)
+    memmove(s, s + ws, len + 1);
+  return len;
 }
 
-inline int rtrim_string(char *s)
-{
-	int len = strlen(s) - 1;
+inline int rtrim_string(char *s) {
+  int len = strlen(s) - 1;
 
-	while (len > 0 && strchr(whitespace, s[len]))
-		len--;
-	len++;
-	s[len] = '\0';
-	return len;
+  while (len > 0 && strchr(whitespace, s[len]))
+    len--;
+  len++;
+  s[len] = '\0';
+  return len;
 }
 
-int trim_string(char *s)
-{
-	ltrim_string(s);
-	return rtrim_string(s);
+int trim_string(char *s) {
+  ltrim_string(s);
+  return rtrim_string(s);
 }

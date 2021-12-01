@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "headers.h"
 #include "fmt.h"
+#include "headers.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -32,19 +32,18 @@ I don't know what this data's supposed to be for :) */
 
 /* btw: AMS stands for "Advanced Module System" */
 
-int fmt_ams_read_info(dmoz_file_t *file, const uint8_t *data, size_t length)
-{
-	uint8_t n;
+int fmt_ams_read_info(dmoz_file_t *file, const uint8_t *data, size_t length) {
+  uint8_t n;
 
-	if (!(length > 38 && memcmp(data, "AMShdr\x1a", 7) == 0))
-		return 0;
+  if (!(length > 38 && memcmp(data, "AMShdr\x1a", 7) == 0))
+    return 0;
 
-	n = data[7];
-	if (n > 30)
-		n = 30;
-	file->description = "Velvet Studio";
-	/*file->extension = str_dup("ams");*/
-	file->title = strn_dup((const char *)data + 8, n);
-	file->type = TYPE_MODULE_XM;
-	return 1;
+  n = data[7];
+  if (n > 30)
+    n = 30;
+  // file->description = "Velvet Studio";
+  /*file->extension = str_dup("ams");*/
+  // file->title = strn_dup((const char *)data + 8, n);
+  file->type = TYPE_MODULE_XM;
+  return 1;
 }

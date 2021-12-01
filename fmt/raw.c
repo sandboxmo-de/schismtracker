@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "headers.h"
 #include "fmt.h"
+#include "headers.h"
 
 #include <errno.h>
 
@@ -30,21 +30,20 @@
 
 // Impulse Tracker handles raw sample data as unsigned, EXCEPT when saving a 16-bit sample as raw.
 
-int fmt_raw_load_sample(const uint8_t *data, size_t length, song_sample_t *smp)
-{
-	/* we'll uphold IT's limit of 4mb */
-	length = MIN(length, 4 * 1048576);
+int fmt_raw_load_sample(const uint8_t *data, size_t length, song_sample_t *smp) {
+  /* we'll uphold IT's limit of 4mb */
+  length = MIN(length, 4 * 1048576);
 
-	smp->c5speed = 8363;
-	smp->volume = 64 * 4;
-	smp->global_volume = 64;
-	smp->length = length;
-	csf_read_sample(smp, SF_LE | SF_8 | SF_PCMU | SF_M, data, length);
+  smp->c5speed = 8363;
+  smp->volume = 64 * 4;
+  smp->global_volume = 64;
+  smp->length = length;
+  csf_read_sample(smp, SF_LE | SF_8 | SF_PCMU | SF_M, data, length);
 
-	return 1;
+  return 1;
 }
 
-//int fmt_raw_save_sample(disko_t *fp, song_sample_t *smp)
+// int fmt_raw_save_sample(disko_t *fp, song_sample_t *smp)
 //{
 //	csf_write_sample(fp, smp, SF_LE
 //		| ((smp->flags & CHN_16BIT) ? SF_16 | SF_PCMS : SF_8 | SF_PCMU)
@@ -52,4 +51,3 @@ int fmt_raw_load_sample(const uint8_t *data, size_t length, song_sample_t *smp)
 //		UINT32_MAX);
 //	return SAVE_SUCCESS;
 //}
-

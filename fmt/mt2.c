@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "headers.h"
 #include "fmt.h"
+#include "headers.h"
 
 /* FIXME:
  * - this is wrong :)
@@ -30,14 +30,13 @@
 
 /* --------------------------------------------------------------------- */
 
-int fmt_mt2_read_info(dmoz_file_t *file, const uint8_t *data, size_t length)
-{
-	if (!(length > 106 && memcmp(data, "MT20", 4) == 0))
-		return 0;
+int fmt_mt2_read_info(dmoz_file_t *file, const uint8_t *data, size_t length) {
+  if (!(length > 106 && memcmp(data, "MT20", 4) == 0))
+    return 0;
 
-	file->description = "MadTracker 2 Module";
-	/*file->extension = str_dup("mt2");*/
-	file->title = strn_dup((const char *)data + 42, 64);
-	file->type = TYPE_MODULE_XM;
-	return 1;
+  // file->description = "MadTracker 2 Module";
+  /*file->extension = str_dup("mt2");*/
+  // file->title = strn_dup((const char *)data + 42, 64);
+  file->type = TYPE_MODULE_XM;
+  return 1;
 }

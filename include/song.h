@@ -26,9 +26,9 @@
 
 #include <stdint.h>
 
+#include "fmt.h"
 #include "sndfile.h"
 #include "util.h"
-#include "fmt.h"
 
 /* --------------------------------------------------------------------- */
 /* things that used to be in mplink */
@@ -39,9 +39,9 @@ extern char song_filename[]; /* the full path (as given to song_load) */
 extern char song_basename[]; /* everything after the last slash */
 
 /* milliseconds = (samples * 1000) / frequency */
-extern unsigned int samples_played;
+extern uint32_t samples_played;
 
-extern unsigned int max_channels_used;
+extern uint32_t max_channels_used;
 
 /* --------------------------------------------------------------------- */
 /* non-song-related structures */
@@ -49,13 +49,13 @@ extern unsigned int max_channels_used;
 /* defined in audio_playback.cc; also used by page_settings.c */
 
 struct audio_settings {
-	int sample_rate, bits, channels, buffer_size;
-	int channel_limit, interpolation_mode;
-	int surround_effect;
+  int sample_rate, bits, channels, buffer_size;
+  int channel_limit, interpolation_mode;
+  int surround_effect;
 
-	unsigned int eq_freq[4];
-	unsigned int eq_gain[4];
-	int no_ramping;
+  uint32_t eq_freq[4];
+  uint32_t eq_gain[4];
+  int no_ramping;
 };
 
 extern struct audio_settings audio_settings;
@@ -65,36 +65,36 @@ extern struct audio_settings audio_settings;
 
 /* for song_get_mode */
 enum song_mode {
-	MODE_STOPPED = 0,
-	MODE_PLAYING = 1,
-	MODE_PATTERN_LOOP = 2,
-	MODE_SINGLE_STEP = 4,
+  MODE_STOPPED = 0,
+  MODE_PLAYING = 1,
+  MODE_PATTERN_LOOP = 2,
+  MODE_SINGLE_STEP = 4,
 };
 
 enum song_new_flags {
-	KEEP_PATTERNS = 1,
-	KEEP_SAMPLES = 2,
-	KEEP_INSTRUMENTS = 4,
-	KEEP_ORDERLIST = 8,
+  KEEP_PATTERNS = 1,
+  KEEP_SAMPLES = 2,
+  KEEP_INSTRUMENTS = 4,
+  KEEP_ORDERLIST = 8,
 };
 
 /* --------------------------------------------------------------------- */
 
 /*
 song_load:
-	prompt ok/cancel if the existing song hasn't been saved.
-	after loading, the current page is changed accordingly.
-	this loads into the global song.
+        prompt ok/cancel if the existing song hasn't been saved.
+        after loading, the current page is changed accordingly.
+        this loads into the global song.
 song_load_unchecked:
-	*NO* dialog, just goes right into loading the song
-	doesn't set the page after loading.
-	this also loads into the global song.
-	return value is nonzero if the load was successful.
-	generally speaking, don't use this function directly;
-	use song_load instead.
+        *NO* dialog, just goes right into loading the song
+        doesn't set the page after loading.
+        this also loads into the global song.
+        return value is nonzero if the load was successful.
+        generally speaking, don't use this function directly;
+        use song_load instead.
 song_create_load:
-	internal back-end function that loads and returns a song.
-	the above functions both use this.
+        internal back-end function that loads and returns a song.
+        the above functions both use this.
 */
 void song_new(int flags);
 void song_load(const char *file);
@@ -105,7 +105,7 @@ song_t *song_create_load(const char *file);
 // use this to divine the meaning of these cryptic numbers
 const char *fmt_strerror(int n);
 
-int song_save(const char *file, const char *type); // IT, S3M
+int song_save(const char *file, const char *type);   // IT, S3M
 int song_export(const char *file, const char *type); // WAV
 
 /* 'num' is only for status text feedback -- all of the sample's data is taken from 'smp'.
@@ -114,12 +114,8 @@ int song_save_sample(const char *file, const char *type, song_sample_t *smp, int
 
 void song_clear_sample(int n);
 void song_copy_sample(int n, song_sample_t *src);
-int song_load_sample(int n, const char *file);
 
 void song_create_host_instrument(int smp, int ins);
-
-int song_load_instrument(int n, const char *file);
-int song_load_instrument_ex(int n, const char *file, const char *libf, int nx);
 
 int song_sample_is_empty(int n);
 
@@ -128,8 +124,8 @@ return value of -1 means the pattern isn't on the list */
 int song_next_order_for_pattern(int pat);
 
 // returned value = seconds
-unsigned int song_get_length_to(int order, int row);
-void song_get_at_time(unsigned int seconds, int *order, int *row);
+uint32_t song_get_length_to(int order, int row);
+void song_get_at_time(uint32_t seconds, int *order, int *row);
 
 // gee. can't just use malloc/free... no, that would be too simple.
 signed char *song_sample_allocate(int bytes);
@@ -140,7 +136,6 @@ song_note_t *song_pattern_allocate(int rows);
 song_note_t *song_pattern_allocate_copy(int patno, int *rows);
 void song_pattern_deallocate(song_note_t *n);
 void song_pattern_install(int patno, song_note_t *n, int rows);
-
 
 // these return NULL on failure.
 song_sample_t *song_get_sample(int n);
@@ -161,7 +156,7 @@ void song_restore_channel_states(void);
 // deals with the saved channel state instead.)
 int song_find_last_channel(void);
 
-int song_get_pattern(int n, song_note_t ** buf);  // return 0 -> error
+int song_get_pattern(int n, song_note_t **buf); // return 0 -> error
 uint8_t *song_get_orderlist(void);
 
 int song_pattern_is_empty(int p);
@@ -202,7 +197,6 @@ void song_set_linear_pitch_slides(int value);
 int song_is_instrument_mode(void);
 void song_set_instrument_mode(int value);
 
-
 /* this is called way early */
 void song_initialise(void);
 
@@ -211,17 +205,17 @@ void song_init_modplug(void);
 
 /* Called at startup.
 The 'driver_spec' parameter is formatted as driver[:device].
-	'driver' is the name of the SDL driver to use
-		example: "alsa", "dsound"
-		SDL_AUDIODRIVER is set to this value
-	'device' (optional) is the name of the device to use
-		example: "hw:2", "/dev/dsp"
-		SDL_PATH_DSP and AUDIODEV are set to this
+        'driver' is the name of the SDL driver to use
+                example: "alsa", "dsound"
+                SDL_AUDIODRIVER is set to this value
+        'device' (optional) is the name of the device to use
+                example: "hw:2", "/dev/dsp"
+                SDL_PATH_DSP and AUDIODEV are set to this
 
 For the SDL driver, 'nosound' and 'none' are aliases for 'dummy', for
 compatibility with previous Schism Tracker versions, and 'oss' is an
 alias for 'dsp', because 'dsp' is a dumb name for an audio driver. */
-void audio_init(const char *driver_spec);
+void audio_init(void);
 
 /* Reconfigure the same device that was opened before. */
 void audio_reinit(void);
@@ -231,6 +225,8 @@ void song_init_eq(int do_reset, uint32_t mix_freq);
 
 /* --------------------------------------------------------------------- */
 void load_audio(void);
+
+void audio_callback(uint8_t *stream, int len);
 /* playback */
 void song_lock_audio(void);
 void song_unlock_audio(void);
@@ -270,7 +266,7 @@ void song_single_step(int pattern, int row);
 enum song_mode song_get_mode(void);
 
 /* the time returned is in seconds */
-unsigned int song_get_current_time(void);
+uint32_t song_get_current_time(void);
 
 int song_get_current_speed(void);
 int song_get_current_tick(void);
@@ -315,7 +311,7 @@ song_voice_t *song_get_mix_channel(int n);
  * (i.e. the length of the channel_list array). so... to go through each
  * channel that's being mixed:
  *
- *         unsigned int *channel_list;
+ *         uint32_t *channel_list;
  *         song_voice_t *channel;
  *         int n = song_get_mix_state(&channel_list);
  *         while (n--) {
@@ -323,7 +319,7 @@ song_voice_t *song_get_mix_channel(int n);
  *                 (do something with the channel)
  *         }
  * it's kind of ugly, but it'll do... i hope :) */
-int song_get_mix_state(unsigned int **channel_list);
+int song_get_mix_state(uint32_t **channel_list);
 
 /* --------------------------------------------------------------------- */
 /* rearranging stuff */
@@ -362,18 +358,17 @@ void song_set_surround(int on);
 
 /* for the orderpan page */
 enum {
-	PANS_STEREO,
-	PANS_AMIGA,
-	PANS_LEFT,
-	PANS_RIGHT,
-	PANS_MONO,
-	PANS_SLASH,
-	PANS_BACKSLASH,
-//      PANS_CROSS,
+  PANS_STEREO,
+  PANS_AMIGA,
+  PANS_LEFT,
+  PANS_RIGHT,
+  PANS_MONO,
+  PANS_SLASH,
+  PANS_BACKSLASH,
+  //      PANS_CROSS,
 };
 void song_set_pan_scheme(int scheme);
 
 /* --------------------------------------------------------------------- */
 
 #endif /* ! SONG_H */
-
