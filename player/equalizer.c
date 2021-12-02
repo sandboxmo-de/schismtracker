@@ -91,6 +91,25 @@ void eq_stereo(song_t *csf, int32_t *buffer, uint32_t count) {
   float_to_stereo_mix(csf->mix_buffer_float, csf->mix_buffer_float + MIXBUFFERSIZE, buffer, count);
 }
 
+uint32_t eq_stereo_with_16_clip(void *ptr, song_t *csf, int32_t *buffer, uint32_t count, int32_t *mins, int32_t *maxs) {
+  stereo_mix_to_float(buffer, csf->mix_buffer_float, csf->mix_buffer_float + MIXBUFFERSIZE, count);
+
+  for (uint32_t b = 0; b < MAX_EQ_BANDS; b++) {
+    int br = b + MAX_EQ_BANDS;
+
+    // Left band
+    if (eq[b].enabled && eq[b].gain != 1.0f)
+      eq_filter(&eq[b], csf->mix_buffer_float, count);
+
+    // Right band
+    if (eq[br].enabled && eq[br].gain != 1.0f)
+      eq_filter(&eq[br], csf->mix_buffer_float + MIXBUFFERSIZE, count);
+  }
+
+  return float_to_stereo_mix_with_clip_to_16(ptr, csf->mix_buffer_float, csf->mix_buffer_float + MIXBUFFERSIZE, count,
+                                             mins, maxs);
+}
+
 void initialize_eq(int reset, float freq) {
   // float fMixingFreq = (REAL)mix_frequency;
 

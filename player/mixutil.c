@@ -230,3 +230,72 @@ uint32_t clip_32_to_32(void *ptr, int32_t *buffer, uint32_t samples, int32_t *mi
 
   return samples * 4;
 }
+
+// void float_to_stereo_mix(const float *in1, const float *in2, int32_t *out, uint32_t count) {
+//   for (uint32_t i = 0; i < count; i++) {
+//     *out++ = (int)(*in1 * f2ic);
+//     *out++ = (int)(*in2 * f2ic);
+//     in1++;
+//     in2++;
+//   }
+// }
+
+uint32_t float_to_stereo_mix_with_clip_to_16(void *ptr, const float *in1, const float *in2, uint32_t count,
+                                             int32_t *mins, int32_t *maxs) {
+  signed short *p1 = (signed short *)ptr;
+  signed short *p2 = ((signed short *)ptr) + 1;
+  int n1, n2;
+  for (uint32_t i = 0; i < count; i++) {
+    n1 = (int)(*in1 * f2ic);
+    n2 = (int)(*in2 * f2ic);
+    in1++;
+    in2++;
+
+    if (n1 < MIXING_CLIPMIN)
+      n1 = MIXING_CLIPMIN;
+    else if (n1 > MIXING_CLIPMAX)
+      n1 = MIXING_CLIPMAX;
+
+    if (n2 < MIXING_CLIPMIN)
+      n2 = MIXING_CLIPMIN;
+    else if (n2 > MIXING_CLIPMAX)
+      n2 = MIXING_CLIPMAX;
+
+    if (n1 < mins[0])
+      mins[0] = n1;
+    else if (n1 > maxs[0])
+      maxs[0] = n1;
+
+    if (n2 < mins[1])
+      mins[1] = n2;
+    else if (n2 > maxs[1])
+      maxs[1] = n2;
+
+    p1[i * 2] = n1 >> (16 - MIXING_ATTENUATION);
+    p2[i * 2] = n2 >> (16 - MIXING_ATTENUATION);
+  }
+
+  return count * 2 * 2;
+}
+
+// uint32_t clip_32_to_16(void *ptr, int32_t *buffer, uint32_t samples, int32_t *mins, int32_t *maxs) {
+//   signed short *p = (signed short *)ptr;
+//   for (uint32_t i = 0; i < samples; i++) {
+//     int n = buffer[i];
+
+//     if (n < MIXING_CLIPMIN)
+//       n = MIXING_CLIPMIN;
+//     else if (n > MIXING_CLIPMAX)
+//       n = MIXING_CLIPMAX;
+
+//     if (n < mins[i & 1])
+//       mins[i & 1] = n;
+//     else if (n > maxs[i & 1])
+//       maxs[i & 1] = n;
+
+//     // 16-bit signed
+//     p[i] = n >> (16 - MIXING_ATTENUATION);
+//   }
+
+//   return samples * 2;
+// }

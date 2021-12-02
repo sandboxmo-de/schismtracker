@@ -30,7 +30,7 @@
 #define MAX_EQ_BANDS 6
 #define MAX_MESSAGE 8000
 
-#define MIXBUFFERSIZE 512
+#define MIXBUFFERSIZE 1470 * 2
 
 #define CHN_16BIT 0x01           // 16-bit sample
 #define CHN_LOOP 0x02            // looped sample

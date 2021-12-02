@@ -757,28 +757,30 @@ unsigned int csf_read(song_t *csf, void *v_buffer, unsigned int bufsize) {
     }
 
     // Handle eq
-    if (csf->mix_channels >= 2)
-      eq_stereo(csf, csf->mix_buffer, count);
-    else
-      eq_mono(csf, csf->mix_buffer, count);
+    // if (csf->mix_channels >= 2)
+    //   eq_stereo(csf, csf->mix_buffer, count);
+    // else
+    //   eq_mono(csf, csf->mix_buffer, count);
+
+    buffer += eq_stereo_with_16_clip(buffer, csf, csf->mix_buffer, count, vu_min, vu_max);
 
     mix_stat++;
 
-    if (csf->multi_write) {
-      /* multi doesn't actually write meaningful data into 'buffer', so we can use that
-      as temp space for converting */
-      for (unsigned int n = 0; n < 64; n++) {
-        if (csf->multi_write[n].used) {
-          unsigned int bytes = convert_func(buffer, csf->multi_write[n].buffer, smpcount, vu_min, vu_max);
-          csf->multi_write[n].write(csf->multi_write[n].data, buffer, bytes);
-        } else {
-          csf->multi_write[n].silence(csf->multi_write[n].data, smpcount * ((csf->mix_bits_per_sample + 7) / 8));
-        }
-      }
-    } else {
-      // Perform clipping + VU-Meter
-      buffer += convert_func(buffer, csf->mix_buffer, smpcount, vu_min, vu_max);
-    }
+    // if (csf->multi_write) {
+    //   /* multi doesn't actually write meaningful data into 'buffer', so we can use that
+    //   as temp space for converting */
+    //   for (unsigned int n = 0; n < 64; n++) {
+    //     if (csf->multi_write[n].used) {
+    //       unsigned int bytes = convert_func(buffer, csf->multi_write[n].buffer, smpcount, vu_min, vu_max);
+    //       csf->multi_write[n].write(csf->multi_write[n].data, buffer, bytes);
+    //     } else {
+    //       csf->multi_write[n].silence(csf->multi_write[n].data, smpcount * ((csf->mix_bits_per_sample + 7) / 8));
+    //     }
+    //   }
+    // } else {
+    //   // Perform clipping + VU-Meter
+    //   buffer += convert_func(buffer, csf->mix_buffer, smpcount, vu_min, vu_max);
+    // }
 
     // Buffer ready
     bufleft -= count;

@@ -32,8 +32,11 @@ uint32_t clip_32_to_16(void *, int32_t *, uint32_t, int32_t *, int32_t *);
 uint32_t clip_32_to_24(void *, int32_t *, uint32_t, int32_t *, int32_t *);
 uint32_t clip_32_to_32(void *, int32_t *, uint32_t, int32_t *, int32_t *);
 
+uint32_t float_to_stereo_mix_with_clip_to_16(void *, const float *, const float *, uint32_t, int32_t *, int32_t *);
+
 void eq_mono(song_t *, int32_t *, uint32_t);
 void eq_stereo(song_t *, int32_t *, uint32_t);
+uint32_t eq_stereo_with_16_clip(void *, song_t *, int32_t *, uint32_t, int32_t *, int32_t *);
 void initialize_eq(int, float);
 void set_eq_gains(const uint32_t *, uint32_t, const uint32_t *, int, int);
 
