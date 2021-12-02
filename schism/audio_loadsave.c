@@ -132,9 +132,12 @@ void song_new(int flags) {
 
 // ------------------------------------------------------------------------------------------------------------
 
-#define LOAD_SONG(x) fmt_##x##_load_song,
+// #define LOAD_SONG(x) fmt_##x##_load_song,
+
+int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags);
 static fmt_load_song_func load_song_funcs[] = {
-#include "fmt-types.h"
+    fmt_it_load_song,
+    // #include "fmt-types.h"
     NULL,
 };
 
@@ -162,17 +165,17 @@ void message_convert_newlines(song_t *song) {
 static slurp_t t = {0};
 song_t *song_create_load(const char *file) {
   slurp_t *s = &t;
-
-  debug_sdram();
-  printf("Reserving song space...\n");
-  song_t *newsong = reserve_space(sizeof(song_t));
-  memset(newsong, 0, sizeof(song_t));
+  song_t *newsong;
+  if (current_song) {
+    newsong = current_song;
+  } else {
+    newsong = reserve_space(sizeof(song_t));
+    memset(newsong, 0, sizeof(song_t));
+  }
   fmt_load_song_func *func;
   int ok = 0, err = 0;
   uint8_t *mmdata;
   size_t mmlen;
-  debug_sdram();
-  printf("Loading file...\n");
   bool loaded = load_file(file, &s->data, &s->length);
 
   if (!loaded)
@@ -182,8 +185,6 @@ song_t *song_create_load(const char *file) {
 
   mmdata = s->data;
   mmlen = s->length;
-  debug_sdram();
-  printf("The call to witchcraft...\n");
   if (mmcmp_unpack(&mmdata, &mmlen)) {
     // clean up the existing data
     if (s->data && s->closure) {
@@ -196,8 +197,6 @@ song_t *song_create_load(const char *file) {
     // s->closure = _slurp_closure_free;
   }
 
-  debug_sdram();
-  printf("Post-witchcraft...\n");
   if (current_song) {
     newsong->mix_flags = current_song->mix_flags;
     csf_set_wave_config(newsong, current_song->mix_frequency, current_song->mix_bits_per_sample,
@@ -209,14 +208,8 @@ song_t *song_create_load(const char *file) {
     csf_copy_midi_cfg(newsong, current_song);
   }
 
-  debug_sdram();
-  printf("Loading for realz...\n");
-
   for (func = load_song_funcs; *func && !ok; func++) {
     slurp_rewind(s);
-
-    debug_sdram();
-    printf("Load func: %x (%x)...\n", func, *func);
     switch ((*func)(newsong, s, 0)) {
     case LOAD_SUCCESS:
       err = 0;
@@ -233,8 +226,8 @@ song_t *song_create_load(const char *file) {
       break;
     }
     if (err) {
-      csf_free(newsong);
-      // unslurp(s);
+      //   csf_free(newsong);
+      //   // unslurp(s);
       //   if (s->data && s->closure) {
       //     s->closure(s);
       //   }
@@ -243,14 +236,14 @@ song_t *song_create_load(const char *file) {
     }
   }
 
-  // unslurp(s);
+  //   // unslurp(s);
   //   if (s->data && s->closure) {
   //     s->closure(s);
   //   }
 
   if (err) {
     // awwww, nerts!
-    csf_free(newsong);
+    // csf_free(newsong);
     errno = err;
     return NULL;
   }
@@ -275,32 +268,20 @@ int song_load_unchecked(const char *file) {
     song_stop();
   }
 
-  debug_sdram();
-  printf("Create/load...\n");
   newsong = song_create_load(file);
   if (!newsong) {
-    debug_sdram();
-    printf("Failed!\n");
     return 0;
   }
 
   //	song_set_filename(file);
 
   song_lock_audio();
-
-  debug_sdram();
-  printf("Freeing current song (?)...\n");
-  csf_free(current_song);
+  //   csf_free(current_song);
   current_song = newsong;
   current_song->repeat_count = 0;
   max_channels_used = 0;
-  debug_sdram();
-  printf("Fixing names (?)...\n");
   _fix_names(current_song);
-  debug_sdram();
-  printf("Stopping song (?)...\n");
   song_stop_unlocked(0);
-
   song_unlock_audio();
 
   if (was_playing)
@@ -318,8 +299,6 @@ int song_load_unchecked(const char *file) {
   song_sample_t *smp;
   song_instrument_t **ins;
 
-  debug_sdram();
-  printf("Some stuff, idk...\n");
   for (n = 0, smp = current_song->samples + 1, nsmp = 0; n < MAX_SAMPLES; n++, smp++)
     if (smp->data)
       nsmp++;

@@ -107,6 +107,7 @@ static unsigned int read_varlen(slurp_t *fp) {
 // info (this is ultra lame)
 
 int fmt_mid_read_info(dmoz_file_t *file, const uint8_t *data, size_t length) {
+  printf("Confident this isn't necessary...\n");
   slurp_t fp = {.length = length, .data = (uint8_t *)data, .pos = 0};
   song_t *tmpsong = csf_allocate();
 

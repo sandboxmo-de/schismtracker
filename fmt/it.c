@@ -27,8 +27,6 @@
 #include "log.h"
 #include "slurp.h"
 
-#include "sdram.h"
-
 #include "midi.h"
 #include "sndfile.h"
 
@@ -489,8 +487,6 @@ static void load_it_sample(song_sample_t *sample, slurp_t *fp, uint16_t cwtv) {
 }
 
 int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
-  debug_sdram();
-  printf("Loading an IT song! That makes sense!\n");
   struct it_header hdr;
   uint32_t para_smp[MAX_SAMPLES], para_ins[MAX_INSTRUMENTS], para_pat[MAX_PATTERNS], para_min;
   int n;
@@ -500,8 +496,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
   uint16_t hist = 0; // save history (for IT only)
   const char *tid = NULL;
 
-  debug_sdram();
-  printf("Attempting to read header...\n");
   slurp_read(fp, &hdr, sizeof(hdr));
 
   if (memcmp(hdr.impm, "IMPM", 4) != 0)
@@ -525,8 +519,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
     return LOAD_FORMAT_ERROR;
   }
 
-  debug_sdram();
-  printf("Jank title operations...\n");
   for (n = 0; n < 25; n++) {
     song->title[n] = hdr.title[n] ?: 32;
   }
@@ -588,8 +580,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
     channel->volume = MIN(hdr.chan_vol[n], 64);
   }
 
-  debug_sdram();
-  printf("More reading...\n");
   slurp_read(fp, song->orderlist, hdr.ordnum);
   slurp_read(fp, para_ins, 4 * hdr.insnum);
   slurp_read(fp, para_smp, 4 * hdr.smpnum);
@@ -626,9 +616,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
     // History flag isn't even set. Probably an old version of Impulse Tracker.
     hist = 0;
   }
-
-  debug_sdram();
-  printf("Mem allocation...\n");
   if (hist) {
     song->histlen = hist;
     song->histdata = mem_alloc(8 * song->histlen);
@@ -659,8 +646,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
     song->message[len] = '\0';
   }
 
-  debug_sdram();
-  printf("Right before intensive sample loading...\n");
   if (!(lflags & LOAD_NOSAMPLES)) {
     for (n = 0; n < hdr.insnum; n++) {
       song_instrument_t *inst;
@@ -668,26 +653,16 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
       if (!para_ins[n])
         continue;
       slurp_seek(fp, para_ins[n], SEEK_SET);
-      debug_sdram();
-      printf("Allocating instr %i...\n", n);
       inst = song->instruments[n + 1] = csf_allocate_instrument();
-      debug_sdram();
-      printf("Loading instr (?) %i...\n", n);
       (hdr.cmwt >= 0x0200 ? load_it_instrument : load_it_instrument_old)(inst, fp);
     }
 
-    debug_sdram();
-    printf("Post-instrument allocation...\n");
     for (n = 0, sample = song->samples + 1; n < hdr.smpnum; n++, sample++) {
       slurp_seek(fp, para_smp[n], SEEK_SET);
-      debug_sdram();
-      printf("Loading sample %i...\n", n);
       load_it_sample(sample, fp, hdr.cwtv);
     }
   }
 
-  debug_sdram();
-  printf("More loading? Let's see...\n");
   if (!(lflags & LOAD_NOPATTERNS)) {
     for (n = 0; n < hdr.patnum; n++) {
       uint16_t rows, bytes;
@@ -715,8 +690,6 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags) {
 
   // XXX 32 CHARACTER MAX XXX
 
-  debug_sdram();
-  printf("We probably don't get here...\n");
   if (tid) {
     // BeroTracker (detected above)
   } else if ((hdr.cwtv >> 12) == 1) {

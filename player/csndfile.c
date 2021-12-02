@@ -113,10 +113,6 @@ static void _init_envelope(song_envelope_t *env, int n) {
 void csf_init_instrument(song_instrument_t *ins, int samp) {
   int n;
 
-  debug_sdram();
-  printf("CSF init is failing? How is this failing?\n");
-  printf("Insr location: %x\n", ins);
-  printf("Insr panning location: %x\n", &ins->panning);
   memset(ins, 0, sizeof(*ins));
   _init_envelope(&ins->vol_env, 64);
   _init_envelope(&ins->pan_env, 32);
@@ -130,15 +126,10 @@ void csf_init_instrument(song_instrument_t *ins, int samp) {
     ins->sample_map[n] = samp;
     ins->note_map[n] = n + 1;
   }
-
-  debug_sdram();
-  printf("It's not, that's how... wait what?\n");
 }
 
 song_instrument_t *csf_allocate_instrument(void) {
   song_instrument_t *ins = mem_alloc(sizeof(song_instrument_t));
-  debug_sdram();
-  printf("Actually initting now...\n");
   csf_init_instrument(ins, 0);
   return ins;
 }
