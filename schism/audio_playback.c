@@ -1023,14 +1023,10 @@ printf("channel = %d note=%d starting_note=%p\n",chan,m_note,starting_note);
 
 // ------------------------------------------------------------------------------------------------------------
 
-void song_lock_audio(void) { /* SDL_LockAudio(); */
-}
-void song_unlock_audio(void) { /* SDL_UnlockAudio(); */
-}
-void song_start_audio(void) { /* SDL_PauseAudio(0); */
-}
-void song_stop_audio(void) { /* SDL_PauseAudio(1); */
-}
+void song_lock_audio(void) { SDL_LockAudio(); }
+void song_unlock_audio(void) { SDL_UnlockAudio(); }
+void song_start_audio(void) { SDL_PauseAudio(0); }
+void song_stop_audio(void) { SDL_PauseAudio(1); }
 
 /* --------------------------------------------------------------------------------------------------------- */
 /* Nasty stuff here */
