@@ -711,9 +711,9 @@ int csf_init_player(song_t *csf, int reset)
 	// I don't know why, but this "if" makes it work at the desired sample rate instead of 4000.
 	// the "4000Hz" value comes from csf_reset, but I don't yet understand why the opl keeps that value, if
 	// each call to Fmdrv_Init generates a new opl.
-	if (csf->mix_frequency != 4000) {
-		Fmdrv_Init(csf->mix_frequency);
-	}
+//	if (csf->mix_frequency != 4000) {
+//		Fmdrv_Init(csf->mix_frequency);
+//	}
 	GM_Reset(0);
 	return 1;
 }

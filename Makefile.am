@@ -11,7 +11,6 @@ noinst_HEADERS = \
 	include/fmopl2.h			\
 	include/fmopl3.h			\
 	include/fmt.h			\
-	include/fmt-types.h		\
 	include/headers.h		\
 	include/it_defs.h		\
 	include/log.h			\
@@ -33,37 +32,7 @@ schismtracker_SOURCES = \
 	schism/mplink.c			\
 	fmt/compression.c		\
 	fmt/generic.c			\
-	fmt/669.c			\
-	fmt/aiff.c			\
-	fmt/ams.c			\
-	fmt/au.c			\
-	fmt/f2r.c			\
-	fmt/far.c			\
-	fmt/imf.c			\
 	fmt/it.c			\
-	fmt/iti.c			\
-	fmt/its.c			\
-	fmt/liq.c			\
-	fmt/mdl.c			\
-	fmt/med.c			\
-	fmt/mf.c			\
-	fmt/mid.c                       \
-	fmt/mod.c			\
-	fmt/mt2.c			\
-	fmt/mtm.c			\
-	fmt/mus.c			\
-	fmt/ntk.c			\
-	fmt/okt.c			\
-	fmt/pat.c			\
-	fmt/raw.c			\
-	fmt/s3i.c			\
-	fmt/s3m.c			\
-	fmt/sfx.c			\
-	fmt/stm.c			\
-	fmt/ult.c			\
-	fmt/wav.c			\
-	fmt/xi.c			\
-	fmt/xm.c			\
 	schism/util.c			\
 	schism/slurp.c			\
 	schism/main.c			\

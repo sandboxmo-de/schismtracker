@@ -71,7 +71,7 @@ typedef int (*fmt_load_instrument_func) PROTO_LOAD_INSTRUMENT;
 #define LOAD_SAMPLE(t)          int fmt_##t##_load_sample       PROTO_LOAD_SAMPLE;
 #define LOAD_INSTRUMENT(t)      int fmt_##t##_load_instrument   PROTO_LOAD_INSTRUMENT;
 
-#include "fmt-types.h"
+//#include "fmt-types.h"
 
 /* --------------------------------------------------------------------------------------------------------- */
 struct instrumentloader {

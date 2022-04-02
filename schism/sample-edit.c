@@ -26,7 +26,7 @@
 #include "util.h"
 #include "song.h"
 #include "cmixer.h"
-#include "sample-edit.h"
+//#include "sample-edit.h"
 
 #include "sdlmain.h"
 

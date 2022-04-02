@@ -67,7 +67,7 @@ static int midi_playing;
 unsigned int samples_played = 0;
 unsigned int max_channels_used = 0;
 
-signed short *audio_buffer = NULL;
+//signed short *audio_buffer = NULL;
 unsigned int audio_buffer_samples = 0; /* multiply by audio_sample_size to get bytes */
 
 unsigned int audio_output_channels = 2;
@@ -122,17 +122,17 @@ static void audio_callback(UNUSED void *qq, uint8_t * stream, int len)
 		samples_played += n;
 	}
 
-	memcpy(audio_buffer, stream, n * audio_sample_size);
+//	memcpy(audio_buffer, stream, n * audio_sample_size);
 
-	if (audio_output_bits == 8) {
-		/* libmodplug emits unsigned 8bit output...
-		*/
-		stream = (uint8_t *) audio_buffer;
-		n *= audio_output_channels;
-		for (i = 0; i < n; i++) {
-			stream[i] ^= 128;
-		}
-	}
+//	if (audio_output_bits == 8) {
+//		/* libmodplug emits unsigned 8bit output...
+//		*/
+//		stream = (uint8_t *) audio_buffer;
+//		n *= audio_output_channels;
+//		for (i = 0; i < n; i++) {
+//			stream[i] ^= 128;
+//		}
+//	}
 
 	if (current_song->num_voices > max_channels_used)
 		max_channels_used = MIN(current_song->num_voices, max_voices);
@@ -573,7 +573,7 @@ void song_stop_unlocked(int quitting)
 
 	global_vu_left = 0;
 	global_vu_right = 0;
-	memset(audio_buffer, 0, audio_buffer_samples * audio_sample_size);
+//	memset(audio_buffer, 0, audio_buffer_samples * audio_sample_size);
 }
 
 void song_loop_pattern(int pattern, int row)
@@ -1222,8 +1222,8 @@ static void _audio_init_head(const char *driver_spec, int verbose)
 // (note: _audio_open will leave the device LOCKED)
 static void _audio_init_tail(void)
 {
-	free(audio_buffer);
-	audio_buffer = mem_calloc(audio_buffer_samples, audio_sample_size);
+//	free(audio_buffer);
+//	audio_buffer = mem_calloc(audio_buffer_samples, audio_sample_size);
 	samples_played = 0;
 
 	song_unlock_audio();

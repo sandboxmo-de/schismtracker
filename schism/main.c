@@ -222,11 +222,11 @@ int main(int argc, char **argv)
 
 	song_initialise();
 	load_audio();
-	load_midi();
+//	load_midi();
 
 	sdl_init();
 
-	midi_engine_start();
+//	midi_engine_start();
 	audio_init(audio_driver);
 	song_init_modplug();
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv)
 	}
 
 	/* poll once */
-	midi_engine_poll_ports();
+//	midi_engine_poll_ports();
 
 	//	event_loop();
 	SDL_Event event;

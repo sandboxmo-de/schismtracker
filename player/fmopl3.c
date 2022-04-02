@@ -2295,7 +2295,7 @@ static OPL3 *OPL3Create(int clock, int rate, int type)
 	ptr = (char *)calloc(1, state_size);
 	if (ptr == NULL)
 		return NULL;
-    
+
 	chip = (OPL3*) ptr;
 	chip->type  = type;
 	chip->clock = clock;

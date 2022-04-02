@@ -59,7 +59,7 @@
 #endif
 
 /* Schismtracker output buffer works in 27bits: [MIXING_CLIPMIN..MIXING_CLIPMAX]
-fmopl works in 16bits, although tested output used to range +-10000 instead of 
+fmopl works in 16bits, although tested output used to range +-10000 instead of
     +-20000 from adlibtracker/screamtracker in dosbox. So we need 11 bits + 1 extra bit.
 Also note when comparing volumes, that Screamtracker output on mono with PCM samples is not reduced by half.
 */
@@ -179,7 +179,7 @@ void Fmdrv_MixTo(int *target, int count)
 			buf = (short *) mem_alloc(buf_size);
 		}
 	}
-   
+
 	memset(buf, 0, buf_size);
     short *bufarray[4]={buf, buf+count,  buf+(count*2), buf+(count*2)};
 	OPLUpdateOne(opl, bufarray, count);
@@ -410,7 +410,7 @@ void OPL_Pan(int c, int val)
 	const unsigned char *D = Dtab[oplc];
 
     /* feedback, additive synthesis and Panning... */
-    OPL_Byte(FEEDBACK_CONNECTION+oplc, 
+    OPL_Byte(FEEDBACK_CONNECTION+oplc,
         (D[10] & ~STEREO_BITS)
 	    | (Pans[c]<85 ? VOICE_TO_LEFT
             : Pans[c]>170 ? VOICE_TO_RIGHT
@@ -441,7 +441,7 @@ void OPL_Patch(int c, const unsigned char *D)
     OPL_Byte(WAVE_SELECT+    3+Ope, D[9]&7);// 5 high bits used elsewhere
 
     /* feedback, additive synthesis and Panning... */
-    OPL_Byte(FEEDBACK_CONNECTION+oplc, 
+    OPL_Byte(FEEDBACK_CONNECTION+oplc,
         (D[10] & ~STEREO_BITS)
 	    | (Pans[c]<85 ? VOICE_TO_LEFT
             : Pans[c]>170 ? VOICE_TO_RIGHT

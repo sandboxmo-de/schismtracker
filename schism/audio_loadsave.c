@@ -132,9 +132,12 @@ void song_new(int flags)
 
 // ------------------------------------------------------------------------------------------------------------
 
-#define LOAD_SONG(x) fmt_##x##_load_song,
+//#define LOAD_SONG(x) fmt_##x##_load_song,
+
+int fmt_it_load_song(song_t *song, slurp_t *fp, unsigned int lflags);
 static fmt_load_song_func load_song_funcs[] = {
-#include "fmt-types.h"
+//#include "fmt-types.h"
+	fmt_it_load_song,
 	NULL,
 };
 
@@ -288,17 +291,17 @@ int song_load_unchecked(const char *file)
 
 /* ------------------------------------------------------------------------- */
 
-#define LOAD_SAMPLE(x) fmt_##x##_load_sample,
-static fmt_load_sample_func load_sample_funcs[] = {
-#include "fmt-types.h"
-	NULL,
-};
-
-#define LOAD_INSTRUMENT(x) fmt_##x##_load_instrument,
-static fmt_load_instrument_func load_instrument_funcs[] = {
-#include "fmt-types.h"
-	NULL,
-};
+//#define LOAD_SAMPLE(x) fmt_##x##_load_sample,
+//static fmt_load_sample_func load_sample_funcs[] = {
+//#include "fmt-types.h"
+//	NULL,
+//};
+//
+//#define LOAD_INSTRUMENT(x) fmt_##x##_load_instrument,
+//static fmt_load_instrument_func load_instrument_funcs[] = {
+//#include "fmt-types.h"
+//	NULL,
+//};
 
 
 void song_clear_sample(int n)
@@ -328,200 +331,200 @@ void song_copy_sample(int n, song_sample_t *src)
 	}
 }
 
-int song_load_instrument_ex(int target, const char *file, const char *libf, int n)
-{
-	slurp_t *s;
-	int r, x;
+//int song_load_instrument_ex(int target, const char *file, const char *libf, int n)
+//{
+//	slurp_t *s;
+//	int r, x;
+//
+//	song_lock_audio();
+//
+//	/* 0. delete old samples */
+//	if (current_song->instruments[target]) {
+//		int sampmap[MAX_SAMPLES] = {};
+//
+//		/* init... */
+//		for (unsigned int j = 0; j < 128; j++) {
+//			x = current_song->instruments[target]->sample_map[j];
+//			sampmap[x] = 1;
+//		}
+//		/* mark... */
+//		for (unsigned int q = 0; q < MAX_INSTRUMENTS; q++) {
+//			if ((int) q == target) continue;
+//			if (!current_song->instruments[q]) continue;
+//			for (unsigned int j = 0; j < 128; j++) {
+//				x = current_song->instruments[q]->sample_map[j];
+//				sampmap[x] = 0;
+//			}
+//		}
+//		/* sweep! */
+//		for (int j = 1; j < MAX_SAMPLES; j++) {
+//			if (!sampmap[j]) continue;
+//
+//			csf_destroy_sample(current_song, j);
+//			memset(current_song->samples + j, 0, sizeof(current_song->samples[j]));
+//		}
+//		/* now clear everything "empty" so we have extra slots */
+//		for (int j = 1; j < MAX_SAMPLES; j++) {
+//			if (csf_sample_is_empty(current_song->samples + j)) sampmap[j] = 0;
+//		}
+//	}
+//
+//	if (libf) { /* file is ignored */
+//		int sampmap[MAX_SAMPLES] = {};
+//
+//		song_t *xl = song_create_load(libf);
+//		if (!xl) {
+//			song_unlock_audio();
+//			return 0;
+//		}
+//
+//		/* 1. find a place for all the samples */
+//		for (unsigned int j = 0; j < 128; j++) {
+//			x = xl->instruments[n]->sample_map[j];
+//			if (!sampmap[x]) {
+//				if (x > 0 && x < MAX_INSTRUMENTS) {
+//					for (int k = 1; k < MAX_SAMPLES; k++) {
+//						if (current_song->samples[k].length) continue;
+//						sampmap[x] = k;
+//						//song_sample *smp = (song_sample *)song_get_sample(k);
+//
+//						for (int c = 0; c < 25; c++) {
+//							if (xl->samples[x].name[c] == 0)
+//								xl->samples[x].name[c] = 32;
+//						}
+//						xl->samples[x].name[25] = 0;
+//
+//						song_copy_sample(k, &xl->samples[x]);
+//						break;
+//					}
+//				}
+//			}
+//		}
+//
+//		/* transfer the instrument */
+//		current_song->instruments[target] = xl->instruments[n];
+//		xl->instruments[n] = NULL; /* dangle */
+//
+//		/* and rewrite! */
+//		for (unsigned int k = 0; k < 128; k++) {
+//			current_song->instruments[target]->sample_map[k] = sampmap[
+//					current_song->instruments[target]->sample_map[k]
+//			];
+//		}
+//
+//		song_unlock_audio();
+//		return 1;
+//	}
+//
+//	/* okay, load an ITI file */
+//	s = slurp(file, NULL, 0);
+//	if (!s) {
+//		song_unlock_audio();
+//		return 0;
+//	}
+//
+//	r = 0;
+//	for (x = 0; load_instrument_funcs[x]; x++) {
+//		r = load_instrument_funcs[x](s->data, s->length, target);
+//		if (r) break;
+//	}
+//
+//	unslurp(s);
+//	song_unlock_audio();
+//
+//	return r;
+//}
 
-	song_lock_audio();
+//int song_load_instrument(int n, const char *file)
+//{
+//	return song_load_instrument_ex(n,file,NULL,-1);
+//}
 
-	/* 0. delete old samples */
-	if (current_song->instruments[target]) {
-		int sampmap[MAX_SAMPLES] = {};
+//int song_preload_sample(dmoz_file_t *file)
+//{
+//	// 0 is our "hidden sample"
+//#define FAKE_SLOT 0
+//	//csf_stop_sample(current_song, current_song->samples + FAKE_SLOT);
+//	if (file->sample) {
+//		song_sample_t *smp = song_get_sample(FAKE_SLOT);
+//
+//		song_lock_audio();
+//		csf_destroy_sample(current_song, FAKE_SLOT);
+//		song_copy_sample(FAKE_SLOT, file->sample);
+//		strncpy(smp->name, file->title, 25);
+//		smp->name[25] = 0;
+//		strncpy(smp->filename, file->base, 12);
+//		smp->filename[12] = 0;
+//		song_unlock_audio();
+//		return FAKE_SLOT;
+//	}
+//	// WARNING this function must return 0 or KEYJAZZ_NOINST
+//	return song_load_sample(FAKE_SLOT, file->path) ? FAKE_SLOT : KEYJAZZ_NOINST;
+//#undef FAKE_SLOT
+//}
 
-		/* init... */
-		for (unsigned int j = 0; j < 128; j++) {
-			x = current_song->instruments[target]->sample_map[j];
-			sampmap[x] = 1;
-		}
-		/* mark... */
-		for (unsigned int q = 0; q < MAX_INSTRUMENTS; q++) {
-			if ((int) q == target) continue;
-			if (!current_song->instruments[q]) continue;
-			for (unsigned int j = 0; j < 128; j++) {
-				x = current_song->instruments[q]->sample_map[j];
-				sampmap[x] = 0;
-			}
-		}
-		/* sweep! */
-		for (int j = 1; j < MAX_SAMPLES; j++) {
-			if (!sampmap[j]) continue;
+//int song_load_sample(int n, const char *file)
+//{
+//	fmt_load_sample_func *load;
+//	song_sample_t smp = {};
+//
+//	const char *base = get_basename(file);
+//	slurp_t *s = slurp(file, NULL, 0);
+//
+//	if (s == NULL) {
+//		return 0;
+//	}
+//
+//	// set some default stuff
+//	song_lock_audio();
+//	csf_stop_sample(current_song, current_song->samples + n);
+//	strncpy(smp.name, base, 25);
+//
+//	for (load = load_sample_funcs; *load; load++) {
+//		if ((*load)(s->data, s->length, &smp)) {
+//			break;
+//		}
+//	}
+//
+//	if (!load) {
+//		unslurp(s);
+//		song_unlock_audio();
+//		return 0;
+//	}
+//
+//	// this is after the loaders because i don't trust them, even though i wrote them ;)
+//	strncpy(smp.filename, base, 12);
+//	smp.filename[12] = 0;
+//	smp.name[25] = 0;
+//
+//	csf_destroy_sample(current_song, n);
+//	if (((unsigned char)smp.name[23]) == 0xFF) {
+//		// don't load embedded samples
+//		// (huhwhat?!)
+//		smp.name[23] = ' ';
+//	}
+//	memcpy(&(current_song->samples[n]), &smp, sizeof(song_sample_t));
+//	song_unlock_audio();
+//
+//	unslurp(s);
+//
+//	return 1;
+//}
 
-			csf_destroy_sample(current_song, j);
-			memset(current_song->samples + j, 0, sizeof(current_song->samples[j]));
-		}
-		/* now clear everything "empty" so we have extra slots */
-		for (int j = 1; j < MAX_SAMPLES; j++) {
-			if (csf_sample_is_empty(current_song->samples + j)) sampmap[j] = 0;
-		}
-	}
-
-	if (libf) { /* file is ignored */
-		int sampmap[MAX_SAMPLES] = {};
-
-		song_t *xl = song_create_load(libf);
-		if (!xl) {
-			song_unlock_audio();
-			return 0;
-		}
-
-		/* 1. find a place for all the samples */
-		for (unsigned int j = 0; j < 128; j++) {
-			x = xl->instruments[n]->sample_map[j];
-			if (!sampmap[x]) {
-				if (x > 0 && x < MAX_INSTRUMENTS) {
-					for (int k = 1; k < MAX_SAMPLES; k++) {
-						if (current_song->samples[k].length) continue;
-						sampmap[x] = k;
-						//song_sample *smp = (song_sample *)song_get_sample(k);
-
-						for (int c = 0; c < 25; c++) {
-							if (xl->samples[x].name[c] == 0)
-								xl->samples[x].name[c] = 32;
-						}
-						xl->samples[x].name[25] = 0;
-
-						song_copy_sample(k, &xl->samples[x]);
-						break;
-					}
-				}
-			}
-		}
-
-		/* transfer the instrument */
-		current_song->instruments[target] = xl->instruments[n];
-		xl->instruments[n] = NULL; /* dangle */
-
-		/* and rewrite! */
-		for (unsigned int k = 0; k < 128; k++) {
-			current_song->instruments[target]->sample_map[k] = sampmap[
-					current_song->instruments[target]->sample_map[k]
-			];
-		}
-
-		song_unlock_audio();
-		return 1;
-	}
-
-	/* okay, load an ITI file */
-	s = slurp(file, NULL, 0);
-	if (!s) {
-		song_unlock_audio();
-		return 0;
-	}
-
-	r = 0;
-	for (x = 0; load_instrument_funcs[x]; x++) {
-		r = load_instrument_funcs[x](s->data, s->length, target);
-		if (r) break;
-	}
-
-	unslurp(s);
-	song_unlock_audio();
-
-	return r;
-}
-
-int song_load_instrument(int n, const char *file)
-{
-	return song_load_instrument_ex(n,file,NULL,-1);
-}
-
-int song_preload_sample(dmoz_file_t *file)
-{
-	// 0 is our "hidden sample"
-#define FAKE_SLOT 0
-	//csf_stop_sample(current_song, current_song->samples + FAKE_SLOT);
-	if (file->sample) {
-		song_sample_t *smp = song_get_sample(FAKE_SLOT);
-
-		song_lock_audio();
-		csf_destroy_sample(current_song, FAKE_SLOT);
-		song_copy_sample(FAKE_SLOT, file->sample);
-		strncpy(smp->name, file->title, 25);
-		smp->name[25] = 0;
-		strncpy(smp->filename, file->base, 12);
-		smp->filename[12] = 0;
-		song_unlock_audio();
-		return FAKE_SLOT;
-	}
-	// WARNING this function must return 0 or KEYJAZZ_NOINST
-	return song_load_sample(FAKE_SLOT, file->path) ? FAKE_SLOT : KEYJAZZ_NOINST;
-#undef FAKE_SLOT
-}
-
-int song_load_sample(int n, const char *file)
-{
-	fmt_load_sample_func *load;
-	song_sample_t smp = {};
-
-	const char *base = get_basename(file);
-	slurp_t *s = slurp(file, NULL, 0);
-
-	if (s == NULL) {
-		return 0;
-	}
-
-	// set some default stuff
-	song_lock_audio();
-	csf_stop_sample(current_song, current_song->samples + n);
-	strncpy(smp.name, base, 25);
-
-	for (load = load_sample_funcs; *load; load++) {
-		if ((*load)(s->data, s->length, &smp)) {
-			break;
-		}
-	}
-
-	if (!load) {
-		unslurp(s);
-		song_unlock_audio();
-		return 0;
-	}
-
-	// this is after the loaders because i don't trust them, even though i wrote them ;)
-	strncpy(smp.filename, base, 12);
-	smp.filename[12] = 0;
-	smp.name[25] = 0;
-
-	csf_destroy_sample(current_song, n);
-	if (((unsigned char)smp.name[23]) == 0xFF) {
-		// don't load embedded samples
-		// (huhwhat?!)
-		smp.name[23] = ' ';
-	}
-	memcpy(&(current_song->samples[n]), &smp, sizeof(song_sample_t));
-	song_unlock_audio();
-
-	unslurp(s);
-
-	return 1;
-}
-
-void song_create_host_instrument(int smp, int ins)
-{
-	if (csf_instrument_is_empty(current_song->instruments[smp]))
-		ins = smp;
-	else if (!csf_instrument_is_empty(current_song->instruments[ins]))
-		ins = csf_first_blank_instrument(current_song, 0);
-
-	if (ins > 0) {
-		song_init_instrument_from_sample(ins, smp);
-//		status_text_flash("Sample assigned to Instrument %d", ins);
-	} else {
-//		status_text_flash("Error: No available Instruments!");
-	}
-}
+//void song_create_host_instrument(int smp, int ins)
+//{
+//	if (csf_instrument_is_empty(current_song->instruments[smp]))
+//		ins = smp;
+//	else if (!csf_instrument_is_empty(current_song->instruments[ins]))
+//		ins = csf_first_blank_instrument(current_song, 0);
+//
+//	if (ins > 0) {
+//		song_init_instrument_from_sample(ins, smp);
+////		status_text_flash("Sample assigned to Instrument %d", ins);
+//	} else {
+////		status_text_flash("Error: No available Instruments!");
+//	}
+//}
 
 // ------------------------------------------------------------------------
 // instrument loader
