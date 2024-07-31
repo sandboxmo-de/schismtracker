@@ -36,6 +36,7 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
+#include <limits.h>
 
 #include "sdlmain.h"
 

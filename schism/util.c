@@ -25,6 +25,9 @@
 extraneous libraries (i.e. GLib). */
 
 #include "util.h"
+
+#include <stdio.h>
+#include <unistd.h>
 #include <stdint.h>
 
 #include <sys/types.h>

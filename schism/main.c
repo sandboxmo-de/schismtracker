@@ -26,6 +26,8 @@
 
 #include "sdlmain.h"
 
+#define PATH_MAX 1024
+
 static const char *audio_driver = NULL;
 
 static void sdl_init(void)

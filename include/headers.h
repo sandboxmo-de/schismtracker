@@ -1,5 +1,7 @@
 #include <stdlib.h>
 
+#include <string.h>
+
 # if HAVE_BYTESWAP_H
 /* byteswap.h uses inline assembly if possible (faster than bit-shifting) */
 #  include <byteswap.h>

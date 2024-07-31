@@ -24,6 +24,7 @@
 #ifndef DMOZ_H
 #define DMOZ_H
 
+#include <time.h>
 #include "sndfile.h" /* for song_sample_t */
 
 enum {
