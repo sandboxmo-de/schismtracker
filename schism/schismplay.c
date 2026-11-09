@@ -139,9 +139,19 @@ static void host_assert_fail(const char *msg, const char *exp, const char *file,
 	abort();
 }
 
+/* schismtracker's export dialog takes a number from rand() here, for the
+ * colour of its progress bar. Do the same, so that without --seed the
+ * mixer's share of the rand() sequence, and so the output, is the same as
+ * schismtracker's for a given time(). */
+static void host_diskwrite_begin(SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED uint32_t rate)
+{
+	(void)rand();
+}
+
 static const struct engine_host host = {
 	.log = host_log,
 	.status_text = host_status_text,
+	.diskwrite_begin = host_diskwrite_begin,
 	.exit = host_exit,
 	.assert_fail = host_assert_fail,
 };

@@ -28,8 +28,6 @@
 
 #include "it.h"
 #include "page.h"
-#include "dialog.h"
-#include "vgamem.h"
 #include "events.h"
 #include "fakemem.h"
 #include "config.h"
@@ -47,40 +45,6 @@ struct tracker_status status = {0};
 /* sys/macosx/osdefs.m's key handler looks at the active page; it's never
  * called here. */
 struct page pages[PAGE_MAX] = {0};
-
-/* ------------------------------------------------------------------------ */
-/* Dialogs and drawing (dialog.c, vgamem.c), used by disko.c for the export
- * progress box.
- *
- * disko.c sets the cancel/yes/no callbacks on the dialog it gets back, so
- * dialog_create_custom has to hand out real storage. */
-
-static struct dialog dummy_dialog;
-
-struct dialog *dialog_create_custom(SCHISM_UNUSED int x, SCHISM_UNUSED int y,
-	SCHISM_UNUSED int w, SCHISM_UNUSED int h, SCHISM_UNUSED struct widget *dialog_widgets,
-	SCHISM_UNUSED int dialog_total_widgets, SCHISM_UNUSED int dialog_selected_widget,
-	SCHISM_UNUSED void (*draw_const)(void), SCHISM_UNUSED void *data)
-{
-	memset(&dummy_dialog, 0, sizeof(dummy_dialog));
-	return &dummy_dialog;
-}
-
-void dialog_destroy(void) {}
-void dialog_destroy_all(void) {}
-
-int draw_text(SCHISM_UNUSED const char *text, SCHISM_UNUSED int x, SCHISM_UNUSED int y,
-	SCHISM_UNUSED uint32_t fg, SCHISM_UNUSED uint32_t bg)
-{
-	return 0;
-}
-
-void draw_fill_chars(SCHISM_UNUSED int xs, SCHISM_UNUSED int ys, SCHISM_UNUSED int xe,
-	SCHISM_UNUSED int ye, SCHISM_UNUSED uint32_t fg, SCHISM_UNUSED uint32_t bg) {}
-void draw_box(SCHISM_UNUSED int xs, SCHISM_UNUSED int ys, SCHISM_UNUSED int xe,
-	SCHISM_UNUSED int ye, SCHISM_UNUSED uint32_t flags) {}
-void draw_vu_meter(SCHISM_UNUSED int x, SCHISM_UNUSED int y, SCHISM_UNUSED int val,
-	SCHISM_UNUSED int width, SCHISM_UNUSED int color, SCHISM_UNUSED int peak_color) {}
 
 /* ------------------------------------------------------------------------ */
 /* macOS keyboard quirk (ibook-support.c), referenced from osdefs.m.

@@ -25,14 +25,12 @@
 
 #include "config-parser.h"
 #include "config.h"
-#include "dialog.h"
 #include "disko.h"
 #include "dmoz.h"
+#include "engine-host.h"
 #include "it.h"
-#include "page.h"
 #include "song.h"
 #include "util.h"
-#include "vgamem.h"
 #include "osdefs.h"
 #include "mem.h"
 #include "str.h"
@@ -810,38 +808,16 @@ static song_t export_dwsong;
 static int export_bps;
 static disko_t *export_ds[MAX_CHANNELS + 1]; /* only [0] is used unless multichannel */
 static const struct save_format *export_format = NULL; /* NULL == not running */
-static struct widget diskodlg_widgets[1];
 static size_t est_len;
-static int prgh;
 static timer_ticks_t export_start_time;
 static int canceled = 0; /* this sucks, but so do I */
 static size_t export_frame_limit = 0; /* 0 == until the song ends */
 
 static int disko_finish(void);
 
-static void diskodlg_draw(void)
-{
-	int sec, pos;
-	char buf[32];
-
-	if (!export_ds[0]) {
-		/* what are we doing here?! */
-		dialog_destroy_all();
-		log_appendf(4, "disk export dialog was eaten by a grue!");
-		return;
-	}
-
-	sec = export_ds[0]->length / export_dwsong.mix_frequency;
-	pos = export_ds[0]->length * 64 / est_len;
-	snprintf(buf, 32, "Exporting song...%6d:%02d", sec / 60, sec % 60);
-	buf[31] = '\0';
-	draw_text(buf, 27, 27, 0, 2);
-	draw_fill_chars(24, 30, 55, 30, DEFAULT_FG, 0);
-	draw_vu_meter(24, 30, 32, pos, prgh, prgh);
-	draw_box(23, 29, 56, 31, BOX_THIN | BOX_INNER | BOX_INSET);
-}
-
-static void diskodlg_cancel(SCHISM_UNUSED void *ignored)
+/* Stop the running song export. The host calls this, typically from the
+ * cancel button of its progress display. */
+void disko_export_cancel(void)
 {
 	canceled = 1;
 	export_dwsong.flags |= SONG_ENDREACHED;
@@ -854,39 +830,9 @@ static void diskodlg_cancel(SCHISM_UNUSED void *ignored)
 
 	/* The next disko_sync will notice the (artifical) error status and call disko_finish,
 	which will clean up all the files.
-	'canceled' prevents disko_finish from making a second call to dialog_destroy (since
-	this function is already being called in response to the dialog being canceled) and
+	'canceled' tells the host's diskwrite_end not to close its progress display a second
+	time (since this function is normally called in response to it being canceled) and
 	also affects the message it prints at the end. */
-}
-
-static void disko_dialog_setup(size_t len);
-
-// this needs to be done to work around stupid inconsistent key-up code
-static void diskodlg_reset(SCHISM_UNUSED void *ignored)
-{
-	disko_dialog_setup(est_len);
-}
-
-static void disko_dialog_setup(size_t len)
-{
-	struct dialog *d = dialog_create_custom(22, 25, 36, 8, diskodlg_widgets, 0, 0, diskodlg_draw, NULL);
-	d->action_yes = diskodlg_reset;
-	d->action_no = diskodlg_reset;
-	d->action_cancel = diskodlg_cancel;
-
-	canceled = 0; /* stupid */
-
-	est_len = len;
-	uint32_t r = (rand() >> 8) & 63;
-	if (r <= 7) {
-		prgh = 6;
-	} else if (r <= 18) {
-		prgh = 3;
-	} else if (r <= 31) {
-		prgh = 5;
-	} else {
-		prgh = 4;
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -991,7 +937,9 @@ int disko_export_song(const char *filename, const struct save_format *format)
 	status.flags |= DISKWRITER_ACTIVE; /* tell main to care about us */
 
 	uint32_t s = (csf_get_length(&export_dwsong) * export_dwsong.mix_frequency);
-	disko_dialog_setup(s ? s : 1);
+	canceled = 0;
+	est_len = s ? s : 1;
+	engine_hooks.diskwrite_begin(est_len, export_dwsong.mix_frequency);
 
 	return DW_OK;
 }
@@ -1036,7 +984,7 @@ int disko_sync(void)
 
 	/* update the progress bar (kind of messy, yes...) */
 	export_ds[0]->length += frames;
-	status.flags |= NEED_UPDATE;
+	engine_hooks.diskwrite_progress(export_ds[0]->length, est_len, export_dwsong.mix_frequency);
 
 	if (export_dwsong.flags & SONG_ENDREACHED) {
 		disko_finish();
@@ -1058,8 +1006,7 @@ static int disko_finish(void)
 		return DW_ERROR; /* no writer running (why are we here?) */
 	}
 
-	if (!canceled)
-		dialog_destroy();
+	engine_hooks.diskwrite_end(canceled);
 
 	samples_0 = export_ds[0]->length;
 	for (n = 0; export_ds[n]; n++) {

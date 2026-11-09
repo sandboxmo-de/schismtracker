@@ -28,6 +28,11 @@
 #include "fakemem.h"
 #include "config.h"
 #include "timer.h"
+#include "disko.h"
+#include "dialog.h"
+#include "widget.h"
+#include "vgamem.h"
+#include "log.h"
 
 static void tracker_redraw(void)
 {
@@ -79,6 +84,96 @@ static const char *tracker_config_dir(void)
 	return cfg_dir_dotschism;
 }
 
+/* ------------------------------------------------------------------------ */
+/* song export progress dialog */
+
+static struct widget diskodlg_widgets[1];
+static int diskodlg_active = 0;
+static size_t diskodlg_frames, diskodlg_est;
+static uint32_t diskodlg_rate;
+static int prgh;
+
+static void diskodlg_draw(void)
+{
+	int sec, pos;
+	char buf[32];
+
+	if (!diskodlg_active) {
+		/* what are we doing here?! */
+		dialog_destroy_all();
+		log_appendf(4, "disk export dialog was eaten by a grue!");
+		return;
+	}
+
+	sec = diskodlg_frames / diskodlg_rate;
+	pos = diskodlg_frames * 64 / diskodlg_est;
+	snprintf(buf, 32, "Exporting song...%6d:%02d", sec / 60, sec % 60);
+	buf[31] = '\0';
+	draw_text(buf, 27, 27, 0, 2);
+	draw_fill_chars(24, 30, 55, 30, DEFAULT_FG, 0);
+	draw_vu_meter(24, 30, 32, pos, prgh, prgh);
+	draw_box(23, 29, 56, 31, BOX_THIN | BOX_INNER | BOX_INSET);
+}
+
+static void diskodlg_cancel(SCHISM_UNUSED void *ignored)
+{
+	disko_export_cancel();
+}
+
+static void diskodlg_setup(void);
+
+// this needs to be done to work around stupid inconsistent key-up code
+static void diskodlg_reset(SCHISM_UNUSED void *ignored)
+{
+	diskodlg_setup();
+}
+
+static void diskodlg_setup(void)
+{
+	struct dialog *d = dialog_create_custom(22, 25, 36, 8, diskodlg_widgets, 0, 0, diskodlg_draw, NULL);
+	d->action_yes = diskodlg_reset;
+	d->action_no = diskodlg_reset;
+	d->action_cancel = diskodlg_cancel;
+
+	uint32_t r = (rand() >> 8) & 63;
+	if (r <= 7) {
+		prgh = 6;
+	} else if (r <= 18) {
+		prgh = 3;
+	} else if (r <= 31) {
+		prgh = 5;
+	} else {
+		prgh = 4;
+	}
+}
+
+static void tracker_diskwrite_begin(size_t est_frames, uint32_t rate)
+{
+	diskodlg_active = 1;
+	diskodlg_frames = 0;
+	diskodlg_est = est_frames;
+	diskodlg_rate = rate;
+	diskodlg_setup();
+}
+
+static void tracker_diskwrite_progress(size_t frames, size_t est_frames, uint32_t rate)
+{
+	diskodlg_frames = frames;
+	diskodlg_est = est_frames;
+	diskodlg_rate = rate;
+	status.flags |= NEED_UPDATE;
+}
+
+/* if it was canceled, the dialog has already closed itself */
+static void tracker_diskwrite_end(int canceled)
+{
+	diskodlg_active = 0;
+	if (!canceled)
+		dialog_destroy();
+}
+
+/* ------------------------------------------------------------------------ */
+
 void tracker_host_register(void)
 {
 	struct engine_host host = {
@@ -104,6 +199,10 @@ void tracker_host_register(void)
 		.midi_activity = tracker_midi_activity,
 		.midi_monitor_active = tracker_midi_monitor_active,
 		.config_dir = tracker_config_dir,
+
+		.diskwrite_begin = tracker_diskwrite_begin,
+		.diskwrite_progress = tracker_diskwrite_progress,
+		.diskwrite_end = tracker_diskwrite_end,
 
 		.exit = schism_exit,
 #ifndef NDEBUG

@@ -108,6 +108,9 @@ int disko_multiwrite_samples(int firstsmp, int pattern);
 struct save_format;
 int disko_export_song(const char *filename, const struct save_format *format);
 
+/* stop the running song export */
+void disko_export_cancel(void);
+
 /* cap the length of later song exports, in sample frames (0 = no cap) */
 void disko_set_export_limit(size_t frames);
 
