@@ -493,7 +493,7 @@ static void fix_xm_envelope_loop(song_envelope_t *s_env, int sustain_flag)
 	v /= (float)(s_env->ticks[s_env->loop_end + 1] - s_env->ticks[s_env->loop_end - 1]);
 	// alter the float so it rounds to the nearest integer when type casted
 	v = (v >= 0.0f) ? v + 0.5f : v - 0.5f;
-	s_env->values[s_env->loop_end] = (uint8_t)v + s_env->values[s_env->loop_end - 1];
+	s_env->values[s_env->loop_end] = (uint8_t)((int)v + s_env->values[s_env->loop_end - 1]);
 
 	// adjust the sustain loop as needed
 	if (sustain_flag && s_env->sustain_start >= s_env->loop_end) {
