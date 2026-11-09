@@ -139,7 +139,7 @@ static inline int32_t rn_vibrato(song_t *csf, song_voice_t *chan, int32_t freque
 		vdelta = square_table[vibpos];
 		break;
 	case VIB_RANDOM:
-		vdelta = 128 * ((double) rand() / RAND_MAX) - 64;
+		vdelta = 128 * ((double) csf_random() / RAND_MAX) - 64;
 		break;
 	}
 
@@ -201,7 +201,7 @@ static inline int32_t rn_sample_vibrato(SCHISM_UNUSED song_t *csf, song_voice_t 
 		vdelta = square_table[vibpos];
 		break;
 	case VIB_RANDOM:
-		vdelta = 128 * ((double) rand() / RAND_MAX) - 64;
+		vdelta = 128 * ((double) csf_random() / RAND_MAX) - 64;
 		break;
 	}
 	vdelta = (vdelta * adepth) >> 6;

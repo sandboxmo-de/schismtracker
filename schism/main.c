@@ -171,6 +171,7 @@ enum {
 	O_DEBUG,
 	O_VERSION,
 	O_HEADLESS,
+	O_SEED,
 };
 
 #define USAGE "Usage: %s [OPTIONS] [DIRECTORY] [FILE]\n"
@@ -201,6 +202,7 @@ static void parse_options(int argc, char **argv)
 		{"no-hooks", 0, NULL, O_NO_HOOKS},
 #endif
 		{"headless", 0, NULL, O_HEADLESS},
+		{"seed", 1, NULL, O_SEED},
 		{"version", 0, NULL, O_VERSION},
 		{"help", 0, NULL, O_HELP},
 		{NULL, 0, NULL, 0},
@@ -279,6 +281,9 @@ static void parse_options(int argc, char **argv)
 		case O_HEADLESS:
 			BITARRAY_SET(startup_flags, SF_HEADLESS);
 			break;
+		case O_SEED:
+			csf_seed_random(strtoul(optarg, NULL, 0));
+			break;
 		case O_VERSION:
 			puts(schism_banner(0));
 			puts(ver_short_copyright);
@@ -298,6 +303,7 @@ static void parse_options(int argc, char **argv)
 				"      --hooks (--no-hooks)\n"
 #endif
 				"      --headless\n"
+				"      --seed=NUMBER\n"
 				"      --version\n"
 				"  -h, --help\n"
 			);

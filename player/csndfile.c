@@ -35,6 +35,37 @@
 #include "mem.h"
 #include "player/cmixer.h"
 
+/* ------------------------------------------------------------------------ */
+
+static int random_seeded = 0;
+static uint32_t random_state = 0;
+
+void csf_seed_random(uint32_t seed)
+{
+	/* xorshift gets stuck at zero */
+	random_state = seed ? seed : 0x9E3779B9u;
+	random_seeded = 1;
+}
+
+int csf_random(void)
+{
+	uint32_t x;
+
+	if (!random_seeded)
+		return rand();
+
+	/* Marsaglia's xorshift32 */
+	x = random_state;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	random_state = x;
+
+	/* scale to 0..RAND_MAX like rand() */
+	return (int)(((uint64_t)x * ((uint64_t)RAND_MAX + 1)) >> 32);
+}
+
+/* ------------------------------------------------------------------------ */
 
 static void _csf_reset(song_t *csf)
 {
