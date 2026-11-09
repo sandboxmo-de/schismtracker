@@ -41,16 +41,21 @@ static void setup_output(void)
 	out->ramping_samples_down = 42;
 }
 
-static void mix(uint32_t frames)
+static void mix_in(uint32_t frames, uint32_t piece)
 {
 	uint32_t done, n;
 
 	memset(mixbuf, 0, frames * 2 * sizeof(int32_t));
-	/* in pieces the size the song mixer uses, so state carries between calls */
 	for (done = 0; done < frames; done += n) {
-		n = MIN(frames - done, 512);
+		n = MIN(frames - done, piece);
 		sfx_pool_mix(sfx_pool_get(), out, mixbuf + done * 2, n);
 	}
+}
+
+/* in pieces the size the song mixer uses, so state carries between calls */
+static void mix(uint32_t frames)
+{
+	mix_in(frames, 512);
 }
 
 static int32_t peak(uint32_t from, uint32_t to, int ch)
@@ -134,16 +139,16 @@ testresult_t test_sfx_voices_sample(void)
 	n = sfx_note_on(bank, 1, NOTE_MIDC, 64, 0);
 	REQUIRE(n != SFX_NOTE_NONE);
 	ASSERT(sfx_note_playing(n));
-	mix(6000);
+	mix(12000);
 	l = peak(100, 3900, 0);
 	r = peak(100, 3900, 1);
 	ASSERT((l == 0) != (r == 0));
 	sig = MAX(l, r);
-	/* it ends with the sample, the pool lets go of it, and what's left
-	 * ramps away */
+	/* it ends with the sample, what's left ramps away, and then the
+	 * pool lets go of it */
+	ASSERT(peak(6000, 12000, 0) < sig / 50 && peak(6000, 12000, 1) < sig / 50);
 	ASSERT(!sfx_note_playing(n));
 	ASSERT(sfx_pool_voices_playing() == 0);
-	ASSERT(peak(5800, 6000, 0) < sig / 50 && peak(5800, 6000, 1) < sig / 50);
 
 	/* the other side */
 	n = sfx_note_on(bank, 1, NOTE_MIDC, 64, 64);
@@ -330,6 +335,51 @@ testresult_t test_sfx_voices_handles(void)
 	sfx_pool_quit();
 	ASSERT(!sfx_pool_running());
 	ASSERT(sfx_note_on(NULL, 1, NOTE_MIDC, 64, 32) == SFX_NOTE_NONE);
+	csf_free(out);
+	RETURN_PASS;
+}
+
+/* Where the output gets split into buffers mustn't change it, or a note
+ * would sound different under a song than on its own. */
+testresult_t test_sfx_voices_buffer_split(void)
+{
+	static int32_t first[RATE * 3 * 2];
+	static const uint32_t pieces[] = {512, 37, 300, 1};
+	sfx_bank_t *bank;
+	uint32_t p, i;
+	const uint32_t frames = RATE * 3;
+
+	setup_output();
+	REQUIRE(sfx_pool_init(16) == 0);
+	bank = make_bank(1, 1);
+	REQUIRE(bank);
+
+	for (p = 0; p < ARRAY_SIZE(pieces); p++) {
+		struct sfx_note_args args;
+
+		sfx_pool_set_seed(99);
+		for (i = 0; i < 6; i++) {
+			sfx_note_args_init(&args);
+			args.instrument = 1;
+			args.note = NOTE_MIDC - 7 + (int)i * 3;
+			args.pan = (int)i * 12;
+			args.cutoff = (i == 2) ? 70 : SFX_DEFAULT;
+			args.resonance = (i == 2) ? 90 : SFX_DEFAULT;
+			args.delay = i * 3001;
+			args.duration = 9000 + i * 777;
+			REQUIRE(sfx_note_on_ex(bank, &args) != SFX_NOTE_NONE);
+		}
+		mix_in(frames, pieces[p]);
+		ASSERT(sfx_pool_voices_playing() == 0);
+		if (!p)
+			memcpy(first, mixbuf, sizeof(first));
+		else
+			ASSERT(!memcmp(first, mixbuf, sizeof(first)));
+	}
+	ASSERT(peak(0, frames, 0) > 0);
+
+	sfx_bank_free(bank);
+	sfx_pool_quit();
 	csf_free(out);
 	RETURN_PASS;
 }

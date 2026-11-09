@@ -1195,6 +1195,7 @@ static void load_settings(void)
 
 static int render(const char *song)
 {
+	uint32_t pool_peak = 0;
 	int q;
 
 	disko_set_export_limit(opt_length > 0 ? (size_t)(opt_length * opt_rate + 0.5) : 0);
@@ -1211,7 +1212,12 @@ static int render(const char *song)
 
 	do {
 		q = disko_sync();
+		if (verbose && sfx_pool_running())
+			pool_peak = MAX(pool_peak, sfx_pool_voices_playing());
 	} while (q == DW_SYNC_MORE && !interrupted);
+
+	if (verbose && sfx_pool_running())
+		fprintf(stderr, "effects pool: at most %u notes at once\n", pool_peak);
 
 	if (interrupted) {
 		fprintf(stderr, "schismplay: interrupted\n");

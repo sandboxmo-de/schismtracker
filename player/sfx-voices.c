@@ -58,6 +58,7 @@ struct pool_voice {
 	int32_t base_frequency;
 	int first_tick;        /* the note-on tick hasn't run yet */
 	int filter_dirty;
+	int tail;              /* stopped; only the DC offset is left to ramp out */
 };
 
 struct sfx_pool {
@@ -75,8 +76,10 @@ struct sfx_pool {
 	int interpolation;
 	uint32_t rng;
 
-	/* leftover DC offset from voices that stopped, ramped out the way the
-	 * song does it (stereo_fill) */
+	/* leftover DC offset from voices that were cut off outright (stolen,
+	 * or their bank freed), ramped out the way the song does it
+	 * (stereo_fill). Voices that stop on their own ramp theirs out
+	 * themselves; see pool_mix_chunk. */
 	int32_t dry_rofs, dry_lofs;
 
 	int32_t scratch[MIXBUFFERSIZE * 2];
@@ -691,6 +694,7 @@ sfx_note_t sfx_note_on_ex(sfx_bank_t *bank, const struct sfx_note_args *args)
 	pv->base_frequency = v.frequency;
 	pv->first_tick = 1;
 	pv->filter_dirty = 0;
+	pv->tail = 0;
 	pv->active_index = pool->nactive;
 	pool->active[pool->nactive++] = (uint32_t)(pv - pool->voices);
 
@@ -726,7 +730,7 @@ void sfx_note_off(sfx_note_t note)
 
 	song_lock_audio();
 	pv = voice_lookup(pool_running, note);
-	if (pv) {
+	if (pv && !pv->tail) {
 		if (pv->wait) {
 			/* hasn't started: key it off as it starts */
 			pv->keyoff_left = 0;
@@ -744,7 +748,7 @@ void sfx_note_cut(sfx_note_t note)
 
 	song_lock_audio();
 	pv = voice_lookup(pool_running, note);
-	if (pv) {
+	if (pv && !pv->tail) {
 		if (pv->wait) {
 			voice_release(pool_running, pv);
 		} else {
@@ -884,6 +888,19 @@ static int voice_tick(struct pool_voice *pv, const struct csf_voice_env *env)
 	return r != CSF_VOICE_IDLE;
 }
 
+/* The DC offset a stopped voice leaves behind ramps out on the voice itself
+ * rather than going into a shared accumulator the way the song's do. The
+ * decay rounds, so ramping two offsets out together doesn't give quite the
+ * same samples as ramping them out apart, and a shared accumulator would
+ * make the output depend on where the mix is split into buffers. Per voice,
+ * it's the same recurrence as end_channel_ofs and stereo_fill run for a
+ * lone song voice. Returns 0 once there's nothing left. */
+static int voice_tail(song_voice_t *v, int32_t *buf, uint32_t frames)
+{
+	end_channel_ofs(v, buf, frames);
+	return v->rofs || v->lofs;
+}
+
 static void pool_mix_chunk(struct sfx_pool *pool, const struct csf_voice_env *env,
 	uint32_t interp, int32_t *buf, uint32_t frames)
 {
@@ -902,6 +919,12 @@ static void pool_mix_chunk(struct sfx_pool *pool, const struct csf_voice_env *en
 		uint32_t pos = 0;
 		int alive = 1;
 
+		if (pv->tail) {
+			if (!voice_tail(v, scratch, frames))
+				voice_release(pool, pv);
+			continue;
+		}
+
 		if (pv->wait >= frames) {
 			pv->wait -= frames;
 			continue;
@@ -910,6 +933,7 @@ static void pool_mix_chunk(struct sfx_pool *pool, const struct csf_voice_env *en
 		pv->wait = 0;
 
 		while (pos < frames) {
+			int32_t left_r = 0, left_l = 0;
 			uint32_t step;
 
 			if (pv->keyoff_left == 0) {
@@ -929,13 +953,23 @@ static void pool_mix_chunk(struct sfx_pool *pool, const struct csf_voice_env *en
 				step = (uint32_t)pv->keyoff_left;
 
 			if ((v->current_sample_data && v->ptr_sample) || v->lofs || v->rofs)
-				csf_mix_voice(v, scratch + pos * 2, step, interp,
-					&pool->dry_rofs, &pool->dry_lofs, 0);
+				csf_mix_voice(v, scratch + pos * 2, step, interp, &left_r, &left_l, 0);
 
 			pv->tick_left -= step;
 			if (pv->keyoff_left > 0)
 				pv->keyoff_left -= step;
 			pos += step;
+
+			if (left_r || left_l) {
+				/* it stopped in this step; carry on ramping out what's
+				 * left of it to the end of the chunk and past */
+				v->rofs = left_r;
+				v->lofs = left_l;
+				v->final_volume = 0;
+				pv->tail = 1;
+				alive = voice_tail(v, scratch + pos * 2, frames - pos);
+				break;
+			}
 
 			/* ran off the end of the sample, or faded out, and has no
 			 * DC offset left to ramp out */

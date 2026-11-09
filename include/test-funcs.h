@@ -211,6 +211,7 @@ TEST_FUNC(test_sfx_voices_delay_release)
 TEST_FUNC(test_sfx_voices_tick_rate)
 TEST_FUNC(test_sfx_voices_steal)
 TEST_FUNC(test_sfx_voices_handles)
+TEST_FUNC(test_sfx_voices_buffer_split)
 
 #define TEST_FUNC_BLIT(x) \
 	TEST_FUNC(x) \
