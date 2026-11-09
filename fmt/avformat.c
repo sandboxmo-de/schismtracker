@@ -394,8 +394,13 @@ static int avfmt_read_to_sample(AVFormatContext *fmtctx, int astr, song_sample_t
 		schism_av_frame_free(&frame);
 		schism_av_packet_free(&packet);
 
-		disko_memclose(&ds[0], 1);
-		disko_memclose(&ds[1], 1);
+		/* A stream that ran out of memory comes back with no data, and
+		 * the two lengths won't match. */
+		if ((disko_memclose(&ds[0], 1) != DW_OK) | (disko_memclose(&ds[1], 1) != DW_OK)) {
+			free(ds[0].data);
+			free(ds[1].data);
+			goto fail;
+		}
 
 		SCHISM_RUNTIME_ASSERT(ds[0].length == ds[1].length || !ds[1].length, "memory streams should have the same length, or the latter should have nothing at all");
 
