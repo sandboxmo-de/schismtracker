@@ -741,7 +741,7 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 
 #define CONVERT(X, SIZE)  \
 	do { \
-		if (!charset_iconv((X), &tmp, CHARSET_WINDOWS1252, CHARSET_CP437, SIZE)) { \
+		if (!charset_iconv_engine((X), &tmp, CHARSET_WINDOWS1252, CHARSET_CP437, SIZE)) { \
 			strncpy((X), tmp, (SIZE) - 1); \
 			tmp[(SIZE) - 1] = 0; \
 			engine_free(tmp, ENGINE_MEM_SCRATCH); \

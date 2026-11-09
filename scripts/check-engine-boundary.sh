@@ -18,8 +18,9 @@
 # 3. With nm again: none of the objects listed in CORE_OBJECTS (a
 #    space-separated list from the environment) may refer to the libc heap
 #    (malloc, calloc, realloc, free, strdup, strndup, asprintf, vasprintf and
-#    friends) or to the aborting wrappers in schism/mem.c. They allocate
-#    through include/engine-alloc.h instead. Skipped if CORE_OBJECTS is unset.
+#    friends), to the aborting wrappers in schism/mem.c, or to the helpers in
+#    schism/libc-owned.c that hand out malloc() memory. They allocate through
+#    include/engine-alloc.h instead. Skipped if CORE_OBJECTS is unset.
 #
 # The second check needs CC, and takes CPPFLAGS, CFLAGS, LDFLAGS and LIBS
 # from the environment; `make check-engine-boundary` passes the ones
@@ -105,7 +106,9 @@ if [ -n "${CORE_OBJECTS:-}" ]; then
 	heap='malloc calloc realloc reallocf free strdup strndup wcsdup asprintf vasprintf
 		valloc pvalloc memalign posix_memalign aligned_alloc
 		malloc_type_malloc malloc_type_calloc malloc_type_realloc
-		mem_alloc mem_calloc mem_realloc str_dup strn_dup'
+		mem_alloc mem_calloc mem_realloc str_dup strn_dup
+		charset_iconv charset_compose_to_set charset_case_fold_to_set
+		disko_memclose str_break str_escape str_unescape str_concat str_realloc'
 	: > "$tmp/heap-bad"
 	ncore=0
 	for obj in $CORE_OBJECTS; do

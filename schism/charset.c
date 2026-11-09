@@ -1679,7 +1679,7 @@ static size_t charset_iconv_fixup_size(const void *in, charset_t inset, size_t x
 	return (x == SIZE_MAX) ? charset_nulterm_string_size(in, inset) : x;
 }
 
-charset_error_t charset_iconv(const void *in, void *out, charset_t inset, charset_t outset, size_t insize)
+charset_error_t charset_iconv_engine_len(const void *in, void *out, charset_t inset, charset_t outset, size_t insize, size_t *outlen)
 {
 	struct charset_iconv_v2 *v2;
 	/* Ouch */
@@ -1706,7 +1706,7 @@ charset_error_t charset_iconv(const void *in, void *out, charset_t inset, charse
 		rc = charset_iconv_v2(v2, &inptr, &insize, &outptr, &outsz);
 		if (rc < 0 && rc != CHARSET_ERROR_NOTENOUGHSPACE) {
 			charset_iconv_v2_close(v2);
-			disko_memclose(&fp, 0);
+			disko_memclose_engine(&fp, 0);
 			return rc;
 		}
 
@@ -1723,11 +1723,19 @@ charset_error_t charset_iconv(const void *in, void *out, charset_t inset, charse
 	/* Force write NUL termination */
 	disko_write(&fp, "\0\0\0\0", 4);
 
-	disko_memclose(&fp, 1);
+	if (disko_memclose_engine(&fp, 1) != DW_OK)
+		return CHARSET_ERROR_NOMEM;
 
 	memcpy(out, &fp.data, sizeof(void *));
+	if (outlen)
+		*outlen = fp.length;
 
 	return CHARSET_ERROR_SUCCESS;
+}
+
+charset_error_t charset_iconv_engine(const void *in, void *out, charset_t inset, charset_t outset, size_t insize)
+{
+	return charset_iconv_engine_len(in, out, inset, outset, insize, NULL);
 }
 
 /* ------------------------------------------------------------------------ */

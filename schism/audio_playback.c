@@ -1198,10 +1198,18 @@ void song_set_surround(int on)
 // should put all the cfg_ stuff in config.c :/
 
 void audio_parse_driver_spec(const char* spec, char** driver, char** device) {
-	if (!str_break(spec, ':', driver, device)) {
-		*driver = engine_strdup(spec, ENGINE_MEM_ENGINE);
-		*device = NULL;
+	const char *colon = strchr(spec, ':');
+
+	if (colon) {
+		*driver = engine_strndup(spec, colon - spec, ENGINE_MEM_ENGINE);
+		*device = engine_strdup(colon + 1, ENGINE_MEM_ENGINE);
+		if (*driver && *device)
+			return;
+		engine_free(*driver, ENGINE_MEM_ENGINE);
+		engine_free(*device, ENGINE_MEM_ENGINE);
 	}
+	*driver = colon ? NULL : engine_strdup(spec, ENGINE_MEM_ENGINE);
+	*device = NULL;
 }
 
 #define CFG_GET_A(v,d) audio_settings.v = cfg_get_number(cfg, "Audio", #v, d)

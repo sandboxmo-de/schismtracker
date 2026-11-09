@@ -694,6 +694,7 @@ libschismengine_a_SOURCES = \
 	schism/dmoz.c			\
 	schism/engine-alloc.c		\
 	schism/engine-host.c		\
+	schism/libc-owned.c		\
 	schism/ieee-float.c     \
 	schism/loadso.c         \
 	schism/mem.c           \
@@ -907,7 +908,8 @@ schismplay_LDFLAGS = $(schismtracker_LDFLAGS)
 
 # ---------------------------------------------------------------------------
 # Engine files that may call the libc heap directly: the default allocator
-# (mem-libc.c), and the parts of the library a host without a general-purpose
+# (mem-libc.c), the helpers that hand malloc() memory to the tracker and the
+# platform code (libc-owned.c), and the parts of the library a host without a general-purpose
 # heap does without (config files, directory listing, dynamic loading, MIDI
 # ports, threads and timers, and the platform and third-party decoder
 # backends). Everything else in libschismengine.a is the core engine, which
@@ -916,6 +918,7 @@ schismplay_LDFLAGS = $(schismtracker_LDFLAGS)
 engine_heap_sources = \
 	schism/config-parser.c	\
 	schism/dmoz.c		\
+	schism/libc-owned.c	\
 	schism/loadso.c		\
 	schism/mem.c		\
 	schism/mem-libc.c	\

@@ -86,10 +86,15 @@ DW_ERROR (and sets errno) if there was a file error.
 int disko_close(disko_t *f, int backup);
 
 /* alloc/free a memory buffer
-if free_buffer is 0, the internal buffer is left alone when deallocating,
-so that it can continue to be used later */
+if keep_buffer is nonzero, the buffer is left in f->data (f->length bytes
+long) for the caller to keep and free.
+
+disko_memclose hands a kept buffer over as a malloc() block, for free().
+Engine code uses disko_memclose_engine, which leaves it as SCRATCH memory,
+for engine_free(p, ENGINE_MEM_SCRATCH). */
 int disko_memopen(disko_t *f);
-int disko_memclose(disko_t *f, int free_buffer);
+int disko_memclose(disko_t *f, int keep_buffer);
+int disko_memclose_engine(disko_t *f, int keep_buffer);
 
 /* alloc a memory buffer with an estimated final size
  * the actual length of the stream may be larger/smaller than

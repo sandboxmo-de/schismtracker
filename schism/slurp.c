@@ -674,7 +674,7 @@ static void slurp_nonseek_closure(slurp_t *fp)
 	struct slurp_nonseek *ns = fp->nonseek;
 
 	ns->closure(ns->opaque);
-	disko_memclose(&ns->ds, 0);
+	disko_memclose_engine(&ns->ds, 0);
 	engine_free(ns, ENGINE_MEM_SCRATCH);
 }
 

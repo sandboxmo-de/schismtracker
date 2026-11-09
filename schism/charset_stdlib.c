@@ -134,11 +134,11 @@ struct strxcasecmp_impl_struct {
 		uint32_t cp2[2] = {0}; \
 		cp2[0] = decoder2.codepoint; \
 \
-		uint32_t *cf1 = charset_case_fold_to_set(cp1, CHARSET_UCS4, CHARSET_UCS4); \
+		uint32_t *cf1 = charset_case_fold_to_set_engine(cp1, CHARSET_UCS4, CHARSET_UCS4); \
 		if (!cf1) \
 			break; \
 \
-		uint32_t *cf2 = charset_case_fold_to_set(cp2, CHARSET_UCS4, CHARSET_UCS4); \
+		uint32_t *cf2 = charset_case_fold_to_set_engine(cp2, CHARSET_UCS4, CHARSET_UCS4); \
 		if (!cf2) { \
 			engine_free(cf1, ENGINE_MEM_SCRATCH); \
 			break; \
@@ -402,11 +402,11 @@ int32_t charset_strcaseverscmp(const void *in1, charset_t in1set, const void *in
 	{
 		uint32_t *in1cf, *in2cf;
 
-		in1cf = charset_case_fold_to_set((uint8_t *)in1, in1set, CHARSET_UCS4);
+		in1cf = charset_case_fold_to_set_engine((uint8_t *)in1, in1set, CHARSET_UCS4);
 		if (!in1cf)
 			goto casefoldfail;
 
-		in2cf = charset_case_fold_to_set((uint8_t *)in2, in2set, CHARSET_UCS4);
+		in2cf = charset_case_fold_to_set_engine((uint8_t *)in2, in2set, CHARSET_UCS4);
 		if (!in2cf) {
 			engine_free(in1cf, ENGINE_MEM_SCRATCH);
 			goto casefoldfail;
@@ -455,18 +455,18 @@ int charset_fnmatch(const void *match, charset_t match_set, const void *str, cha
 	uint32_t *match_ucs4 = NULL, *str_ucs4 = NULL;
 
 	if (flags & CHARSET_FNM_CASEFOLD) {
-		match_ucs4 = charset_case_fold_to_set(match, match_set, CHARSET_UCS4);
+		match_ucs4 = charset_case_fold_to_set_engine(match, match_set, CHARSET_UCS4);
 		if (!match_ucs4)
 			goto charsetfail;
 
-		str_ucs4 = charset_case_fold_to_set(str, str_set, CHARSET_UCS4);
+		str_ucs4 = charset_case_fold_to_set_engine(str, str_set, CHARSET_UCS4);
 		if (!str_ucs4)
 			goto charsetfail;
 	} else {
-		if (charset_iconv(match, &match_ucs4, match_set, CHARSET_UCS4, SIZE_MAX))
+		if (charset_iconv_engine(match, &match_ucs4, match_set, CHARSET_UCS4, SIZE_MAX))
 			goto charsetfail;
 
-		if (charset_iconv(str, &str_ucs4, str_set, CHARSET_UCS4, SIZE_MAX))
+		if (charset_iconv_engine(str, &str_ucs4, str_set, CHARSET_UCS4, SIZE_MAX))
 			goto charsetfail;
 	}
 

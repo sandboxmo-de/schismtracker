@@ -45,7 +45,7 @@ static int edl_load_file(slurp_t *fp, slurp_t *fakefp)
 		return 0;
 
 	if (huffman_decompress(fp, &memdisko)) {
-		disko_memclose(&memdisko, 0);
+		disko_memclose_engine(&memdisko, 0);
 		return 0;
 	}
 
@@ -54,16 +54,16 @@ static int edl_load_file(slurp_t *fp, slurp_t *fakefp)
 	// file is legitimate or not by just comparing the length to
 	// a magic value.
 	if (memdisko.length != 195840 && memdisko.length != 179913) {
-		disko_memclose(&memdisko, 0);
+		disko_memclose_engine(&memdisko, 0);
 		return 0;
 	}
 
 	if (slurp_memstream_free(fakefp, memdisko.data, memdisko.length)) {
-		disko_memclose(&memdisko, 0);
+		disko_memclose_engine(&memdisko, 0);
 		return 0;
 	}
 
-	disko_memclose(&memdisko, 1);
+	disko_memclose_engine(&memdisko, 1);
 	return 1;
 }
 

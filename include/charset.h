@@ -101,9 +101,15 @@ SCHISM_CONST int char_unicode_to_itf(uint32_t c);
 
 /* ------------------------------------------------------------------------ */
 
-/* unicode composing and case folding graciously provided by utf8proc */
+/* unicode composing and case folding graciously provided by utf8proc.
+ * Free the result with free(). */
 void *charset_compose_to_set(const void *in, charset_t inset, charset_t outset);
 void *charset_case_fold_to_set(const void *in, charset_t inset, charset_t outset);
+
+/* The same for engine code: the result is SCRATCH memory, freed with
+ * engine_free(p, ENGINE_MEM_SCRATCH). */
+void *charset_compose_to_set_engine(const void *in, charset_t inset, charset_t outset);
+void *charset_case_fold_to_set_engine(const void *in, charset_t inset, charset_t outset);
 
 /* only provided for source compatibility and should be killed with fire */
 #define charset_compose(in, set)         charset_compose_to_set(in, set, set)
@@ -138,7 +144,14 @@ int charset_fnmatch(const void *match, charset_t match_set, const void *str, cha
 #define CHARSET_NUL_TERMINATED SIZE_MAX /* Use this size if you know the input has a NUL terminator character */
 
 const char* charset_iconv_error_lookup(charset_error_t err);
+/* *out is a malloc() block; free it with free() */
 charset_error_t charset_iconv(const void* in, void* out, charset_t inset, charset_t outset, size_t insize);
+
+/* charset_iconv for engine code. *out is SCRATCH memory, freed with
+ * engine_free(p, ENGINE_MEM_SCRATCH). The _len variant also passes back the
+ * size of *out in bytes, terminator included; outlen can be NULL. */
+charset_error_t charset_iconv_engine(const void *in, void *out, charset_t inset, charset_t outset, size_t insize);
+charset_error_t charset_iconv_engine_len(const void *in, void *out, charset_t inset, charset_t outset, size_t insize, size_t *outlen);
 
 /* charset_iconv for newbies.
  * This is preferred to using the below macro, because it is less prone to memory leaks.

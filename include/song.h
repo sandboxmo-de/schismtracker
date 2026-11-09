@@ -241,7 +241,9 @@ void song_initialise(void);
 void song_init_modplug(void);
 
 /* parses strings in the old "driver spec" format Schism used in the config
- * and still uses in the command line */
+ * and still uses in the command line. *driver and *device are ENGINE memory,
+ * freed with engine_free(p, ENGINE_MEM_ENGINE); *device can be NULL, and so
+ * can *driver if there's no memory. */
 void audio_parse_driver_spec(const char* spec, char** driver, char** device);
 
 void audio_flash_reinitialized_text(int success);

@@ -75,6 +75,8 @@ Defined sort orders:
 
 typedef struct dmoz_file dmoz_file_t;
 struct dmoz_file {
+	/* path and base are malloc() blocks, which dmoz takes over and frees
+	 * with free() */
 	char *path; /* the full path to the file (needs free'd) */
 	char *base; /* the basename (needs free'd) */
 	int32_t sort_order; /* where to sort it */
@@ -88,6 +90,11 @@ struct dmoz_file {
 	/* if ((type & TYPE_EXT_DATA_MASK) == 0) nothing below this point will
 	be defined (call dmoz_{fill,filter}_ext_data to define it) */
 
+	/* artist, title and smp_filename are set by the format loaders, which
+	 * run in the engine, so they're ENGINE memory: anything that sets them
+	 * uses engine_strdup(..., ENGINE_MEM_ENGINE) or the like, and dmoz frees
+	 * them with engine_free(). smp_filename can also point at base or
+	 * title, and isn't freed then. */
 	const char *description; /* i.e. "Impulse Tracker sample" -- does NOT need free'd */
 	char *artist; /* needs free'd (may be -- and usually is -- NULL) */
 	char *title; /* needs free'd */

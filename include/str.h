@@ -69,10 +69,13 @@ char *str_from_time(time_t when, char buf[27], str_time_format_t format);
 int str_ltrim(char *s); // return: length of string after trimming
 int str_rtrim(char *s); // ditto
 int str_trim(char *s);  // ditto
+int str_get_num_lines(const char *text);
+
+/* These allocate with malloc(), and the caller frees the results with
+ * free(). They live in libc-owned.c, and engine code doesn't use them. */
 int str_break(const char *s, char c, char **first, char **second);
 char *str_escape(const char *source, int space_hack);
 char *str_unescape(const char *source);
-int str_get_num_lines(const char *text);
 char *str_concat(const char *s, ...);
 int str_realloc(char **output, const char *input, size_t len);
 

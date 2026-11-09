@@ -465,7 +465,7 @@ int disko_memopen(disko_t *ds)
 	return disko_memopen_estimate(ds, DW_BUFFER_SIZE);
 }
 
-int disko_memclose(disko_t *ds, int keep_buffer)
+int disko_memclose_engine(disko_t *ds, int keep_buffer)
 {
 	int err = ds->error;
 
@@ -602,7 +602,7 @@ static int close_and_bind(song_t *dwsong, disko_t *ds, song_sample_t *sample, in
 	disko_t dsshadow = *ds;
 	uint32_t flags;
 
-	if (disko_memclose(ds, 1) == DW_ERROR)
+	if (disko_memclose_engine(ds, 1) == DW_ERROR)
 		return DW_ERROR;
 
 	// kill the sample
@@ -737,7 +737,7 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 		err = err ? err : errno;
 		engine_free(dwsong.multi_write, ENGINE_MEM_SCRATCH);
 		for (n = 0; n < MAX_CHANNELS; n++)
-			disko_memclose(&ds[n], 0);
+			disko_memclose_engine(&ds[n], 0);
 		errno = err;
 		return DW_ERROR;
 	}
@@ -774,7 +774,7 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 	for (n = 0; n < MAX_CHANNELS; n++) {
 		if (!dwsong.multi_write[n].used) {
 			/* this channel was completely empty - don't bother with it */
-			disko_memclose(&ds[n], 0);
+			disko_memclose_engine(&ds[n], 0);
 			continue;
 		}
 
@@ -792,7 +792,7 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 	}
 
 	for (; n < MAX_CHANNELS; n++) {
-		if (disko_memclose(&ds[n], 0) != DW_OK)
+		if (disko_memclose_engine(&ds[n], 0) != DW_OK)
 			err = errno;
 	}
 
