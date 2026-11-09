@@ -18,7 +18,9 @@ All of `player/` and `fmt/`, and from `schism/`: `atomic.c`,
 `audio_loadsave.c`, `audio_playback.c`, `charset*.c`, `config-parser.c`,
 `cpu.c`, `disko.c`, `dmoz.c`, `engine-host.c`, `ieee-float.c`, `loadso.c`,
 `mem.c`, `midi-core.c`, `midi-ip.c`, `mplink.c`, `mt.c`, `sample-edit.c`,
-`slurp.c`, `str.c`, `timer.c`, `util.c`, `version.c`. From `sys/`: the audio,
+`slurp.c`, `str.c`, `timer.c`, `util.c`, `version.c`, and the allocator
+files `engine-alloc.c`, `mem-libc.c`, `mem-arena.c` and `libc-owned.c`.
+From `sys/`: the audio,
 init, timer, thread and dmoz files of whichever SDL is configured, the
 platform's native audio, MIDI, osdefs and dmoz files, `sys/posix`, and the
 `sys/stdlib` replacements.
@@ -114,7 +116,7 @@ or by hand:
 
     scripts/check-engine-boundary.sh libschismengine.a [UI objects...]
 
-It does two things:
+It does three things:
 
 1. Lists the symbols `libschismengine.a` leaves undefined (with `nm -g -P`)
    and compares them with the global symbols the UI objects define
@@ -124,6 +126,9 @@ It does two things:
    `--whole-archive` elsewhere) with a `main()` that registers an empty
    `struct engine_host`, using schismplay's flags and libraries. Anything
    left undefined fails the link and the check.
+3. Runs `nm` on each core engine object and fails if one calls the libc heap
+   directly. Which objects are core, and why the others aren't, is in
+   [engine-memory.md](engine-memory.md).
 
 On macOS arm64 with each of SDL 3, sdl2-compat and sdl12-compat:
 
@@ -132,6 +137,16 @@ On macOS arm64 with each of SDL 3, sdl2-compat and sdl12-compat:
     ok: the whole library links on its own with the default callbacks
 
 (197 and 50 UI objects with SDL 1.2, which has no clipboard backend.)
+
+## Memory
+
+The engine allocates through an allocator the host registers, with a
+lifetime class on every request, and the mixer never allocates on the audio
+thread. The default is libc; `schism/mem-arena.c` is a fixed-region
+allocator for hosts without a general-purpose heap, and schismplay's
+`--arena` and `--mem-stats` options drive it. The lookup tables are
+generated `const` arrays, checked by `make check-tables`.
+[engine-memory.md](engine-memory.md) has the details.
 
 ## Running schismplay
 
@@ -201,12 +216,6 @@ branch point, before the split.
 
 These aren't implemented; this is where they'd go.
 
-* **Host allocator with arena lifetimes.** Engine allocations go through
-  `mem_alloc()`/`mem_calloc()`/`mem_realloc()` in schism/mem.c, plus direct
-  `malloc`/`calloc` in the loaders and `csf_allocate()`. An `alloc`/`free`
-  pair (taking an arena id: song, sample data, scratch) would be added to
-  `struct engine_host`, mem.c would call it, and the direct calls would be
-  moved over to mem.c. The default would be libc.
 * **Sound-effect voices.** The effects bus ([sfx-bus.md](sfx-bus.md)) plays
   PCM effects with its own small mixer, added to the mix buffer in
   `csf_read()`. The step after that is real engine voices: a host-sized

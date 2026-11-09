@@ -11,6 +11,7 @@ docs = \
 	docs/building_on_windows.md	\
 	docs/configuration.md		\
 	docs/engine.md			\
+	docs/engine-memory.md		\
 	docs/sfx-bus.md
 helptexts = \
 	helptext/global-keys		\
