@@ -457,9 +457,17 @@ void pattern_editor_length_edit(void);
 
 /* page_orderpan.c */
 void update_current_order(void);
+void song_pattern_to_sample(int pattern, int split, int bind);
 
 /* page_preferences.c */
 void preferences_audio_driver_changed(void);
+
+/* page_vars.c: updates the value on F12 to match the song, after
+ * song_set_stereo() et al */
+void song_vars_sync_stereo(void);
+
+/* page_loadinst.c */
+int song_load_instrument_with_prompt(int n, const char *file);
 
 /* menu.c */
 void menu_show(void);

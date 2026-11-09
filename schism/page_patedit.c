@@ -1473,6 +1473,12 @@ static void selection_erase(void)
 	pattern_selection_system_copyout();
 }
 
+/* the instrument number to write into the pattern */
+int song_get_current_instrument(void)
+{
+	return (song_is_instrument_mode() ? instrument_get_current() : sample_get_current());
+}
+
 static void selection_set_sample(void)
 {
 	int row, chan;

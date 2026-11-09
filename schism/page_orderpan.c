@@ -30,6 +30,10 @@
 #include "vgamem.h"
 #include "keyboard.h"
 #include "str.h"
+#include "dialog.h"
+#include "disko.h"
+#include "log.h"
+#include "mem.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -407,6 +411,86 @@ static int orderlist_handle_text_input_on_list(const char *text) {
 			success = 1;
 
 	return success;
+}
+
+/* --------------------------------------------------------------------- */
+/* Ctrl-O and Ctrl-B, here and in the pattern editor: copy a pattern into the
+ * current sample, with a confirmation dialog if the sample already has data */
+
+struct pat2smp {
+	int pattern, sample, bind;
+};
+
+static void pat2smp_single(void *data)
+{
+	struct pat2smp *ps = data;
+
+	if (disko_writeout_sample(ps->sample, ps->pattern, ps->bind) == DW_OK) {
+		set_page(PAGE_SAMPLE_LIST);
+	} else {
+		log_perror("Sample write");
+		status_text_flash("Error writing to sample");
+	}
+
+	free(ps);
+}
+
+static void pat2smp_multi(void *data)
+{
+	struct pat2smp *ps = data;
+	if (disko_multiwrite_samples(ps->sample, ps->pattern) == DW_OK) {
+		set_page(PAGE_SAMPLE_LIST);
+	} else {
+		log_perror("Sample multi-write");
+		status_text_flash("Error writing to samples");
+	}
+
+	free(ps);
+}
+
+void song_pattern_to_sample(int pattern, int split, int bind)
+{
+	struct pat2smp *ps;
+	int n;
+
+	if (split && bind) {
+		log_appendf(4, "song_pattern_to_sample: internal error!");
+		return;
+	}
+
+	if (pattern < 0 || pattern >= MAX_PATTERNS) {
+		return;
+	}
+
+	/* this is horrid */
+	for (n = 1; n < MAX_SAMPLES; n++) {
+		song_sample_t *samp = song_get_sample(n);
+		if (!samp) continue;
+		if (((unsigned char) samp->name[23]) != 0xFF) continue;
+		if (((unsigned char) samp->name[24]) != pattern) continue;
+		status_text_flash("Pattern %d already linked to sample %d", pattern, n);
+		return;
+	}
+
+	ps = mem_alloc(sizeof(struct pat2smp));
+	ps->pattern = pattern;
+
+	int samp = sample_get_current();
+	ps->sample = samp ? samp : 1;
+
+	ps->bind = bind;
+
+	if (split) {
+		/* Nothing to confirm, as this never overwrites samples */
+		pat2smp_multi(ps);
+	} else {
+		if (current_song->samples[ps->sample].data == NULL) {
+			pat2smp_single(ps);
+		} else {
+			dialog_create(DIALOG_OK_CANCEL, "This will replace the current sample.",
+				pat2smp_single, free, 1, ps);
+		}
+	}
 }
 
 static int orderlist_handle_key_on_list(struct key_event * k)

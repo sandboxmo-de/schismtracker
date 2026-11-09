@@ -1142,6 +1142,7 @@ static int info_page_handle_key(struct key_event * k)
 
 		if (k->mod & SCHISM_KEYMOD_ALT) {
 			song_toggle_stereo();
+			song_vars_sync_stereo();
 			status_text_flash("Stereo %s", song_is_stereo()
 					  ? "Enabled" : "Disabled");
 		} else {

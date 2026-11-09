@@ -105,10 +105,12 @@ static void update_values_in_song(void)
 	if (widgets_vars[10].d.togglebutton.state) {
 		if (!song_is_stereo()) {
 			song_set_stereo();
+			song_vars_sync_stereo();
 		}
 	} else {
 		if (song_is_stereo()) {
 			song_set_mono();
+			song_vars_sync_stereo();
 		}
 	}
 	song_set_linear_pitch_slides(widgets_vars[12].d.togglebutton.state);

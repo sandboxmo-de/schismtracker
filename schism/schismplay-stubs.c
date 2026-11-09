@@ -48,8 +48,6 @@ struct tracker_status status = {0};
  * loaded they're all NULL. */
 struct page pages[PAGE_MAX] = {0};
 
-int instrument_list_subpage = PAGE_INSTRUMENT_LIST_GENERAL;
-
 int playback_tracing = 0;
 int midi_playback_tracing = 0;
 int midi_last_bend_hit[MAX_CHANNELS] = {0};
@@ -58,14 +56,9 @@ int midi_last_bend_hit[MAX_CHANNELS] = {0};
  * never loads or saves. */
 char *cfg_dir_dotschism = NULL;
 
-int sample_get_current(void) { return 1; }
-int instrument_get_current(void) { return 1; }
-
-void set_page(SCHISM_UNUSED int new_page) {}
 void main_song_changed_cb(void) {}
 void message_reset_selection(void) {}
 void preferences_audio_driver_changed(void) {}
-void song_vars_sync_stereo(void) {}
 void memused_songchanged(void) {}
 void handle_key(SCHISM_UNUSED struct key_event *k) {}
 
@@ -93,21 +86,12 @@ int events_push_event(SCHISM_UNUSED const schism_event_t *event)
 
 /* ------------------------------------------------------------------------ */
 /* Dialogs and drawing (dialog.c, vgamem.c), used by disko.c for the export
- * progress box and by audio_loadsave.c for overwrite prompts.
+ * progress box.
  *
  * disko.c sets the cancel/yes/no callbacks on the dialog it gets back, so
- * dialog_create_custom has to hand out real storage. The prompts from
- * dialog_create are only reached from editor commands. */
+ * dialog_create_custom has to hand out real storage. */
 
 static struct dialog dummy_dialog;
-
-struct dialog *dialog_create(SCHISM_UNUSED int type, SCHISM_UNUSED const char *text,
-	SCHISM_UNUSED void (*action_yes)(void *data), SCHISM_UNUSED void (*action_no)(void *data),
-	SCHISM_UNUSED int default_widget, SCHISM_UNUSED void *data)
-{
-	memset(&dummy_dialog, 0, sizeof(dummy_dialog));
-	return &dummy_dialog;
-}
 
 struct dialog *dialog_create_custom(SCHISM_UNUSED int x, SCHISM_UNUSED int y,
 	SCHISM_UNUSED int w, SCHISM_UNUSED int h, SCHISM_UNUSED struct widget *dialog_widgets,

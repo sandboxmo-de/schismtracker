@@ -444,6 +444,7 @@ static int waterfall_handle_key(struct key_event *k)
 				return 1;
 
 			song_toggle_stereo();
+			song_vars_sync_stereo();
 			status.flags |= NEED_UPDATE;
 			return 1;
 		}

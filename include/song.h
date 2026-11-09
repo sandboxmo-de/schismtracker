@@ -146,10 +146,7 @@ void song_clear_sample(int n);
 void song_copy_sample(int n, song_sample_t *src);
 int song_load_sample(int n, const char *file);
 
-void song_create_host_instrument(int smp);
-
 int song_load_instrument(int n, const char *file);
-int song_load_instrument_with_prompt(int n, const char *file);
 int song_load_instrument_ex(int n, const char *file, const char *libf, int nx);
 int song_save_instrument(const char *filename, const char *type, song_instrument_t *ins, int num);
 
@@ -224,9 +221,6 @@ int song_is_stereo(void);
 void song_set_stereo(void);
 void song_set_mono(void);
 void song_toggle_stereo(void);
-
-/* called from song_set_stereo et al - this updates the value on F12 to match the song */
-void song_vars_sync_stereo(void);
 
 /* void song_set_stereo(int value); ??? */
 int song_has_old_effects(void);

@@ -777,33 +777,6 @@ int song_load_instrument(int n, const char* file)
 	return song_load_instrument_ex(n,file,NULL,-1);
 }
 
-static void do_enable_inst(SCHISM_UNUSED void* d)
-{
-	song_set_instrument_mode(1);
-	main_song_changed_cb();
-	set_page(PAGE_INSTRUMENT_LIST);
-	memused_songchanged();
-}
-
-static void dont_enable_inst(SCHISM_UNUSED void* d)
-{
-	set_page(PAGE_INSTRUMENT_LIST);
-}
-
-int song_load_instrument_with_prompt(int n, const char* file)
-{
-	int retval = song_load_instrument_ex(n, file, NULL, -1);
-	if (!song_is_instrument_mode()) {
-		dialog_create(DIALOG_YES_NO,
-			"Enable instrument mode?",
-			do_enable_inst, dont_enable_inst, 0, NULL);
-	}
-	else {
-		set_page(PAGE_INSTRUMENT_LIST);
-	}
-	return retval;
-}
-
 int song_preload_sample(dmoz_file_t *file)
 {
 	// 0 is our "hidden sample"
@@ -880,23 +853,6 @@ int song_load_sample(int n, const char *file)
 	unslurp(&s);
 
 	return 1;
-}
-
-void song_create_host_instrument(int smp)
-{
-	int ins = instrument_get_current();
-
-	if (csf_instrument_is_empty(current_song->instruments[smp]))
-		ins = smp;
-	else if ((status.flags & CLASSIC_MODE) || !csf_instrument_is_empty(current_song->instruments[ins]))
-		ins = csf_first_blank_instrument(current_song, 0);
-
-	if (ins > 0) {
-		song_init_instrument_from_sample(ins, smp);
-		status_text_flash("Sample assigned to Instrument %d", ins);
-	} else {
-		status_text_flash("Error: No available Instruments!");
-	}
 }
 
 // ------------------------------------------------------------------------

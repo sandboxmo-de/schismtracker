@@ -548,3 +548,19 @@ void library_instrument_load_page(struct page *page)
 	page->help_index = HELP_GLOBAL;
 }
 
+/* --------------------------------------------------------------------- */
+/* loading an instrument dropped onto the window */
+
+int song_load_instrument_with_prompt(int n, const char* file)
+{
+	int retval = song_load_instrument_ex(n, file, NULL, -1);
+	if (!song_is_instrument_mode()) {
+		dialog_create(DIALOG_YES_NO,
+			"Enable instrument mode?",
+			do_enable_inst, dont_enable_inst, 0, NULL);
+	}
+	else {
+		set_page(PAGE_INSTRUMENT_LIST);
+	}
+	return retval;
+}

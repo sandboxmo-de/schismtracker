@@ -409,6 +409,23 @@ static void file_list_draw(void)
 		draw_char(168, 31, pos++, 2, 0);
 }
 
+static void song_create_host_instrument(int smp)
+{
+	int ins = instrument_get_current();
+
+	if (csf_instrument_is_empty(current_song->instruments[smp]))
+		ins = smp;
+	else if ((status.flags & CLASSIC_MODE) || !csf_instrument_is_empty(current_song->instruments[ins]))
+		ins = csf_first_blank_instrument(current_song, 0);
+
+	if (ins > 0) {
+		song_init_instrument_from_sample(ins, smp);
+		status_text_flash("Sample assigned to Instrument %d", ins);
+	} else {
+		status_text_flash("Error: No available Instruments!");
+	}
+}
+
 /* --------------------------------------------------------------------------------------------------------- */
 /* Nasty mess to load a sample and prompt for stereo convert / create host instrument as necessary. */
 
