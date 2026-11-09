@@ -132,11 +132,12 @@ It does three things:
 
 On macOS arm64 with each of SDL 3, sdl2-compat and sdl12-compat:
 
-    engine library: 835 symbols defined, 196 needed from outside
-    ok: none of them is defined by the 51 UI objects
+    engine library: 858 symbols defined, 197 needed from outside
+    ok: none of them is defined by the 52 UI objects
     ok: the whole library links on its own with the default callbacks
+    ok: none of the 76 core engine objects calls the libc heap
 
-(197 and 50 UI objects with SDL 1.2, which has no clipboard backend.)
+(198 and 51 UI objects with SDL 1.2, which has no clipboard backend.)
 
 ## Memory
 
