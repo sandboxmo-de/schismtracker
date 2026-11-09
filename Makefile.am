@@ -10,7 +10,7 @@ docs = \
 	docs/building_on_osx.md		\
 	docs/building_on_windows.md	\
 	docs/configuration.md		\
-	docs/engine-ui-coupling.md
+	docs/engine.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\

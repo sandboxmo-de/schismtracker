@@ -85,8 +85,8 @@ struct engine_host {
 	void (*playback_stopped)(void);
 	/* Hand an event to the host's main loop: SCHISM_EVENT_PLAYBACK when the
 	 * play position moves, SCHISM_EVENT_UPDATE_IPMIDI, and incoming MIDI
-	 * (SCHISM_EVENT_MIDI_*). Called from the audio and MIDI threads. Returns
-	 * nonzero if the event was queued. */
+	 * (SCHISM_EVENT_MIDI_*). Called from the audio and MIDI threads. The
+	 * engine ignores the return value. */
 	int (*post_event)(const schism_event_t *event);
 
 	/* ---- visualiser feed, from the audio thread ---- */
