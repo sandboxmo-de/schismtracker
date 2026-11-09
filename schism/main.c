@@ -1188,10 +1188,12 @@ void schism_exit(int x)
 	song_stop_unlocked(1);
 	song_unlock_audio();
 
-	midi_engine_stop();
-
+	/* Close the audio device before tearing down MIDI. The audio callback
+	 * calls into midi-core (midi_need_flush) and must not run after the
+	 * MIDI ports and their mutex are gone. */
 	dmoz_quit();
 	audio_quit();
+	midi_engine_stop();
 	clippy_quit();
 	events_quit();
 	localtime_r_quit();
@@ -1410,6 +1412,12 @@ int schism_main(int argc, char **argv)
 				song_start();
 				set_page(PAGE_INFO);
 			}
+		} else if (diskwrite_to) {
+			/* Nothing to export, and --diskwrite is meant to exit when it's
+			 * done, so don't drop into the event loop. */
+			fprintf(stderr, "Error: Failed to load song %s\n", initial_song);
+			free(initial_song);
+			schism_exit(1);
 		}
 		free(initial_song);
 	} else {
