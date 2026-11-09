@@ -1412,6 +1412,12 @@ int schism_main(int argc, char **argv)
 				song_start();
 				set_page(PAGE_INFO);
 			}
+		} else if (diskwrite_to) {
+			/* Nothing to export, and --diskwrite is meant to exit when it's
+			 * done, so don't drop into the event loop. */
+			fprintf(stderr, "Error: Failed to load song %s\n", initial_song);
+			free(initial_song);
+			schism_exit(1);
 		}
 		free(initial_song);
 	} else {
