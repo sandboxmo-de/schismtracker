@@ -29,7 +29,7 @@
 #include "song.h"
 #include "fmt.h"
 #include "slurp.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "player/sndfile.h"
 #include "player/cmixer.h"
 
@@ -86,16 +86,24 @@ static struct sfx_bus *bus_running = NULL;
 
 /* ------------------------------------------------------------------------ */
 /* Memory. Everything the bus allocates comes through these two, always on
- * the host's thread and never with the audio lock held. */
+ * the host's thread and never with the audio lock held.
+ *
+ * The voice pool and the sources are ENGINE memory. Neither belongs to a
+ * song: a source outlives any number of song changes, including the
+ * song_new() that ends the song a source was copied from, so SONG would get
+ * it thrown away. They aren't SCRATCH either, since they live until the
+ * host frees them. A host on the arena allocator should load its effects
+ * once, after the engine has set up, and size the ENGINE region for them;
+ * the region only gets space back when the newest blocks are freed. */
 
 static void *sfx_alloc(size_t size)
 {
-	return mem_calloc(1, size);
+	return engine_calloc(1, size, ENGINE_MEM_ENGINE);
 }
 
 static void sfx_dealloc(void *p)
 {
-	free(p);
+	engine_free(p, ENGINE_MEM_ENGINE);
 }
 
 /* ------------------------------------------------------------------------ */
