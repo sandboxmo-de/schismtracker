@@ -201,6 +201,12 @@ TEST_FUNC(test_minmax_32)
 
 TEST_FUNC(test_disko_mem)
 
+TEST_FUNC(test_sfx_bus_unity)
+TEST_FUNC(test_sfx_bus_pitch_loop)
+TEST_FUNC(test_sfx_bus_pan)
+TEST_FUNC(test_sfx_bus_delay_duration)
+TEST_FUNC(test_sfx_bus_handles)
+
 #define TEST_FUNC_BLIT(x) \
 	TEST_FUNC(x) \
 	TEST_FUNC(x##_overflow)

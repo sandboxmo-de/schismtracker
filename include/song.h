@@ -145,6 +145,7 @@ int song_save_sample(const char *file, const char *type, song_sample_t *smp, int
 void song_clear_sample(int n);
 void song_copy_sample(int n, song_sample_t *src);
 int song_load_sample(int n, const char *file);
+int song_load_sample_file(const char *file, song_sample_t *smp);
 
 int song_load_instrument(int n, const char *file);
 int song_load_instrument_ex(int n, const char *file, const char *libf, int nx);
