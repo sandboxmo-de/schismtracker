@@ -934,7 +934,7 @@ int disko_export_song(const char *filename, const struct save_format *format)
 		export_dwsong.mix_frequency, export_dwsong.mix_bits_per_sample,
 		export_dwsong.mix_channels == 1 ? "mono" : "stereo");
 	export_format = format;
-	status.flags |= DISKWRITER_ACTIVE; /* tell main to care about us */
+	engine_flag_set(DISKWRITER_ACTIVE); /* tell main to care about us */
 
 	uint32_t s = (csf_get_length(&export_dwsong) * export_dwsong.mix_frequency);
 	canceled = 0;
@@ -1034,7 +1034,7 @@ static int disko_finish(void)
 	free(export_dwsong.multi_write);
 	export_format = NULL;
 
-	status.flags &= ~DISKWRITER_ACTIVE; /* please unsubscribe me from your mailing list */
+	engine_flag_clear(DISKWRITER_ACTIVE); /* please unsubscribe me from your mailing list */
 
 	switch (ret) {
 	case DW_OK: {

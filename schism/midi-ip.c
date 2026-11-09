@@ -361,7 +361,7 @@ int ip_midi_setup(void)
 	static struct midi_driver driver;
 	struct midi_ip_provider *mip;
 
-	if (status.flags & NO_NETWORK) return 0;
+	if (engine_flag_test(NO_NETWORK)) return 0;
 
 	mip = mem_calloc(1, sizeof(*mip));
 
@@ -400,7 +400,7 @@ int ip_midi_getports(void)
 	mip = midi_ip_prov->userdata;
 
 	if (mip->out_fd == SOCKET_INVALID) return 0;
-	if (status.flags & NO_NETWORK) return 0;
+	if (engine_flag_test(NO_NETWORK)) return 0;
 
 	for (i = 0, q = NULL; midi_port_foreach(midi_ip_prov, &q); i++);
 
@@ -416,7 +416,7 @@ void ip_midi_setports(int n)
 	mip = midi_ip_prov->userdata;
 
 	if (mip->out_fd == SOCKET_INVALID) return;
-	if (status.flags & NO_NETWORK) return;
+	if (engine_flag_test(NO_NETWORK)) return;
 
 	mip->num_ports = n;
 

@@ -311,7 +311,7 @@ static int sample_list_add_char(uint8_t c)
 	_fix_accept_text();
 
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	return 1;
 }
 
@@ -321,7 +321,7 @@ static void sample_list_delete_char(void)
 	text_delete_char(smp->name, &sample_list_cursor_pos, _is_magic_sample(current_sample) ? 23 : 25);
 	_fix_accept_text();
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	status.flags |= NEED_UPDATE;
 }
 
@@ -332,7 +332,7 @@ static void sample_list_delete_next_char(void)
 	_fix_accept_text();
 
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void clear_sample_text(void)
@@ -348,7 +348,7 @@ static void clear_sample_text(void)
 	_fix_accept_text();
 
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -373,7 +373,7 @@ static void do_copy_sample(int n)
 		song_copy_sample(current_sample, song_get_sample(n));
 		sample_host_dialog(-1);
 	}
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void do_replace_sample(int n)
@@ -381,7 +381,7 @@ static void do_replace_sample(int n)
 	if (n >= 1 && n <= _last_vis_sample()) {
 		song_replace_sample(current_sample, n);
 	}
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -642,7 +642,8 @@ static void do_delete_sample(SCHISM_UNUSED void *data)
 {
 	song_clear_sample(current_sample);
 	memused_songchanged();
-	status.flags |= (NEED_UPDATE | SONG_NEEDS_SAVE);
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void do_downmix(SCHISM_UNUSED void *data)
@@ -661,7 +662,7 @@ static void do_post_loop_cut(SCHISM_UNUSED void *bweh) /* I'm already using 'dat
 	if (pos == 0 || pos >= sample->length)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	song_lock_audio();
 	csf_stop_sample(current_song, sample);
@@ -687,7 +688,7 @@ static void do_pre_loop_cut(SCHISM_UNUSED void *bweh)
 	if (pos == 0 || pos > sample->length)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	song_lock_audio();
 	csf_stop_sample(current_song, sample);
@@ -778,7 +779,7 @@ static void do_txtsynth(SCHISM_UNUSED void *data)
 	csf_adjust_sample_loop(sample);
 	sample_host_dialog(-1);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void txtsynth_draw_const(void)
@@ -879,7 +880,7 @@ static void do_adlibconfig(SCHISM_UNUSED void *data)
 	}
 	sample_host_dialog(-1);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void adlibconfig_refresh(void)
@@ -1038,7 +1039,8 @@ static void sample_adlibpatch_finish(int n)
 
 	sample = song_get_sample(current_sample);
 	adlib_patch_apply((song_sample_t *) sample, n - 1);
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE; // redraw the sample
+	status.flags |= NEED_UPDATE; // redraw the sample
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	sample_host_dialog(-1);
 }
@@ -1519,7 +1521,7 @@ static void sample_list_handle_alt_key(struct key_event * k)
 		}
 		return;
 	case SCHISM_KEYSYM_d:
-		if ((k->mod & SCHISM_KEYMOD_SHIFT) && !(status.flags & CLASSIC_MODE)) {
+		if ((k->mod & SCHISM_KEYMOD_SHIFT) && !engine_flag_test(CLASSIC_MODE)) {
 			if (canmod && sample->flags & CHN_STEREO) {
 				dialog_create(DIALOG_OK_CANCEL, "Downmix sample to mono?",
 					do_downmix, NULL, 0, NULL);
@@ -1531,7 +1533,7 @@ static void sample_list_handle_alt_key(struct key_event * k)
 		return;
 	case SCHISM_KEYSYM_e:
 		if (canmod) {
-			if ((k->mod & SCHISM_KEYMOD_SHIFT) && !(status.flags & CLASSIC_MODE))
+			if ((k->mod & SCHISM_KEYMOD_SHIFT) && !engine_flag_test(CLASSIC_MODE))
 				resample_sample_dialog(1);
 			else
 				resize_sample_dialog(1);
@@ -1539,7 +1541,7 @@ static void sample_list_handle_alt_key(struct key_event * k)
 		break;
 	case SCHISM_KEYSYM_f:
 		if (canmod) {
-			if ((k->mod & SCHISM_KEYMOD_SHIFT) && !(status.flags & CLASSIC_MODE))
+			if ((k->mod & SCHISM_KEYMOD_SHIFT) && !engine_flag_test(CLASSIC_MODE))
 				resample_sample_dialog(0);
 			else
 				resize_sample_dialog(0);
@@ -1592,7 +1594,7 @@ static void sample_list_handle_alt_key(struct key_event * k)
 		export_sample_dialog();
 		return;
 	case SCHISM_KEYSYM_v:
-		if (!canmod || (status.flags & CLASSIC_MODE))
+		if (!canmod || engine_flag_test(CLASSIC_MODE))
 			return;
 
 		if (!(sample->flags & (CHN_LOOP|CHN_SUSTAINLOOP))) {
@@ -1671,10 +1673,10 @@ static void sample_list_handle_key(struct key_event * k)
 			return;
 		if (k->mod & SCHISM_KEYMOD_ALT) {
 			sample->c5speed *= 2;
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 		} else if (k->mod & SCHISM_KEYMOD_CTRL) {
 			sample->c5speed = calc_halftone(sample->c5speed, 1);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 		}
 		status.flags |= NEED_UPDATE;
 		return;
@@ -1683,10 +1685,10 @@ static void sample_list_handle_key(struct key_event * k)
 			return;
 		if (k->mod & SCHISM_KEYMOD_ALT) {
 			sample->c5speed /= 2;
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 		} else if (k->mod & SCHISM_KEYMOD_CTRL) {
 			sample->c5speed = calc_halftone(sample->c5speed, -1);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 		}
 		status.flags |= NEED_UPDATE;
 		return;
@@ -1860,7 +1862,8 @@ static void update_sample_loop_flags(void)
 
 	song_unlock_audio();
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* genericized this for both loops */
@@ -1917,7 +1920,8 @@ static void update_sample_loop_points(void)
 
 	song_unlock_audio();
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -1951,7 +1955,7 @@ static void update_values_in_song(void)
 
 	song_unlock_audio();
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void update_sample_speed(void)
@@ -1966,7 +1970,8 @@ static void update_sample_speed(void)
 
 	song_unlock_audio();
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void update_panning(void)
@@ -1984,12 +1989,12 @@ static void update_panning(void)
 
 	widgets_samplelist[3].d.toggle.state = 1;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void update_filename(void)
 {
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */

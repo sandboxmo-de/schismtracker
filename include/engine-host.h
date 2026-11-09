@@ -141,4 +141,42 @@ void engine_host_register(const struct engine_host *host);
 /* the registered callbacks; every member is non-NULL */
 extern struct engine_host engine_hooks;
 
+/* ------------------------------------------------------------------------ */
+/* Engine state that used to live in the UI's `status.flags`. The engine
+ * reads these, and the host sets them from its configuration. */
+
+enum {
+	/* if this is set, some stuff behaves differently
+	 * (grep the source files for what stuff ;) */
+	CLASSIC_MODE = (1 << 0),
+
+	/* make a backup file (song.it~) when saving a module? */
+	MAKE_BACKUPS = (1 << 1),
+	NUMBERED_BACKUPS = (1 << 2), /* song.it.3~ */
+
+	/* this is here if anything is "changed" and we need to whine to
+	the user if they quit */
+	SONG_NEEDS_SAVE = (1 << 3),
+
+	/* if the disko is active */
+	DISKWRITER_ACTIVE = (1 << 4),
+	DISKWRITER_ACTIVE_PATTERN = (1 << 5), /* recording only a single pattern */
+
+	/* don't open network MIDI ports */
+	NO_NETWORK = (1 << 6),
+
+	/* Play MIDI events using the same semantics as tracker samples */
+	MIDI_LIKE_TRACKER = (1 << 7),
+
+	/* if true, don't stop playing on load, and start playing new song afterward
+	(but only if the last song was already playing before loading) */
+	PLAY_AFTER_LOAD = (1 << 8),
+};
+
+/* returns flags & mask */
+int engine_flag_test(int mask);
+void engine_flag_set(int mask);
+void engine_flag_clear(int mask);
+void engine_flag_toggle(int mask);
+
 #endif /* SCHISM_ENGINE_HOST_H_ */

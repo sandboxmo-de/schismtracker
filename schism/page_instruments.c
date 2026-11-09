@@ -188,7 +188,7 @@ static void restore_envelope(int slot, song_envelope_t *e, unsigned int sec)
 
 	song_unlock_audio();
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 
@@ -310,7 +310,7 @@ static int instrument_list_add_char(int c)
 
 	get_page_widgets()->accept_text = (instrument_cursor_pos == 25 ? 0 : 1);
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	return 1;
 }
 
@@ -321,7 +321,7 @@ static void instrument_list_delete_char(void)
 
 	get_page_widgets()->accept_text = (instrument_cursor_pos == 25 ? 0 : 1);
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void instrument_list_delete_next_char(void)
@@ -331,7 +331,7 @@ static void instrument_list_delete_next_char(void)
 
 	get_page_widgets()->accept_text = (instrument_cursor_pos == 25 ? 0 : 1);
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void clear_instrument_text(void)
@@ -345,7 +345,7 @@ static void clear_instrument_text(void)
 
 	get_page_widgets()->accept_text = (instrument_cursor_pos == 25 ? 0 : 1);
 	status.flags |= NEED_UPDATE;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -727,7 +727,7 @@ static void note_trans_draw(void)
 	/* draw the little mask thingy at the bottom. Could optimize this....  -delt.
 	   Sure can! This could share the same track-view functions that the
 	   pattern editor ought to be using. -Storlek */
-	if (is_selected && !(status.flags & CLASSIC_MODE)) {
+	if (is_selected && !engine_flag_test(CLASSIC_MODE)) {
 		switch (note_trans_cursor_pos) {
 		case 0:
 			draw_char(171, 36, 48, 3, 2);
@@ -972,7 +972,7 @@ static int note_trans_handle_key(struct key_event * k)
 				if (!NOTE_IS_NOTE(n))
 					return 0;
 				ins->note_map[note_trans_sel_line] = n;
-				if (note_sample_mask || (status.flags & CLASSIC_MODE))
+				if (note_sample_mask || engine_flag_test(CLASSIC_MODE))
 					ins->sample_map[note_trans_sel_line] = sample_get_current();
 				new_line++;
 				break;
@@ -1055,7 +1055,7 @@ static void _env_draw_axes(int middle)
 
 static void _env_draw_node(int x, int y, int on)
 {
-	int c = (status.flags & CLASSIC_MODE) ? 12 : 5;
+	int c = engine_flag_test(CLASSIC_MODE) ? 12 : 5;
 
 	vgamem_ovl_drawpixel(&env_overlay, x - 1, y - 1, c);
 	vgamem_ovl_drawpixel(&env_overlay, x - 1, y, c);
@@ -1083,7 +1083,7 @@ static void _env_draw_node(int x, int y, int on)
 static void _env_draw_loop(int xs, int xe, int sustain)
 {
 	int y = 0;
-	int c = (status.flags & CLASSIC_MODE) ? 12 : 3;
+	int c = engine_flag_test(CLASSIC_MODE) ? 12 : 3;
 	int c1, c2;
 
 	if (sustain) {
@@ -1170,7 +1170,7 @@ static void _env_draw(const song_envelope_t *env, int middle, int current_node,
 			x = 4 + (envpos[env_num] * (last_x-4) / max_ticks);
 			if (x > last_x)
 				x = last_x;
-			c =  (status.flags & CLASSIC_MODE)
+			c =  (engine_flag_test(CLASSIC_MODE))
 				? 12
 				: ((channel->flags & (CHN_KEYOFF | CHN_NOTEFADE)) ? 8 : 6);
 			for (y = 0; y < 62; y++)
@@ -1194,7 +1194,7 @@ static int _env_node_add(song_envelope_t *env, int current_node, int override_ti
 {
 	int newtick, newvalue;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	if (env->nodes > 24 || current_node == env->nodes - 1)
 		return current_node;
@@ -1227,7 +1227,7 @@ static int _env_node_add(song_envelope_t *env, int current_node, int override_ti
 /* return: the new current node */
 static int _env_node_remove(song_envelope_t *env, int current_node)
 {
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	if (current_node == 0 || env->nodes < 3)
 		return current_node;
@@ -1541,7 +1541,7 @@ static int _env_handle_key_viewmode(struct key_event *k, song_envelope_t *env, i
 				status_text_flash("Envelope copied into slot %d", n);
 			} else if (k->mod & SCHISM_KEYMOD_SHIFT) {
 				restore_envelope(n, env, sec);
-				if (!(status.flags & CLASSIC_MODE))
+				if (!engine_flag_test(CLASSIC_MODE))
 					status_text_flash("Pasted envelope from slot %d", n);
 			}
 			return 1;
@@ -1576,7 +1576,7 @@ static int _env_handle_mouse(struct key_event *k, song_envelope_t *env, int *cur
 					if (env->ticks[ *current_node ] == env->ticks[i]
 					&& env->values[ *current_node ] == env->values[i]) {
 						status_text_flash("Removed node %d", (int)(*current_node));
-						status.flags |= SONG_NEEDS_SAVE;
+						engine_flag_set(SONG_NEEDS_SAVE);
 
 						*current_node = _env_node_remove(env, *current_node);
 						break;
@@ -1623,7 +1623,7 @@ static int _env_handle_mouse(struct key_event *k, song_envelope_t *env, int *cur
 		if (x > 9999) x = 9999;
 		if (*current_node) env->ticks[ *current_node ] = x;
 		env->values[ *current_node ] = y;
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		status.flags |= NEED_UPDATE;
 	} else {
 		int n;
@@ -1679,7 +1679,7 @@ static int _env_handle_mouse(struct key_event *k, song_envelope_t *env, int *cur
 		envelope_tick_limit = env->ticks[env->nodes - 1] * 2;
 		envelope_mouse_edit = 1;
 		*current_node = best_dist_node;
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		status.flags |= NEED_UPDATE;
 		return 1;
 	}
@@ -1824,7 +1824,7 @@ static int _env_handle_key_editmode(struct key_event *k, song_envelope_t *env, i
 					? 10000 : env->ticks[new_node + 1]) - 1);
 	if (new_tick != env->ticks[new_node]) {
 		env->ticks[*current_node] = new_tick;
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		status.flags |= NEED_UPDATE;
 		return 1;
 	}
@@ -1832,7 +1832,7 @@ static int _env_handle_key_editmode(struct key_event *k, song_envelope_t *env, i
 
 	if (new_value != (int)env->values[new_node]) {
 		env->values[*current_node] = (unsigned int)new_value;
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		status.flags |= NEED_UPDATE;
 		return 1;
 	}
@@ -2274,7 +2274,7 @@ static void instrument_list_handle_key(struct key_event * k)
 	switch (k->sym) {
 	case SCHISM_KEYSYM_COMMA:
 		if (NO_MODIFIER(k->mod)) {
-			if (!(status.flags & CLASSIC_MODE)
+			if (!engine_flag_test(CLASSIC_MODE)
 			&& ACTIVE_PAGE.selected_widget == 5) return;
 		}
 		SCHISM_FALLTHROUGH;
@@ -2285,7 +2285,7 @@ static void instrument_list_handle_key(struct key_event * k)
 		return;
 	case SCHISM_KEYSYM_PERIOD:
 		if (NO_MODIFIER(k->mod)) {
-			if (!(status.flags & CLASSIC_MODE)
+			if (!engine_flag_test(CLASSIC_MODE)
 			&& ACTIVE_PAGE.selected_widget == 5) return;
 		}
 		SCHISM_FALLTHROUGH;
@@ -2510,7 +2510,7 @@ static void instrument_list_general_update_values(void)
 {
 	song_instrument_t *ins = song_get_instrument(current_instrument);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	for (ins->nna = 4; ins->nna--;)
 		if (widgets_general[ins->nna + 6].d.togglebutton.state)
 			break;
@@ -2524,7 +2524,7 @@ static void instrument_list_general_update_values(void)
 
 static void update_filename(void)
 {
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 #define CHECK_SET(a,b,c) if (a != b) { a = b; c; }
@@ -2533,7 +2533,7 @@ static void instrument_list_volume_update_values(void)
 {
 	song_instrument_t *ins = song_get_instrument(current_instrument);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	ins->flags &= ~(ENV_VOLUME | ENV_VOLCARRY | ENV_VOLLOOP | ENV_VOLSUSTAIN);
 	if (widgets_volume[6].d.toggle.state)
 		ins->flags |= ENV_VOLUME;
@@ -2566,7 +2566,7 @@ static void instrument_list_panning_update_values(void)
 	song_instrument_t *ins = song_get_instrument(current_instrument);
 	int n;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	ins->flags &= ~(ENV_PANNING | ENV_PANCARRY | ENV_PANLOOP | ENV_PANSUSTAIN | ENV_SETPANNING);
 	if (widgets_panning[6].d.toggle.state)
 		ins->flags |= ENV_PANNING;
@@ -2604,7 +2604,7 @@ static void instrument_list_pitch_update_values(void)
 {
 	song_instrument_t *ins = song_get_instrument(current_instrument);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	ins->flags &= ~(ENV_PITCH | ENV_PITCHCARRY | ENV_PITCHLOOP | ENV_PITCHSUSTAIN | ENV_FILTER);
 
 	switch (widgets_pitch[6].d.menutoggle.state) {
@@ -2662,7 +2662,7 @@ static void instrument_list_general_draw_const(void)
 	draw_box(31, 15, 42, 48, BOX_THICK | BOX_INNER | BOX_INSET);
 
 	/* Kind of a hack, and not really useful, but... :) */
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		draw_box(55, 46, 73, 48, BOX_THICK | BOX_INNER | BOX_INSET);
 		draw_text("    ", 69, 47, 1, 0);
 	} else {
@@ -2735,7 +2735,7 @@ static void instrument_list_panning_draw_const(void)
 	draw_text("Pan Value", 44, 43, 0, 2);
 	draw_text("Pitch-Pan Center", 37, 45, 0, 2);
 	draw_text("Pitch-Pan Separation", 33, 46, 0, 2);
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		/* Hmm. The 's' in swing isn't capitalised. ;) */
 		draw_text("Pan swing", 44, 47, 0, 2);
 	} else {

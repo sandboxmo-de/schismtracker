@@ -1178,7 +1178,7 @@ void win32_sysinit(SCHISM_UNUSED int *pargc, SCHISM_UNUSED char ***pargv)
 
 	if (WSAStartup(0x202, &ignored) == SOCKET_ERROR) {
 		WSACleanup(); /* ? */
-		status.flags |= NO_NETWORK;
+		engine_flag_set(NO_NETWORK);
 	}
 
 	win32_ver_init();

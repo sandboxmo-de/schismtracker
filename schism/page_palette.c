@@ -217,7 +217,7 @@ static void palette_list_handle_key(struct key_event * k)
 		return;
 	}
 
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		if (n < 0)
 			return;
 		if (n > 48)

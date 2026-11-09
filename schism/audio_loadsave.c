@@ -123,7 +123,7 @@ void song_new(int flags)
 
 	if ((flags & KEEP_PATTERNS) == 0) {
 		song_set_filename(NULL);
-		status.flags &= ~SONG_NEEDS_SAVE;
+		engine_flag_clear(SONG_NEEDS_SAVE);
 
 		for (i = 0; i < MAX_PATTERNS; i++) {
 			if (current_song->patterns[i]) {
@@ -285,7 +285,7 @@ int song_load_unchecked(const char *file)
 	song_t *newsong;
 
 	// IT stops the song even if the new song can't be loaded
-	if (status.flags & PLAY_AFTER_LOAD) {
+	if (engine_flag_test(PLAY_AFTER_LOAD)) {
 		was_playing = (song_get_mode() == MODE_PLAYING);
 	} else {
 		was_playing = 0;
@@ -314,12 +314,12 @@ int song_load_unchecked(const char *file)
 	song_init_modplug();
 	song_unlock_audio();
 
-	if (was_playing && (status.flags & PLAY_AFTER_LOAD))
+	if (was_playing && engine_flag_test(PLAY_AFTER_LOAD))
 		song_start();
 
 	engine_hooks.song_changed();
 
-	status.flags &= ~SONG_NEEDS_SAVE;
+	engine_flag_clear(SONG_NEEDS_SAVE);
 
 	// print out some stuff
 	const char *tid = current_song->tracker_id;
@@ -532,8 +532,8 @@ such as "abc|def.it". This dialog is presented both when saving from F10 and Ctr
 	if (ret != SAVE_SUCCESS)
 		disko_seterror(&fp, EINVAL);
 
-	backup = ((status.flags & MAKE_BACKUPS)
-			? (status.flags & NUMBERED_BACKUPS)
+	backup = (engine_flag_test(MAKE_BACKUPS)
+			? engine_flag_test(NUMBERED_BACKUPS)
 			? 65536 : 1 : 0);
 
 	// this was not as successful as originally claimed!
@@ -542,7 +542,7 @@ such as "abc|def.it". This dialog is presented both when saving from F10 and Ctr
 
 	switch (ret) {
 	case SAVE_SUCCESS:
-		status.flags &= ~SONG_NEEDS_SAVE;
+		engine_flag_clear(SONG_NEEDS_SAVE);
 		/* kill any quirks */
 		BITARRAY_FILL(current_song->quirks);
 		if (charset_strcasecmp(song_filename, CHARSET_UTF8, mangle, CHARSET_UTF8))

@@ -234,7 +234,7 @@ static void do_save_song_overwrite(void *ptr)
 {
 	struct stat st;
 
-	if (!(status.flags & CLASSIC_MODE)) {
+	if (!engine_flag_test(CLASSIC_MODE)) {
 		// say what?
 		do_save_song(ptr);
 		return;

@@ -127,7 +127,7 @@ int get_effect_number(unsigned char effect)
 			 || (effect >= 'A' && effect <= 'Z')
 			 || (effect == '.'))) {
 		/* don't accept pseudo-effects */
-		if (status.flags & CLASSIC_MODE) return -1;
+		if (engine_flag_test(CLASSIC_MODE)) return -1;
 	}
 
 	ptr = memchr(effects, effect, sizeof(effects));

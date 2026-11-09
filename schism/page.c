@@ -439,7 +439,7 @@ static int handle_key_global(struct key_event * k)
 		} else if (k->y == 3 && k->x >= 50 && k-> x <= 77) {
 			if (page_is_instrument_list(status.current_page)
 			    || status.current_page == PAGE_SAMPLE_LIST
-			    || (!(status.flags & CLASSIC_MODE)
+			    || (!engine_flag_test(CLASSIC_MODE)
 				&& (status.current_page == PAGE_ORDERLIST_PANNING
 				    || status.current_page == PAGE_ORDERLIST_VOLUMES)))
 				ins_mode = 0;
@@ -542,14 +542,14 @@ static int handle_key_global(struct key_event * k)
 		break;
 	case SCHISM_KEYSYM_HOME:
 		if (!(k->mod & SCHISM_KEYMOD_ALT)) break;
-		if (status.flags & DISKWRITER_ACTIVE) break;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) break;
 		if (k->state == KEY_RELEASE)
 			return 0;
 		kbd_set_current_octave(kbd_get_current_octave() - 1);
 		return 1;
 	case SCHISM_KEYSYM_END:
 		if (!(k->mod & SCHISM_KEYMOD_ALT)) break;
-		if (status.flags & DISKWRITER_ACTIVE) break;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) break;
 		if (k->state == KEY_RELEASE)
 			return 0;
 		kbd_set_current_octave(kbd_get_current_octave() + 1);
@@ -559,7 +559,7 @@ static int handle_key_global(struct key_event * k)
 	}
 
 	/* next, if there's no dialog, check the rest of the keys */
-	if (status.flags & DISKWRITER_ACTIVE) return 0;
+	if (engine_flag_test(DISKWRITER_ACTIVE)) return 0;
 
 	switch (k->sym) {
 	case SCHISM_KEYSYM_q:
@@ -960,7 +960,7 @@ static int _handle_ime(struct key_event *k)
 		if (digraph_n == -1 && k->state == KEY_RELEASE) {
 			digraph_n = 0;
 
-		} else if (!(status.flags & CLASSIC_MODE) && (k->sym == SCHISM_KEYSYM_LCTRL || k->sym == SCHISM_KEYSYM_RCTRL)) {
+		} else if (!engine_flag_test(CLASSIC_MODE) && (k->sym == SCHISM_KEYSYM_LCTRL || k->sym == SCHISM_KEYSYM_RCTRL)) {
 			if (k->state == KEY_RELEASE && digraph_n >= 0) {
 				digraph_n++;
 				if (digraph_n >= 2)
@@ -1019,7 +1019,7 @@ static int _handle_ime(struct key_event *k)
 				}
 				return 1;
 			}
-		} else if (!(status.flags & CLASSIC_MODE) && (k->mod & SCHISM_KEYMOD_CTRL) && (k->mod & SCHISM_KEYMOD_SHIFT)) {
+		} else if (!engine_flag_test(CLASSIC_MODE) && (k->mod & SCHISM_KEYMOD_CTRL) && (k->mod & SCHISM_KEYMOD_SHIFT)) {
 			if (cs_unicode_c >= 0) {
 				/* bleh... */
 				m = k->mod;
@@ -1054,7 +1054,7 @@ static int _handle_ime(struct key_event *k)
 					return 0;
 				uint8_t unicode[2] = {0};
 				unicode[0] = (alt_numpad & 255);
-				if (!(status.flags & CLASSIC_MODE))
+				if (!engine_flag_test(CLASSIC_MODE))
 					status_text_flash_bios("Enter DOS/ASCII: %d -> %c",
 							       (int)unicode[0], (int)unicode[0]);
 				handle_text_input((const char *)unicode);
@@ -1076,7 +1076,7 @@ static int _handle_ime(struct key_event *k)
 					alt_numpad *= 10;
 					alt_numpad += c;
 					alt_numpad_c++;
-					if (!(status.flags & CLASSIC_MODE))
+					if (!engine_flag_test(CLASSIC_MODE))
 						status_text_flash_bios("Enter DOS/ASCII: %d", (int)alt_numpad);
 					return 1;
 				}
@@ -1100,19 +1100,19 @@ void handle_key(struct key_event *k)
 		return;
 
 	/* okay... */
-	if (!(status.flags & DISKWRITER_ACTIVE) && ACTIVE_PAGE.pre_handle_key) {
+	if (!engine_flag_test(DISKWRITER_ACTIVE) && ACTIVE_PAGE.pre_handle_key) {
 		if (ACTIVE_PAGE.pre_handle_key(k)) return;
 	}
 
 	if (handle_key_global(k)) return;
-	if (!(status.flags & DISKWRITER_ACTIVE) && menu_handle_key(k)) return;
+	if (!engine_flag_test(DISKWRITER_ACTIVE) && menu_handle_key(k)) return;
 	if (widget_handle_key(k)) return;
 
 	/* now check a couple other keys. */
 	switch (k->sym) {
 	case SCHISM_KEYSYM_LEFT:
 		if (k->state == KEY_RELEASE) return;
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		if ((k->mod & SCHISM_KEYMOD_CTRL) && status.current_page != PAGE_PATTERN_EDITOR) {
 			_mp_finish(NULL);
 			if (song_get_mode() == MODE_PLAYING)
@@ -1122,7 +1122,7 @@ void handle_key(struct key_event *k)
 		break;
 	case SCHISM_KEYSYM_RIGHT:
 		if (k->state == KEY_RELEASE) return;
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		if ((k->mod & SCHISM_KEYMOD_CTRL) && status.current_page != PAGE_PATTERN_EDITOR) {
 			_mp_finish(NULL);
 			if (song_get_mode() == MODE_PLAYING)
@@ -1150,12 +1150,12 @@ void handle_key(struct key_event *k)
 		break;
 	case SCHISM_KEYSYM_SLASH:
 		if (k->state == KEY_RELEASE) return;
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		kbd_set_current_octave(kbd_get_current_octave() - 1);
 		break;
 	case SCHISM_KEYSYM_ASTERISK:
 		if (k->state == KEY_RELEASE) return;
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		kbd_set_current_octave(kbd_get_current_octave() + 1);
 		break;
 	case SCHISM_KEYSYM_LEFTBRACKET:
@@ -1163,14 +1163,14 @@ void handle_key(struct key_event *k)
 		/* FIXME: this assumes a US keyboard layout */
 		int add = (k->sym == SCHISM_KEYSYM_LEFTBRACKET) ? -1 : 1;
 		if (k->state == KEY_RELEASE) break;
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		if (k->mod & SCHISM_KEYMOD_SHIFT) {
 			song_set_current_speed(song_get_current_speed() + add);
 			status_text_flash("Speed set to %d frames per row", song_get_current_speed());
 			if (!(song_get_mode() & (MODE_PLAYING | MODE_PATTERN_LOOP))) {
 				song_set_initial_speed(song_get_current_speed());
 			}
-		} else if ((k->mod & SCHISM_KEYMOD_CTRL) && !(status.flags & CLASSIC_MODE)) {
+		} else if ((k->mod & SCHISM_KEYMOD_CTRL) && !engine_flag_test(CLASSIC_MODE)) {
 			song_set_current_tempo(song_get_current_tempo() + add);
 			status_text_flash("Tempo set to %d beats per minute", song_get_current_tempo());
 			if (!(song_get_mode() & (MODE_PLAYING | MODE_PATTERN_LOOP))) {
@@ -1194,7 +1194,7 @@ void handle_key(struct key_event *k)
 	if (status.dialog_type & DIALOG_BOX) {
 		dialog_handle_key(k);
 	} else {
-		if (status.flags & DISKWRITER_ACTIVE) return;
+		if (engine_flag_test(DISKWRITER_ACTIVE)) return;
 		if (ACTIVE_PAGE.handle_key) ACTIVE_PAGE.handle_key(k);
 	}
 }
@@ -1212,8 +1212,8 @@ static void draw_top_info_const(void)
 		br = 3;
 	}
 
-	draw_text(schism_banner(status.flags & CLASSIC_MODE),
-		(80 - strlen(schism_banner(status.flags & CLASSIC_MODE))) / 2, 1, 0, 2);
+	draw_text(schism_banner(engine_flag_test(CLASSIC_MODE)),
+		(80 - strlen(schism_banner(engine_flag_test(CLASSIC_MODE)))) / 2, 1, 0, 2);
 	draw_text("Song Name", 2, 3, 0, 2);
 	draw_text("File Name", 2, 4, 0, 2);
 	draw_text("Order", 6, 5, 0, 2);
@@ -1302,7 +1302,7 @@ void update_current_instrument(void)
 	|| status.current_page == PAGE_SAMPLE_LIST
 	|| status.current_page == PAGE_LOAD_SAMPLE
 	|| status.current_page == PAGE_LIBRARY_SAMPLE
-	|| (!(status.flags & CLASSIC_MODE)
+	|| (!engine_flag_test(CLASSIC_MODE)
 		&& (status.current_page == PAGE_ORDERLIST_PANNING
 			|| status.current_page == PAGE_ORDERLIST_VOLUMES)))
 		ins_mode = 0;
@@ -1339,7 +1339,7 @@ static void redraw_top_info(void)
 	draw_text_utf8_len(song_get_basename(), 18, 12, 4, 5, 0);
 	draw_text_len(current_song->title, 25, 12, 3, 5, 0);
 
-	if ((status.flags & (CLASSIC_MODE | SONG_NEEDS_SAVE)) == SONG_NEEDS_SAVE)
+	if (engine_flag_test(CLASSIC_MODE | SONG_NEEDS_SAVE) == SONG_NEEDS_SAVE)
 		draw_char('+', 29, 4, 4, 0);
 
 	update_current_order();
@@ -1439,7 +1439,7 @@ static void vis_fakemem(void)
 {
 	char buf[32];
 
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		uint32_t conv;
 		uint32_t ems;
 
@@ -1477,7 +1477,7 @@ static void vis_fakemem(void)
 
 static inline void draw_vis(void)
 {
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		/* classic mode requires fakemem display */
 		vis_fakemem();
 		return;
@@ -1554,7 +1554,7 @@ static void _set_from_f3(void)
 	switch (status.previous_page) {
 	case PAGE_ORDERLIST_PANNING:
 	case PAGE_ORDERLIST_VOLUMES:
-		if (status.flags & CLASSIC_MODE) return;
+		if (engine_flag_test(CLASSIC_MODE)) return;
 		// XXX is this correct?
 		SCHISM_FALLTHROUGH;
 	case PAGE_SAMPLE_LIST:
@@ -1570,7 +1570,7 @@ static void _set_from_f4(void)
 	switch (status.previous_page) {
 	case PAGE_ORDERLIST_PANNING:
 	case PAGE_ORDERLIST_VOLUMES:
-		if (status.flags & CLASSIC_MODE) break;
+		if (engine_flag_test(CLASSIC_MODE)) break;
 	case PAGE_SAMPLE_LIST:
 	case PAGE_LOAD_SAMPLE:
 	case PAGE_LIBRARY_SAMPLE:
@@ -1713,7 +1713,7 @@ static int savecheck_handle_key(struct key_event *k)
 
 static void savecheck(void (*ok)(void *data), void (*cancel)(void *data), void *data)
 {
-	if (status.flags & SONG_NEEDS_SAVE) {
+	if (engine_flag_test(SONG_NEEDS_SAVE)) {
 		struct dialog *d = dialog_create(DIALOG_OK_CANCEL,
 			"Current module not saved. Proceed?", ok, cancel, 1, data);
 
@@ -1769,7 +1769,7 @@ void show_exit_prompt(void)
 	} else if (status.dialog_type != DIALOG_OK_CANCEL) {
 		/* don't draw an exit prompt on top of an existing one */
 		dialog_create(DIALOG_OK_CANCEL,
-			      ((status.flags & CLASSIC_MODE)
+			      (engine_flag_test(CLASSIC_MODE)
 			       ? "Exit Impulse Tracker?"
 			       : "Exit Schism Tracker?"),
 			      exit_ok, NULL, 0, NULL);

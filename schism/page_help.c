@@ -74,8 +74,8 @@ static struct {
 } help_cache[HELP_NUM_ITEMS][2] = {{{NULL, 0}}};
 
 /* Shortcuts for sanity -- this will point to the currently applicable help. */
-#define CURRENT_HELP_LINECACHE (help_cache[status.current_help_index][!!(status.flags & CLASSIC_MODE)].lines)
-#define CURRENT_HELP_LINECOUNT (help_cache[status.current_help_index][!!(status.flags & CLASSIC_MODE)].num_lines)
+#define CURRENT_HELP_LINECACHE (help_cache[status.current_help_index][!!engine_flag_test(CLASSIC_MODE)].lines)
+#define CURRENT_HELP_LINECOUNT (help_cache[status.current_help_index][!!engine_flag_test(CLASSIC_MODE)].num_lines)
 
 /* should always point to the currently applicable help text -- cached
 to prevent repetitively checking things that aren't going to change */
@@ -249,7 +249,7 @@ static void help_set_page(void)
 	if (have_local_help) {
 		ptr = help_text[status.current_help_index];
 		while (local_lines--) {
-			if (status.flags & CLASSIC_MODE) {
+			if (engine_flag_test(CLASSIC_MODE)) {
 				if (!LINE_CLASSIC_HIDDEN(ptr))
 					lines[cur_line++] = ptr;
 			} else {
@@ -270,7 +270,7 @@ static void help_set_page(void)
 	/* global help text */
 	ptr = help_text[HELP_GLOBAL];
 	while (global_lines--) {
-		if (status.flags & CLASSIC_MODE) {
+		if (engine_flag_test(CLASSIC_MODE)) {
 			if (!LINE_CLASSIC_HIDDEN(ptr))
 				lines[cur_line++] = ptr;
 		} else {

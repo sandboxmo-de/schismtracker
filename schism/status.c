@@ -95,7 +95,7 @@ void status_text_clear(void)
 
 static inline int _loop_count(char *buf, int pos)
 {
-	if (current_song->repeat_count < 1 || (status.flags & CLASSIC_MODE)) {
+	if (current_song->repeat_count < 1 || engine_flag_test(CLASSIC_MODE)) {
 		pos += draw_text("Playing", pos, 9, 0, 2);
 	} else {
 		pos += draw_text("Loop: ", pos, 9, 0, 2);

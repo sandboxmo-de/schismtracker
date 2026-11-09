@@ -44,7 +44,8 @@ static char Amiga[6] = "Amiga";
 
 static void update_song_title(void)
 {
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -114,7 +115,7 @@ static void update_values_in_song(void)
 		}
 	}
 	song_set_linear_pitch_slides(widgets_vars[12].d.togglebutton.state);
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 
@@ -129,7 +130,7 @@ static void maybe_init_instruments(void)
 	song_set_instrument_mode(1);
 	dialog_create(DIALOG_YES_NO, "Initialise instruments?", init_instruments, NULL, 0, NULL);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 

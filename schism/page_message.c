@@ -384,7 +384,8 @@ static void message_insert_char(int c)
 	}
 
 	message_reposition();
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void message_delete_char(void)
@@ -408,7 +409,8 @@ static void message_delete_char(void)
 	cursor_pos--;
 
 	message_reposition();
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void message_delete_next_char(void)
@@ -421,7 +423,8 @@ static void message_delete_next_char(void)
 		len - cursor_pos);
 	current_song->message[MAX_MESSAGE] = 0;
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void message_delete_line(void)
@@ -445,7 +448,8 @@ static void message_delete_line(void)
 		cursor_pos = get_absolute_position(current_song->message, cursor_line, cursor_char);
 	}
 	message_reposition();
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void message_clear(SCHISM_UNUSED void *data)
@@ -453,7 +457,7 @@ static void message_clear(SCHISM_UNUSED void *data)
 	current_song->message[0] = 0;
 	memused_songchanged();
 	message_set_viewmode();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------- */
@@ -554,7 +558,8 @@ static void _delete_selection(void)
 	set_absolute_position(current_song->message, cursor_pos, &cursor_line, &cursor_char);
 	message_reposition();
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static int message_handle_text_input_editmode(const char *text)

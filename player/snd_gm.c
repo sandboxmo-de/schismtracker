@@ -27,7 +27,7 @@
 #include "headers.h"
 
 #include "log.h"
-#include "it.h" // needed for status.flags
+#include "engine-host.h"
 #include "player/sndfile.h"
 #include "player/snd_gm.h"
 #include "song.h" // for 'current_song', which we shouldn't need
@@ -118,7 +118,7 @@ static void MPU_SendCommand(song_t *csf, const unsigned char* buf, uint32_t nbyt
 
 static void MPU_Ctrl(song_t *csf, int32_t c, int32_t i, int32_t v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
+	if (!engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	unsigned char buf[3];
@@ -131,7 +131,7 @@ static void MPU_Ctrl(song_t *csf, int32_t c, int32_t i, int32_t v)
 
 static void MPU_Patch(song_t *csf, int32_t c, int32_t p)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
+	if (!engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	unsigned char buf[2];
@@ -143,7 +143,7 @@ static void MPU_Patch(song_t *csf, int32_t c, int32_t p)
 
 static void MPU_Bend(song_t *csf, int32_t c, int32_t w)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
+	if (!engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	unsigned char buf[3];
@@ -156,7 +156,7 @@ static void MPU_Bend(song_t *csf, int32_t c, int32_t w)
 
 static void MPU_NoteOn(song_t *csf, int32_t c, int32_t k, int32_t v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
+	if (!engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	unsigned char buf[3];
@@ -169,7 +169,7 @@ static void MPU_NoteOn(song_t *csf, int32_t c, int32_t k, int32_t v)
 
 static void MPU_NoteOff(song_t *csf, int32_t c, int32_t k, int32_t v)
 {
-	if (!(status.flags & MIDI_LIKE_TRACKER))
+	if (!engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	if (((unsigned char) csf->midi_running_status) == 0x90 + c) {

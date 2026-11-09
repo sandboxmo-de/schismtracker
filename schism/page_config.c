@@ -98,9 +98,9 @@ static void change_ui_settings(void)
 	status.vis_style = widgets_config[4].d.menutoggle.state;
 	status.time_display = widgets_config[7].d.menutoggle.state;
 	if (widgets_config[5].d.toggle.state) {
-		status.flags |= CLASSIC_MODE;
+		engine_flag_set(CLASSIC_MODE);
 	} else {
-		status.flags &= ~CLASSIC_MODE;
+		engine_flag_clear(CLASSIC_MODE);
 	}
 	kbd_sharp_flat_toggle(widgets_config[6].d.menutoggle.state
 		? KBD_SHARP_FLAT_FLATS
@@ -108,9 +108,9 @@ static void change_ui_settings(void)
 
 	GM_Reset(current_song, 0);
 	if (widgets_config[8].d.toggle.state) {
-		status.flags |= MIDI_LIKE_TRACKER;
+		engine_flag_set(MIDI_LIKE_TRACKER);
 	} else {
-		status.flags &= ~MIDI_LIKE_TRACKER;
+		engine_flag_clear(MIDI_LIKE_TRACKER);
 	}
 
 	status.flags |= NEED_UPDATE;
@@ -282,11 +282,11 @@ static void config_set_page(void)
 	widgets_config[3].d.menutoggle.state = audio_settings.channels-1;
 
 	widgets_config[4].d.menutoggle.state = status.vis_style;
-	widgets_config[5].d.toggle.state = !!(status.flags & CLASSIC_MODE);
+	widgets_config[5].d.toggle.state = !!engine_flag_test(CLASSIC_MODE);
 	widgets_config[6].d.menutoggle.state = (kbd_sharp_flat_state() == KBD_SHARP_FLAT_FLATS);
 	widgets_config[7].d.menutoggle.state = status.time_display;
 
-	widgets_config[8].d.toggle.state = !!(status.flags & MIDI_LIKE_TRACKER);
+	widgets_config[8].d.toggle.state = !!engine_flag_test(MIDI_LIKE_TRACKER);
 
 	widgets_config[9].d.togglebutton.state = video_is_fullscreen();
 	widgets_config[10].d.togglebutton.state = !video_is_fullscreen();

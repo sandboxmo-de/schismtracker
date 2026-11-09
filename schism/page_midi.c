@@ -50,7 +50,7 @@ static void midi_output_config(void)
 
 static void update_ip_ports(void)
 {
-	if (widgets_midi[12].d.thumbbar.value > 0 && (status.flags & NO_NETWORK)) {
+	if (widgets_midi[12].d.thumbbar.value > 0 && engine_flag_test(NO_NETWORK)) {
 		status_text_flash("Networking is disabled");
 		widgets_midi[12].d.thumbbar.value = 0;
 	} else {

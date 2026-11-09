@@ -35,7 +35,7 @@
 #include "mem.h"
 #include "bits.h" /* [l/r]shift_signed */
 
-#include "it.h" // needed for status.flags (UGH)
+#include "engine-host.h"
 
 /* --------------------------------------------------------------------------------------------------------- */
 /* note/freq conversion functions */
@@ -891,7 +891,7 @@ void csf_midi_out_note(song_t *csf, int chan, const song_note_t *starting_note)
 	int need_note, need_velocity;
 	song_voice_t *c;
 
-	if (!csf || !(csf->flags & SONG_INSTRUMENTMODE) || (status.flags & MIDI_LIKE_TRACKER))
+	if (!csf || !(csf->flags & SONG_INSTRUMENTMODE) || engine_flag_test(MIDI_LIKE_TRACKER))
 		return;
 
 	/*if(m)

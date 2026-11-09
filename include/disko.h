@@ -114,7 +114,7 @@ void disko_export_cancel(void);
 /* cap the length of later song exports, in sample frames (0 = no cap) */
 void disko_set_export_limit(size_t frames);
 
-/* call periodically if (status.flags & DISKWRITER_ACTIVE) to write more stuff.
+/* call periodically if engine_flag_test(DISKWRITER_ACTIVE) to write more stuff.
 return: DW_SYNC_*, self explanatory */
 int disko_sync(void);
 

@@ -310,7 +310,7 @@ static void options_close(void *data)
 	current_song->row_highlight_minor = options_widgets[2].d.thumbbar.value;
 	current_song->row_highlight_major = options_widgets[3].d.thumbbar.value;
 	link_effect_column = !!(options_widgets[5].d.togglebutton.state);
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	old_size = song_get_pattern(current_pattern, NULL);
 	new_size = options_widgets[4].d.thumbbar.value;
@@ -378,7 +378,7 @@ void pattern_editor_display_options(void)
 	dialog = dialog_create_custom(10, 18, 60, 26, options_widgets, 8, options_selected_widget,
 				      options_draw_const, NULL);
 	dialog->action_yes = options_close;
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		dialog->action_cancel = options_close;
 	} else {
 		dialog->action_cancel = options_close_cancel;
@@ -413,7 +413,7 @@ static void length_edit_close(SCHISM_UNUSED void *data)
 {
 	int i, nl;
 	nl = length_edit_widgets[0].d.thumbbar.value;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	for (i = length_edit_widgets[1].d.thumbbar.value;
 	i <= length_edit_widgets[2].d.thumbbar.value; i++) {
 		if (song_get_pattern(i, NULL) != nl) {
@@ -1383,7 +1383,7 @@ static void block_length_double(void)
 	if (!SELECTION_EXISTS)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 
 	if (selection.last_row >= total_rows)
@@ -1425,7 +1425,7 @@ static void block_length_halve(void)
 	if (!SELECTION_EXISTS)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 
 	if (selection.last_row >= total_rows)
@@ -1463,7 +1463,7 @@ static void selection_erase(void)
 	if (!SELECTION_EXISTS)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
@@ -1503,7 +1503,7 @@ static void selection_set_sample(void)
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	pated_history_add("Undo set sample/instrument     (Alt-S)",
 		selection.first_channel - 1,
 		selection.first_row,
@@ -1537,7 +1537,7 @@ static void selection_swap(void)
 
 	CHECK_FOR_SELECTION(return);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
@@ -1587,7 +1587,7 @@ static void selection_set_volume(void)
 
 	CHECK_FOR_SELECTION(return);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
@@ -1627,7 +1627,7 @@ static void selection_slide_volume(void)
 	if (selection.first_row == selection.last_row)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	pated_history_add("Undo volume or panning slide   (Alt-K)",
 		selection.first_channel - 1,
@@ -1699,7 +1699,7 @@ static void selection_wipe_volume(int reckless)
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	pated_history_add((reckless
 				? "Recover volumes/pannings     (2*Alt-K)"
@@ -1783,7 +1783,7 @@ static void selection_vary(int fast, int depth, int how)
 
 	CHECK_FOR_SELECTION(return);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	switch (how) {
 	case FX_CHANNELVOLUME:
 	case FX_CHANNELVOLSLIDE:
@@ -1897,7 +1897,7 @@ static void selection_amplify(int percentage)
 	if (!SELECTION_EXISTS)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	total_rows = song_get_pattern(current_pattern, &pattern);
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
@@ -1949,7 +1949,7 @@ static void selection_slide_effect(void)
 	if (selection.first_row == selection.last_row)
 		return;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	pated_history_add("Undo effect data slide         (Alt-X)",
 		selection.first_channel - 1,
@@ -1983,7 +1983,7 @@ static void selection_wipe_effect(void)
 	if (selection.last_row >= total_rows)selection.last_row = total_rows-1;
 	if (selection.first_row > selection.last_row) selection.first_row = selection.last_row;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	pated_history_add("Recover effects/effect data  (2*Alt-X)",
 		selection.first_channel - 1,
@@ -2034,7 +2034,7 @@ static void selection_roll(enum roll_dir direction)
 		memcpy(seldata + MAX_CHANNELS * row, seldata + MAX_CHANNELS * (row + direction), copy_bytes);
 	memcpy(seldata + MAX_CHANNELS * row, temp, copy_bytes);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 /* --------------------------------------------------------------------------------------------------------- */
@@ -2048,7 +2048,7 @@ static void pattern_insert_rows(int what_row, int num_rows, int first_channel, i
 	song_note_t *pattern;
 	int row, total_rows = song_get_pattern(current_pattern, &pattern);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (first_channel < 1)
 		first_channel = 1;
 	if (chan_width + first_channel - 1 > MAX_CHANNELS)
@@ -2081,7 +2081,7 @@ static void pattern_delete_rows(int what_row, int num_rows, int first_channel, i
 	song_note_t *pattern;
 	int row, total_rows = song_get_pattern(current_pattern, &pattern);
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (first_channel < 1)
 		first_channel = 1;
 	if (chan_width + first_channel - 1 > MAX_CHANNELS)
@@ -2144,7 +2144,7 @@ static void snap_paste(struct pattern_snap *s, int x, int y, int xlate)
 	int chan;
 
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (x < 0) x = s->x;
 	if (y < 0) y = s->y;
 
@@ -2411,7 +2411,7 @@ static void clipboard_paste_mix_notes(int clip, int xlate)
 		return;
 	}
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	num_rows = song_get_pattern(current_pattern, &pattern);
 	num_rows -= current_row;
 	if (clipboard.rows < num_rows)
@@ -2469,7 +2469,7 @@ static void clipboard_paste_mix_fields(int prec, int xlate)
 		return;
 	}
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	num_rows = song_get_pattern(current_pattern, &pattern);
 	num_rows -= current_row;
 	if (clipboard.rows < num_rows)
@@ -2829,7 +2829,7 @@ static void pattern_editor_redraw(void)
 				fg = 3;
 				bg = (ROW_IS_HIGHLIGHT(row) ? 9 : 8);
 			} else {
-				fg = ((status.flags & (CRAYOLA_MODE | CLASSIC_MODE)) == CRAYOLA_MODE)
+				fg = ((status.flags & CRAYOLA_MODE) && !engine_flag_test(CLASSIC_MODE))
 					? ((note->instrument + 3) % 4 + 3)
 					: 6;
 
@@ -2859,7 +2859,7 @@ static void pattern_editor_redraw(void)
 					      + (clipboard.data ? clipboard.channels : 1))))) {
 				// yes! do write the cursor
 				cpos = current_position;
-				if (cpos == 6 && link_effect_column && !(status.flags & CLASSIC_MODE))
+				if (cpos == 6 && link_effect_column && !engine_flag_test(CLASSIC_MODE))
 					cpos = 9; // highlight full effect and value
 			} else {
 				cpos = -1;
@@ -2918,7 +2918,7 @@ static void transpose_notes(int amount)
 	int row, chan;
 	song_note_t *pattern, *note;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	song_get_pattern(current_pattern, &pattern);
 
 	pated_history_add_grouped(((amount > 0)
@@ -3025,7 +3025,7 @@ static int handle_volume(song_note_t * note, struct key_event *k, int pos)
 		} else if (k->sym == SCHISM_KEYSYM_h) {
 			fx = VOLFX_VIBRATODEPTH;
 			vol %= 10;
-		} else if (status.flags & CLASSIC_MODE) {
+		} else if (engine_flag_test(CLASSIC_MODE)) {
 			return 0;
 		} else if (k->sym == SCHISM_KEYSYM_DOLLAR) {
 			fx = VOLFX_VIBRATOSPEED;
@@ -3106,7 +3106,7 @@ static int patedit_record_note(song_note_t *cur_note, int channel, SCHISM_UNUSED
 	song_note_t *q;
 	int i, r = 1, channels;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (NOTE_IS_NOTE(note)) {
 		if (template_mode) {
 			q = clipboard.data;
@@ -3186,7 +3186,7 @@ static int pattern_editor_insert_midi(struct key_event *k)
 		smp = sample_get_current();
 	}
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	speed = song_get_current_speed();
 	tick = song_get_current_tick();
@@ -3503,7 +3503,7 @@ static int pattern_editor_insert(struct key_event *k)
 			cur_note->note = n;
 		}
 		advance_cursor(1, 0);
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		pattern_selection_system_copyout();
 		break;
 	case 2:                 /* instrument, first digit */
@@ -3513,11 +3513,11 @@ static int pattern_editor_insert(struct key_event *k)
 				n = instrument_get_current();
 			else
 				n = sample_get_current();
-			if (n && !(status.flags & CLASSIC_MODE))
+			if (n && !engine_flag_test(CLASSIC_MODE))
 				current_song->voices[current_channel - 1].last_instrument = n;
 			cur_note->instrument = n;
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			break;
 		}
 		if (kbd_get_note(k) == 0) {
@@ -3527,7 +3527,7 @@ static int pattern_editor_insert(struct key_event *k)
 			else
 				sample_set(0);
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			break;
 		}
 
@@ -3562,14 +3562,14 @@ static int pattern_editor_insert(struct key_event *k)
 			sample_set(j);
 		}
 
-		if (n && !(status.flags & CLASSIC_MODE))
+		if (n && !engine_flag_test(CLASSIC_MODE))
 			current_song->voices[current_channel - 1].last_instrument = n;
 		cur_note->instrument = n;
 		if (song_is_instrument_mode())
 			instrument_set(n);
 		else
 			sample_set(n);
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		pattern_selection_system_copyout();
 		break;
 	case 4:
@@ -3578,14 +3578,14 @@ static int pattern_editor_insert(struct key_event *k)
 			cur_note->volparam = mask_note.volparam;
 			cur_note->voleffect = mask_note.voleffect;
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			break;
 		}
 		if (kbd_get_note(k) == 0) {
 			cur_note->volparam = mask_note.volparam = 0;
 			cur_note->voleffect = mask_note.voleffect = VOLFX_NONE;
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			break;
 		}
 		if (k->scancode == SCHISM_SCANCODE_GRAVE) {
@@ -3603,7 +3603,7 @@ static int pattern_editor_insert(struct key_event *k)
 			current_position = 4;
 			advance_cursor(1, 0);
 		}
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		pattern_selection_system_copyout();
 		break;
 	case 6:                 /* effect */
@@ -3615,7 +3615,7 @@ static int pattern_editor_insert(struct key_event *k)
 				return 0;
 			cur_note->effect = mask_note.effect = n;
 		}
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		if (link_effect_column)
 			current_position++;
 		else
@@ -3628,14 +3628,14 @@ static int pattern_editor_insert(struct key_event *k)
 			cur_note->param = mask_note.param;
 			current_position = link_effect_column ? 6 : 7;
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			pattern_selection_system_copyout();
 			break;
 		} else if (kbd_get_note(k) == 0) {
 			cur_note->param = mask_note.param = 0;
 			current_position = link_effect_column ? 6 : 7;
 			advance_cursor(1, 0);
-			status.flags |= SONG_NEEDS_SAVE;
+			engine_flag_set(SONG_NEEDS_SAVE);
 			pattern_selection_system_copyout();
 			break;
 		}
@@ -3653,7 +3653,7 @@ static int pattern_editor_insert(struct key_event *k)
 			current_position = link_effect_column ? 6 : 7;
 			advance_cursor(1, 0);
 		}
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		mask_note.param = cur_note->param;
 		pattern_selection_system_copyout();
 		break;
@@ -4217,7 +4217,7 @@ static int pattern_editor_handle_key_default(struct key_event * k)
 		if (k->sym == SCHISM_KEYSYM_LESS || k->sym == SCHISM_KEYSYM_COLON || k->sym == SCHISM_KEYSYM_SEMICOLON) {
 			if (k->state == KEY_RELEASE)
 				return 0;
-			if ((status.flags & CLASSIC_MODE) || current_position != 4) {
+			if (engine_flag_test(CLASSIC_MODE) || current_position != 4) {
 				set_previous_instrument();
 				status.flags |= NEED_UPDATE;
 				return 1;
@@ -4225,7 +4225,7 @@ static int pattern_editor_handle_key_default(struct key_event * k)
 		} else if (k->sym == SCHISM_KEYSYM_GREATER || k->sym == SCHISM_KEYSYM_QUOTE || k->sym == SCHISM_KEYSYM_QUOTEDBL) {
 			if (k->state == KEY_RELEASE)
 				return 0;
-			if ((status.flags & CLASSIC_MODE) || current_position != 4) {
+			if (engine_flag_test(CLASSIC_MODE) || current_position != 4) {
 				set_next_instrument();
 				status.flags |= NEED_UPDATE;
 				return 1;
@@ -4598,7 +4598,7 @@ static int pattern_editor_handle_key(struct key_event * k)
 		return 1;
 	case SCHISM_KEYSYM_l:
 		if (k->mod & SCHISM_KEYMOD_SHIFT) {
-			if (status.flags & CLASSIC_MODE) return 0;
+			if (engine_flag_test(CLASSIC_MODE)) return 0;
 			if (k->state == KEY_RELEASE)
 				return 1;
 			clipboard_copy(1);
@@ -4606,7 +4606,7 @@ static int pattern_editor_handle_key(struct key_event * k)
 		}
 		return pattern_editor_handle_key_default(k);
 	case SCHISM_KEYSYM_a:
-		if (k->mod & SCHISM_KEYMOD_SHIFT && !(status.flags & CLASSIC_MODE)) {
+		if (k->mod & SCHISM_KEYMOD_SHIFT && !engine_flag_test(CLASSIC_MODE)) {
 			if (k->state == KEY_RELEASE) {
 				return 0;
 			}
@@ -4620,7 +4620,7 @@ static int pattern_editor_handle_key(struct key_event * k)
 		}
 		return pattern_editor_handle_key_default(k);
 	case SCHISM_KEYSYM_f:
-		if (k->mod & SCHISM_KEYMOD_SHIFT && !(status.flags & CLASSIC_MODE)) {
+		if (k->mod & SCHISM_KEYMOD_SHIFT && !engine_flag_test(CLASSIC_MODE)) {
 			if (k->state == KEY_RELEASE) {
 				return 0;
 			}

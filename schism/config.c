@@ -336,17 +336,17 @@ void cfg_load(void)
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 	if (cfg_get_number(&cfg, "General", "classic_mode", 0))
-		status.flags |= CLASSIC_MODE;
+		engine_flag_set(CLASSIC_MODE);
 	else
-		status.flags &= ~CLASSIC_MODE;
+		engine_flag_clear(CLASSIC_MODE);
 	if (cfg_get_number(&cfg, "General", "make_backups", 1))
-		status.flags |= MAKE_BACKUPS;
+		engine_flag_set(MAKE_BACKUPS);
 	else
-		status.flags &= ~MAKE_BACKUPS;
+		engine_flag_clear(MAKE_BACKUPS);
 	if (cfg_get_number(&cfg, "General", "numbered_backups", 0))
-		status.flags |= NUMBERED_BACKUPS;
+		engine_flag_set(NUMBERED_BACKUPS);
 	else
-		status.flags &= ~NUMBERED_BACKUPS;
+		engine_flag_clear(NUMBERED_BACKUPS);
 
 	i = cfg_get_number(&cfg, "General", "time_display", TIME_PLAY_ELAPSED);
 	/* default to play/elapsed for invalid values */
@@ -381,9 +381,9 @@ void cfg_load(void)
 		status.flags &= ~LAZY_REDRAW;
 
 	if (cfg_get_number(&cfg, "General", "midi_like_tracker", 0))
-		status.flags |= MIDI_LIKE_TRACKER;
+		engine_flag_set(MIDI_LIKE_TRACKER);
 	else
-		status.flags &= ~MIDI_LIKE_TRACKER;
+		engine_flag_clear(MIDI_LIKE_TRACKER);
 
 	str_realloc(&cfg_font, cfg_get_string(&cfg, "General", "font", NULL, 0, "font.cfg"), 0);
 
@@ -483,15 +483,15 @@ static void cfg_save_world(cfg_file_t *cfg)
 
 	cfg_set_number(cfg, "General", "vis_style", status.vis_style);
 	cfg_set_number(cfg, "General", "time_display", status.time_display);
-	cfg_set_number(cfg, "General", "classic_mode", !!(status.flags & CLASSIC_MODE));
-	cfg_set_number(cfg, "General", "make_backups", !!(status.flags & MAKE_BACKUPS));
-	cfg_set_number(cfg, "General", "numbered_backups", !!(status.flags & NUMBERED_BACKUPS));
+	cfg_set_number(cfg, "General", "classic_mode", !!engine_flag_test(CLASSIC_MODE));
+	cfg_set_number(cfg, "General", "make_backups", !!engine_flag_test(MAKE_BACKUPS));
+	cfg_set_number(cfg, "General", "numbered_backups", !!engine_flag_test(NUMBERED_BACKUPS));
 
 	cfg_set_number(cfg, "General", "accidentals_as_flats", (kbd_sharp_flat_state() == KBD_SHARP_FLAT_FLATS));
 	cfg_set_number(cfg, "General", "meta_is_ctrl", !!(status.flags & META_IS_CTRL));
 	cfg_set_number(cfg, "General", "altgr_is_alt", !!(status.flags & ALTGR_IS_ALT));
 
-	cfg_set_number(cfg, "General", "midi_like_tracker", !!(status.flags & MIDI_LIKE_TRACKER));
+	cfg_set_number(cfg, "General", "midi_like_tracker", !!engine_flag_test(MIDI_LIKE_TRACKER));
 	/* Say, whose bright idea was it to make this a string setting?
 	The config file is human editable but that's mostly for developer convenience and debugging
 	purposes. These sorts of things really really need to be options in the GUI so that people

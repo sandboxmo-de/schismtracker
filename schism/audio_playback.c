@@ -572,7 +572,7 @@ static int song_keydown_ex(int samp, int ins, int note, int vol, int chan, int e
 
 			i->played = 1;
 
-			if ((status.flags & MIDI_LIKE_TRACKER) && i) {
+			if (engine_flag_test(MIDI_LIKE_TRACKER) && i) {
 				if (i->midi_channel_mask) {
 					GM_KeyOff(current_song, chan_internal);
 					GM_DPatch(current_song, chan_internal, i->midi_program, i->midi_bank, i->midi_channel_mask);
@@ -636,7 +636,7 @@ static int song_keydown_ex(int samp, int ins, int note, int vol, int chan, int e
 		c->increment = csf_smp_pos_negate(c->increment); // lousy hack
 	csf_note_change(current_song, chan_internal, note, 0, 0, 1);
 
-	if (!(status.flags & MIDI_LIKE_TRACKER) && i) {
+	if (!engine_flag_test(MIDI_LIKE_TRACKER) && i) {
 		/* midi keyjazz shouldn't require a sample */
 		song_note_t mc = {0};
 
@@ -1200,9 +1200,9 @@ void cfg_load_audio(cfg_file_t *cfg)
 	audio_settings.eq_gain[3] = cfg_get_number(cfg, "EQ High Band", "gain", 0);
 
 	if (cfg_get_number(cfg, "General", "stop_on_load", 1)) {
-		status.flags &= ~PLAY_AFTER_LOAD;
+		engine_flag_clear(PLAY_AFTER_LOAD);
 	} else {
-		status.flags |= PLAY_AFTER_LOAD;
+		engine_flag_set(PLAY_AFTER_LOAD);
 	}
 }
 
@@ -1252,7 +1252,7 @@ void cfg_save_audio(cfg_file_t *cfg)
 {
 	cfg_atexit_save_audio(cfg);
 
-	cfg_set_number(cfg, "General", "stop_on_load", !(status.flags & PLAY_AFTER_LOAD));
+	cfg_set_number(cfg, "General", "stop_on_load", !engine_flag_test(PLAY_AFTER_LOAD));
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -1507,7 +1507,7 @@ static void _audio_quit(void)
 // (note: _audio_open will leave the device LOCKED)
 static void _audio_init_tail(void)
 {
-	samples_played = (status.flags & CLASSIC_MODE) ? SMP_INIT : 0;
+	samples_played = engine_flag_test(CLASSIC_MODE) ? SMP_INIT : 0;
 
 	song_unlock_audio();
 	song_start_audio();
@@ -1515,7 +1515,7 @@ static void _audio_init_tail(void)
 
 void audio_flash_reinitialized_text(int success) {
 	if (success) {
-		status_text_flash((status.flags & CLASSIC_MODE)
+		status_text_flash(engine_flag_test(CLASSIC_MODE)
 			? "Sound Blaster 16 reinitialised"
 			: "Audio output reinitialised");
 	} else {
@@ -1621,14 +1621,14 @@ agh:
 // device is optional and can be NULL
 int audio_reinit(uint32_t *device)
 {
-	if (status.flags & (DISKWRITER_ACTIVE|DISKWRITER_ACTIVE_PATTERN)) {
+	if (engine_flag_test(DISKWRITER_ACTIVE | DISKWRITER_ACTIVE_PATTERN)) {
 		/* never allowed */
 		return 0;
 	}
 
 	int success;
 
-	if (status.flags & CLASSIC_MODE)
+	if (engine_flag_test(CLASSIC_MODE))
 		song_stop();
 
 	// if we got a device, cool, otherwise use our device ID,

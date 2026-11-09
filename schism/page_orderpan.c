@@ -98,7 +98,7 @@ void prev_order_pattern(void)
 			new_order = 0;
 			break;
 		}
-	} while (!(status.flags & CLASSIC_MODE)
+	} while (!engine_flag_test(CLASSIC_MODE)
 			&& last_pattern == current_song->orderlist[new_order]
 			&& current_song->orderlist[new_order] == ORDER_SKIP);
 
@@ -119,7 +119,7 @@ void next_order_pattern(void)
 			new_order = 255;
 			break;
 		}
-	} while (!(status.flags & CLASSIC_MODE)
+	} while (!engine_flag_test(CLASSIC_MODE)
 			&& last_pattern == current_song->orderlist[new_order]
 			&&  current_song->orderlist[new_order] == ORDER_SKIP);
 
@@ -160,7 +160,7 @@ static void orderlist_cheater(void)
 	song_pattern_install(best, data, rows);
 	current_song->orderlist[current_order] = best;
 	current_order++;
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	status.flags |= NEED_UPDATE;
 }
 
@@ -215,7 +215,8 @@ static void orderlist_insert_pos(void)
 		255 - current_order);
 	current_song->orderlist[current_order] = ORDER_LAST;
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void orderlist_save(void)
@@ -239,7 +240,8 @@ static void orderlist_delete_pos(void)
 		255 - current_order);
 	current_song->orderlist[255] = ORDER_LAST;
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void orderlist_insert_next(void)
@@ -256,7 +258,8 @@ static void orderlist_insert_next(void)
 		current_order++;
 	orderlist_reposition();
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void orderlist_add_unused_patterns(void)
@@ -302,7 +305,8 @@ static void orderlist_add_unused_patterns(void)
 		}
 	}
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 }
 
 static void orderlist_reorder(void)
@@ -339,7 +343,8 @@ static void orderlist_reorder(void)
 		}
 	}
 
-	status.flags |= NEED_UPDATE | SONG_NEEDS_SAVE;
+	status.flags |= NEED_UPDATE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	song_stop_unlocked(0);
 
@@ -356,13 +361,13 @@ static int orderlist_handle_char(char sym)
 
 	switch (sym) {
 	case '+':
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		current_song->orderlist[current_order] = ORDER_SKIP;
 		orderlist_cursor_pos = 2;
 		break;
 	case '.':
 	case '-':
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		current_song->orderlist[current_order] = ORDER_LAST;
 		orderlist_cursor_pos = 2;
 		break;
@@ -372,7 +377,7 @@ static int orderlist_handle_char(char sym)
 		else
 			return 0;
 
-		status.flags |= SONG_NEEDS_SAVE;
+		engine_flag_set(SONG_NEEDS_SAVE);
 		cur_pattern = current_song->orderlist[current_order];
 		if (cur_pattern < 200) {
 			n[0] = cur_pattern / 100;
@@ -525,7 +530,7 @@ static int orderlist_handle_key_on_list(struct key_event * k)
 
 	switch (k->sym) {
 	case SCHISM_KEYSYM_BACKSPACE:
-		if (status.flags & CLASSIC_MODE) return 0;
+		if (engine_flag_test(CLASSIC_MODE)) return 0;
 		if (!(k->mod & SCHISM_KEYMOD_ALT)) return 0;
 		if (k->state == KEY_PRESS)
 			return 1;
@@ -536,7 +541,7 @@ static int orderlist_handle_key_on_list(struct key_event * k)
 
 	case SCHISM_KEYSYM_RETURN:
 	case SCHISM_KEYSYM_KP_ENTER:
-		if (status.flags & CLASSIC_MODE) return 0;
+		if (engine_flag_test(CLASSIC_MODE)) return 0;
 		if (k->mod & SCHISM_KEYMOD_ALT) {
 			if (k->state == KEY_PRESS)
 				return 1;
@@ -604,7 +609,7 @@ static int orderlist_handle_key_on_list(struct key_event * k)
 		break;
 	case SCHISM_KEYSYM_UP:
 		if (k->mod & SCHISM_KEYMOD_CTRL) {
-			if (status.flags & CLASSIC_MODE) return 0;
+			if (engine_flag_test(CLASSIC_MODE)) return 0;
 			if (k->state == KEY_RELEASE)
 				return 1;
 			sample_set(sample_get_current()-1);
@@ -619,7 +624,7 @@ static int orderlist_handle_key_on_list(struct key_event * k)
 		break;
 	case SCHISM_KEYSYM_DOWN:
 		if (k->mod & SCHISM_KEYMOD_CTRL) {
-			if (status.flags & CLASSIC_MODE) return 0;
+			if (engine_flag_test(CLASSIC_MODE)) return 0;
 			if (k->state == KEY_RELEASE)
 				return 1;
 			sample_set(sample_get_current()+1);
@@ -694,7 +699,7 @@ static int orderlist_handle_key_on_list(struct key_event * k)
 	case SCHISM_KEYSYM_c:
 		if (!NO_MODIFIER(k->mod))
 			return 0;
-		if (status.flags & CLASSIC_MODE) return 0;
+		if (engine_flag_test(CLASSIC_MODE)) return 0;
 		if (k->state == KEY_PRESS)
 			return 1;
 		p = get_current_pattern();
@@ -831,7 +836,7 @@ static void ordervol_draw_const(void)
 
 	for (n = 1; n <= 32; n++) {
 		fg = 0;
-		if (!(status.flags & CLASSIC_MODE)) {
+		if (!engine_flag_test(CLASSIC_MODE)) {
 			if (ACTIVE_PAGE.selected_widget == n) {
 				fg = 3;
 			}
@@ -841,7 +846,7 @@ static void ordervol_draw_const(void)
 		draw_text(buf, 20, 14 + n, fg, 2);
 
 		fg = 0;
-		if (!(status.flags & CLASSIC_MODE)) {
+		if (!engine_flag_test(CLASSIC_MODE)) {
 			if (ACTIVE_PAGE.selected_widget == n+32) {
 				fg = 3;
 			}
@@ -872,7 +877,7 @@ static void orderpan_update_values_in_song(void)
 	song_channel_t *chn;
 	int n;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	for (n = 0; n < MAX_CHANNELS; n++) {
 		chn = song_get_channel(n);
 
@@ -892,7 +897,7 @@ static void ordervol_update_values_in_song(void)
 {
 	int n;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	for (n = 0; n < MAX_CHANNELS; n++)
 		song_get_channel(n)->volume = widgets_ordervol[n + 1].d.thumbbar.value;
 }
@@ -954,7 +959,7 @@ static void order_pan_vol_handle_key(struct key_event * k)
 static int order_pre_key(struct key_event *k)
 {
 	// hack to sync the active widget between pan/vol pages
-	if (!(status.flags & CLASSIC_MODE)) {
+	if (!engine_flag_test(CLASSIC_MODE)) {
 		pages[PAGE_ORDERLIST_PANNING].selected_widget
 			= pages[PAGE_ORDERLIST_VOLUMES].selected_widget
 			= ACTIVE_PAGE.selected_widget;

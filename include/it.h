@@ -32,6 +32,7 @@
 #include "video.h"
 #include "log.h"
 #include "keyboard.h"
+#include "engine-host.h"
 
 /* --------------------------------------------------------------------- */
 /* preprocessor stuff */
@@ -75,19 +76,7 @@ enum {
 	DIR_SAMPLES_CHANGED = (1 << 3),
 	DIR_INSTRUMENTS_CHANGED = (1 << 4),
 
-	/* if this is set, some stuff behaves differently
-	 * (grep the source files for what stuff ;) */
-	CLASSIC_MODE = (1 << 5),
-
-	/* make a backup file (song.it~) when saving a module? */
-	MAKE_BACKUPS = (1 << 6),
-	NUMBERED_BACKUPS = (1 << 7), /* song.it.3~ */
-
 	LAZY_REDRAW = (1 << 8),
-
-	/* this is here if anything is "changed" and we need to whine to
-	the user if they quit */
-	SONG_NEEDS_SAVE = (1 << 9),
 
 	/* if the software mouse pointer moved.... */
 	SOFTWARE_MOUSE_MOVED = (1 << 10),
@@ -99,11 +88,7 @@ enum {
 	CLIPPY_PASTE_SELECTION = (1 << 11),
 	CLIPPY_PASTE_BUFFER = (1 << 12),
 
-	/* if the disko is active */
-	DISKWRITER_ACTIVE = (1 << 13),
-	DISKWRITER_ACTIVE_PATTERN = (1 << 14), /* recording only a single pattern */
-
-	/* mark... set by midi core when received new midi event */
+	/* mark... set when the midi core reports a new midi event */
 	MIDI_EVENT_CHANGED = (1 << 15),
 
 	/* fontedit */
@@ -115,15 +100,6 @@ enum {
 
 	/* Devi Ever's hack */
 	CRAYOLA_MODE = (1 << 20),
-
-	NO_NETWORK = (1 << 22),
-
-	/* Play MIDI events using the same semantics as tracker samples */
-	MIDI_LIKE_TRACKER = (1 << 23),
-
-	/* if true, don't stop playing on load, and start playing new song afterward
-	(but only if the last song was already playing before loading) */
-	PLAY_AFTER_LOAD = (1 << 24),
 
 	/* --headless passed (generally this should be default with --diskwrite) */
 	STATUS_IS_HEADLESS = (1 << 25),

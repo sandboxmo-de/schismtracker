@@ -372,7 +372,7 @@ static void check_update(void)
 				return;
 
 			next = now + 500;
-		} else if (status.flags & (DISKWRITER_ACTIVE | DISKWRITER_ACTIVE_PATTERN)) {
+		} else if (engine_flag_test(DISKWRITER_ACTIVE | DISKWRITER_ACTIVE_PATTERN)) {
 			if (!timer_ticks_passed(now, next))
 				return;
 
@@ -711,7 +711,7 @@ SCHISM_NORETURN static void event_loop(void)
 				case PAGE_LIBRARY_SAMPLE:
 					song_load_sample(sample_get_current(), se.drop.file);
 					memused_songchanged();
-					status.flags |= SONG_NEEDS_SAVE;
+					engine_flag_set(SONG_NEEDS_SAVE);
 					set_page(PAGE_SAMPLE_LIST);
 					break;
 				case PAGE_INSTRUMENT_LIST_GENERAL:
@@ -722,7 +722,7 @@ SCHISM_NORETURN static void event_loop(void)
 				case PAGE_LIBRARY_INSTRUMENT:
 					song_load_instrument_with_prompt(instrument_get_current(), se.drop.file);
 					memused_songchanged();
-					status.flags |= SONG_NEEDS_SAVE;
+					engine_flag_set(SONG_NEEDS_SAVE);
 					set_page(PAGE_INSTRUMENT_LIST);
 					break;
 				default:
@@ -738,7 +738,7 @@ SCHISM_NORETURN static void event_loop(void)
 			case SCHISM_EVENT_PLAYBACK:
 				/* this is the sound thread */
 				midi_send_flush();
-				if (!(status.flags & (DISKWRITER_ACTIVE | DISKWRITER_ACTIVE_PATTERN)))
+				if (!engine_flag_test(DISKWRITER_ACTIVE | DISKWRITER_ACTIVE_PATTERN))
 					playback_update();
 				break;
 			case SCHISM_EVENT_PASTE:
@@ -863,7 +863,7 @@ SCHISM_NORETURN static void event_loop(void)
 			last_audio_poll = timer_ticks();
 		}
 
-		if (status.flags & DISKWRITER_ACTIVE) {
+		if (engine_flag_test(DISKWRITER_ACTIVE)) {
 			int q = disko_sync();
 			while (q == DW_SYNC_MORE && !events_have_event()) {
 				check_update();
@@ -1071,7 +1071,7 @@ void schism_crash(void (*log_cb)(FILE *f, void *userdata), void *userdata)
 
 	/* now that we've sufficiently dumped the stuff, at least try to
 	 * save the current song */
-	if (current_song && (status.flags & SONG_NEEDS_SAVE)) {
+	if (current_song && engine_flag_test(SONG_NEEDS_SAVE)) {
 		int i;
 		int try_again = 1;
 
@@ -1123,11 +1123,11 @@ void schism_crash(void (*log_cb)(FILE *f, void *userdata), void *userdata)
 		char *dir = dmoz_get_current_directory();
 		const char *thebox;
 
-		if (log_cb && current_song && (status.flags & SONG_NEEDS_SAVE)) {
+		if (log_cb && current_song && engine_flag_test(SONG_NEEDS_SAVE)) {
 			thebox = "a crash log and a copy of the current song";
 		} else if (log_cb) {
 			thebox = "a crash log";
-		} else if (current_song && (status.flags & SONG_NEEDS_SAVE)) {
+		} else if (current_song && engine_flag_test(SONG_NEEDS_SAVE)) {
 			thebox = "a copy of the current song";
 		} else {
 			thebox = "absolutely nothing";
@@ -1288,13 +1288,13 @@ int schism_main(int argc, char **argv)
 
 	if (BITARRAY_ISSET(startup_flags, SF_DID_CLASSIC)) {
 		/* this should be a bitarray too */
-		status.flags &= ~CLASSIC_MODE;
+		engine_flag_clear(CLASSIC_MODE);
 		if (BITARRAY_ISSET(startup_flags, SF_CLASSIC))
-			status.flags |= CLASSIC_MODE;
+			engine_flag_set(CLASSIC_MODE);
 	}
 
 	if (!(BITARRAY_ISSET(startup_flags, SF_NETWORK)))
-		status.flags |= NO_NETWORK;
+		engine_flag_set(NO_NETWORK);
 
 	shutdown_process |= EXIT_SAVECFG;
 	shutdown_process |= EXIT_SDLQUIT;
@@ -1323,7 +1323,7 @@ int schism_main(int argc, char **argv)
 			}
 
 			// Wait for diskwrite to complete
-			while (status.flags & DISKWRITER_ACTIVE) {
+			while (engine_flag_test(DISKWRITER_ACTIVE)) {
 				int q = disko_sync();
 				if (q == DW_SYNC_DONE) {
 					break;

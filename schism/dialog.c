@@ -212,7 +212,7 @@ int dialog_handle_key(struct key_event * k)
 			case DIALOG_YES_NO:
 				/* in Impulse Tracker, 'n' means cancel, not "no"!
 				(results in different behavior on sample quality convert dialog) */
-				if (!(status.flags & CLASSIC_MODE)) {
+				if (!engine_flag_test(CLASSIC_MODE)) {
 					dialog_no(d->data);
 					return 1;
 				}

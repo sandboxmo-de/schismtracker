@@ -68,7 +68,7 @@ static int timeinfo_handle_key(struct key_event * k)
 		if (k->state != KEY_RELEASE)
 			return 0;
 
-		if (!(status.flags & CLASSIC_MODE)) {
+		if (!engine_flag_test(CLASSIC_MODE)) {
 			display_session = !display_session;
 			status.flags |= NEED_UPDATE;
 			return 1;

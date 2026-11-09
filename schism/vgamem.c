@@ -697,7 +697,7 @@ void draw_thumb_bar(int x, int y, int width, int min, int max, int val,
 	/* this wouldn't happen in a perfect world :P */
 	if (val < min || val > max) {
 		draw_fill_chars(x, y, x + width - 1, y, DEFAULT_FG,
-				((status.flags & CLASSIC_MODE) ? 2 : 0));
+				(engine_flag_test(CLASSIC_MODE) ? 2 : 0));
 		return;
 	}
 
@@ -736,7 +736,7 @@ void draw_vu_meter(int x, int y, int width, int val, int color, int peak)
 
 	leftover = val & 7;
 	val >>= 3;
-	if ((val < chunks - 1) || (status.flags & CLASSIC_MODE))
+	if ((val < chunks - 1) || engine_flag_test(CLASSIC_MODE))
 		peak = color;
 
 	draw_char(endtext[leftover][0], 3 * val + x + 0, y, peak, 0);
@@ -837,7 +837,7 @@ static void _draw_loop_ex(struct vgamem_overlay *r,
 	if (!(flags & loopflag))
 		return;
 
-	c = ((status.flags & CLASSIC_MODE) ? SAMPLE_DATA_COLOR : SAMPLE_LOOP_COLOR);
+	c = (engine_flag_test(CLASSIC_MODE) ? SAMPLE_DATA_COLOR : SAMPLE_LOOP_COLOR);
 
 	loopstart = start * (r->width - 1) / length;
 	loopend = end * (r->width - 1) / length;
@@ -965,7 +965,7 @@ void draw_sample_data(struct vgamem_overlay *r, song_sample_t *sample)
 				sample->length * chans,
 				chans, chans);
 
-	if ((status.flags & CLASSIC_MODE) == 0)
+	if (engine_flag_test(CLASSIC_MODE) == 0)
 		_draw_sample_play_marks(r, sample);
 	_draw_sample_loop(r, sample);
 	_draw_sample_susloop(r, sample);

@@ -115,7 +115,7 @@ static void about_draw_const(void)
 		draw_box(11,16, 68, 34, BOX_THIN | BOX_OUTER | BOX_FLAT_DARK);
 	}
 
-	if (status.flags & CLASSIC_MODE) {
+	if (engine_flag_test(CLASSIC_MODE)) {
 		draw_box(25,25, 56, 30, BOX_THIN | BOX_OUTER | BOX_FLAT_DARK);
 
 		draw_text("Sound Card Setup", 32, 26, 0, 2);
@@ -170,12 +170,12 @@ void show_about(void)
 		didit=1;
 	}
 
-	logo = (status.flags & CLASSIC_MODE) ? it_logo : schism_logo;
+	logo = engine_flag_test(CLASSIC_MODE) ? it_logo : schism_logo;
 
 	/* this is currently pretty gross */
 	vgamem_ovl_clear(&logo_image, 2);
 	if (logo.pixels) {
-		int c = (status.flags & CLASSIC_MODE) ? 11 : 0;
+		int c = engine_flag_test(CLASSIC_MODE) ? 11 : 0;
 		for (y = 0; y < logo.height; y++) {
 			for (x = 0; x < logo.width; x++) {
 				if (logo.pixels[x]) {

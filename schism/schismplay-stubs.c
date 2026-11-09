@@ -35,10 +35,8 @@
 #include "osdefs.h"
 
 /* ------------------------------------------------------------------------ */
-/* Global tracker state (page.c, page_patedit.c, page_instruments.c, config.c)
- *
- * The engine reads a few bits of `status.flags` (MIDI_LIKE_TRACKER,
- * CLASSIC_MODE, DISKWRITER_ACTIVE, ...). All zero matches a fresh config. */
+/* Global tracker state (page.c). sys/macosx/osdefs.m's key handler reads
+ * status.fix_numlock_setting; it's never called here. */
 
 struct tracker_status status = {0};
 

@@ -72,7 +72,7 @@ SIGNCONVERT(16)
 void sample_sign_convert(song_sample_t * sample)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_sign_convert_16((signed short *) sample->data,
 			sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1));
@@ -111,7 +111,7 @@ void sample_reverse(song_sample_t * sample)
 	unsigned long tmp;
 
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	if (sample->flags & CHN_STEREO) {
 		if (sample->flags & CHN_16BIT) // FIXME This is UB!
@@ -171,7 +171,7 @@ void sample_toggle_quality(song_sample_t * sample, int convert_data)
 
 	sample->flags ^= CHN_16BIT;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (convert_data) {
 		odata = csf_allocate_sample(sample->length
 			* ((sample->flags & CHN_16BIT) ? 2 : 1)
@@ -236,7 +236,7 @@ CENTRALIZE(16)
 void sample_centralise(song_sample_t * sample)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_centralise_16((int16_t *) sample->data,
 			sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1));
@@ -268,7 +268,7 @@ void sample_downmix(song_sample_t *sample)
 	if (!(sample->flags & CHN_STEREO))
 		return; /* what are we doing here with a mono sample? */
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_downmix_16((int16_t *) sample->data, sample->length);
 	else
@@ -303,7 +303,7 @@ AMPLIFY(16)
 void sample_amplify(song_sample_t * sample, int32_t percent)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_amplify_16((int16_t *) sample->data,
 			sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1), percent);
@@ -366,7 +366,7 @@ DELTA_DECODE(16)
 void sample_delta_decode(song_sample_t * sample)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_delta_decode_16((int16_t *) sample->data,
 			sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1));
@@ -398,7 +398,7 @@ INVERT(16)
 void sample_invert(song_sample_t * sample)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_16BIT)
 		_invert_16((int16_t *) sample->data,
 			sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1));
@@ -469,7 +469,7 @@ void sample_resize(song_sample_t * sample, uint32_t newlen, int aa)
 	bps = (((sample->flags & CHN_STEREO) ? 2 : 1)
 		* ((sample->flags & CHN_16BIT) ? 2 : 1));
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 
 	d = csf_allocate_sample(newlen*bps);
 	z = sample->data;
@@ -533,7 +533,7 @@ static inline void sample_mono_(song_sample_t *sample, int off)
 	song_lock_audio();
 	/* stop any playing samples; we can crash if we don't do this */
 	csf_stop_sample(current_song, sample);
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (sample->flags & CHN_STEREO) {
 		if (sample->flags & CHN_16BIT)
 			_mono_lr16((int16_t *)sample->data, sample->length, off);
@@ -579,7 +579,7 @@ CROSSFADE(16)
 void sample_crossfade(song_sample_t *smp, uint32_t fade_length, int32_t law, int fade_after_loop, int sustain_loop)
 {
 	song_lock_audio();
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	if (!smp->data) return;
 
 	const uint32_t loop_start = (sustain_loop) ? smp->sustain_start : smp->loop_start;

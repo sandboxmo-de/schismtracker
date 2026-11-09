@@ -415,7 +415,7 @@ static void song_create_host_instrument(int smp)
 
 	if (csf_instrument_is_empty(current_song->instruments[smp]))
 		ins = smp;
-	else if ((status.flags & CLASSIC_MODE) || !csf_instrument_is_empty(current_song->instruments[ins]))
+	else if (engine_flag_test(CLASSIC_MODE) || !csf_instrument_is_empty(current_song->instruments[ins]))
 		ins = csf_first_blank_instrument(current_song, 0);
 
 	if (ins > 0) {
@@ -536,7 +536,7 @@ static void finish_load(int cur)
 {
 	song_sample_t *smp;
 
-	status.flags |= SONG_NEEDS_SAVE;
+	engine_flag_set(SONG_NEEDS_SAVE);
 	memused_songchanged();
 	smp = song_get_sample(cur);
 	if (smp->flags & CHN_STEREO) {
@@ -710,7 +710,7 @@ static int file_list_handle_key(struct key_event * k)
 
 	new_file = CLAMP(new_file, 0, flist.num_files - 1);
 
-	if (!(status.flags & CLASSIC_MODE) && k->sym == SCHISM_KEYSYM_n && (k->mod & SCHISM_KEYMOD_ALT)) {
+	if (!engine_flag_test(CLASSIC_MODE) && k->sym == SCHISM_KEYSYM_n && (k->mod & SCHISM_KEYMOD_ALT)) {
 		if (k->state == KEY_RELEASE)
 			song_toggle_multichannel_mode();
 		return 1;

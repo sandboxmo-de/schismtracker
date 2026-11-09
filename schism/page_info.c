@@ -640,7 +640,7 @@ static void info_draw_track_64(int base, int height, int active, int first_chann
 {
 	int chan, chan_pos, fg;
 	/* IT draws nine more blank "channels" on the right */
-	int nchan = (status.flags & CLASSIC_MODE) ? 73 : 64;
+	int nchan = engine_flag_test(CLASSIC_MODE) ? 73 : 64;
 
 	SCHISM_RUNTIME_ASSERT(first_channel == 1, "Only 64 channels allowed; first channel must always be the real first channel.");
 
@@ -702,7 +702,7 @@ static void info_draw_note_dots(int base, int height, int active, int first_chan
 
 		fg = (voice->flags & CHN_MUTE) ? 1 : ((voice->ptr_sample - current_song->samples) % 4 + 2);
 
-		if (velocity_mode || (status.flags & CLASSIC_MODE))
+		if (velocity_mode || engine_flag_test(CLASSIC_MODE))
 			v = (voice->final_volume + 2047) >> 11;
 		else
 			v = (voice->vu_meter + 31) >> 5;

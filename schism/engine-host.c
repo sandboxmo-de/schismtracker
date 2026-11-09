@@ -128,6 +128,31 @@ void engine_host_register(const struct engine_host *host)
 }
 
 /* ------------------------------------------------------------------------ */
+/* engine state */
+
+static int engine_flags = 0;
+
+int engine_flag_test(int mask)
+{
+	return engine_flags & mask;
+}
+
+void engine_flag_set(int mask)
+{
+	engine_flags |= mask;
+}
+
+void engine_flag_clear(int mask)
+{
+	engine_flags &= ~mask;
+}
+
+void engine_flag_toggle(int mask)
+{
+	engine_flags ^= mask;
+}
+
+/* ------------------------------------------------------------------------ */
 /* log and status line (declared in log.h) */
 
 static void vlog(int color, int flags, const char *format, va_list ap)
