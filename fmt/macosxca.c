@@ -274,7 +274,9 @@ static int macosxca_read(slurp_t *fp, dmoz_file_t *file, song_sample_t *smp)
 			total_samples += bufsmps;
 		}
 
-		if (err != noErr) {
+		/* ds.error is set if the stream ran out of memory */
+		if (err != noErr || ds.error) {
+			disko_memclose(&ds, 0);
 			ExtAudioFileDispose(efid);
 			AudioFileClose(fid);
 			return 0;
@@ -298,6 +300,8 @@ static int macosxca_read(slurp_t *fp, dmoz_file_t *file, song_sample_t *smp)
 			| ((output_format.mBitsPerChannel == 16) ? SF_16 : SF_8),
 			&fakefp);
 
+		unslurp(&fakefp);
+		disko_memclose(&ds, 0);
 		ExtAudioFileDispose(efid);
 	}
 
