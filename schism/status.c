@@ -57,15 +57,18 @@ static void status_text_flash_generic(const char *format, int bios, va_list ap)
 	status.flags |= NEED_UPDATE;
 }
 
-void status_text_flash(const char *format, ...)
+/* engine_hooks.status_text, which status_text_flash() ends up in */
+void status_text_host(const char *text)
 {
-	va_list ap;
+	text_timeout = timer_ticks() + 1000;
 
-	va_start(ap, format);
+	if (status_text)
+		free(status_text);
 
-	status_text_flash_generic(format, 0, ap);
+	status_bios = 0;
+	status_text = str_dup(text);
 
-	va_end(ap);
+	status.flags |= NEED_UPDATE;
 }
 
 void status_text_flash_bios(const char *format, ...)

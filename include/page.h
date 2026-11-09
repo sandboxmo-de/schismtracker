@@ -469,6 +469,14 @@ int menu_handle_key(struct key_event * k);
 
 /* status.c */
 void status_text_redraw(void);
+void status_text_host(const char *text);
+
+/* page_log.c, called through engine_hooks */
+void log_host_append(int color, int flags, const char *text);
+void log_host_underline(void);
+
+/* tracker-host.c */
+void tracker_host_register(void);
 
 // page_message.c
 void message_reset_selection(void);

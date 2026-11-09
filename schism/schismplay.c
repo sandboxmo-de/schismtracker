@@ -19,7 +19,8 @@
 
 /* schismplay: plays a module through the audio backends, or renders it to a
  * WAV file through the same disk writer schismtracker's --diskwrite uses.
- * It has no UI; see schismplay-stubs.c for what stands in for it. */
+ * It has no UI; it registers its own engine callbacks below, and
+ * schismplay-stubs.c covers what the engine still calls directly. */
 
 #include "headers.h"
 
@@ -38,10 +39,11 @@
 #include "util.h"
 #include "version.h"
 #include "osdefs.h"
+#include "engine-host.h"
 
 #include <signal.h>
 
-extern int schismplay_verbose; /* schismplay-stubs.c */
+static int verbose = 0;
 
 static const char *opt_output = NULL;
 static const char *opt_driver = NULL;
@@ -102,8 +104,25 @@ static void shutdown_all(void)
 	os_sysexit();
 }
 
+/* ------------------------------------------------------------------------ */
+/* engine callbacks */
+
+/* Log lines and status messages go to stderr with -v. log_perror() prints
+ * errors itself, so those show up either way. */
+static void host_log(SCHISM_UNUSED int color, SCHISM_UNUSED int flags, const char *text)
+{
+	if (verbose)
+		fprintf(stderr, "%s\n", text);
+}
+
+static void host_status_text(const char *text)
+{
+	if (verbose)
+		fprintf(stderr, "status: %s\n", text);
+}
+
 /* audio_init() calls this when no driver works at all */
-void schism_exit(int x)
+static void host_exit(int x)
 {
 	if (opening_audio) {
 		fprintf(stderr, "schismplay: couldn't open an audio device\n");
@@ -114,11 +133,18 @@ void schism_exit(int x)
 	exit(x);
 }
 
-void schism_assert_fail(const char *msg, const char *exp, const char *file, int line)
+static void host_assert_fail(const char *msg, const char *exp, const char *file, int line)
 {
 	fprintf(stderr, "schismplay: assertion failed at %s:%d: %s (%s)\n", file, line, msg, exp);
 	abort();
 }
+
+static const struct engine_host host = {
+	.log = host_log,
+	.status_text = host_status_text,
+	.exit = host_exit,
+	.assert_fail = host_assert_fail,
+};
 
 static void on_signal(SCHISM_UNUSED int sig)
 {
@@ -247,7 +273,7 @@ static const char *parse_options(int argc, char **argv)
 			opt_quiet = 1;
 			break;
 		case 'v':
-			schismplay_verbose = 1;
+			verbose = 1;
 			break;
 		case O_VERSION:
 			puts(schism_banner(0));
@@ -375,6 +401,8 @@ int main(int argc, char **argv)
 {
 	const char *song;
 	int r;
+
+	engine_host_register(&host);
 
 	os_sysinit(&argc, &argv);
 

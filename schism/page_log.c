@@ -35,6 +35,7 @@
 #include "mem.h"
 #include "str.h"
 #include "config.h"
+#include "engine-host.h"
 
 #define MAX_LINE_LENGTH 74
 
@@ -195,31 +196,6 @@ void log_append(int color, int must_free, const char *text)
 	log_append2(0, color, must_free, text);
 }
 
-void log_nl(void)
-{
-	log_append(DEFAULT_FG, 0, "");
-}
-
-void log_appendf(int color, const char *format, ...)
-{
-	char *ptr;
-	va_list ap;
-
-	va_start(ap, format);
-	if (vasprintf(&ptr, format, ap) == -1) {
-		perror("asprintf");
-		exit(255);
-	}
-	va_end(ap);
-
-	if (!ptr) {
-		perror("asprintf");
-		exit(255);
-	}
-
-	log_append3(CHARSET_UTF8, color, 1, ptr);
-}
-
 static inline SCHISM_ALWAYS_INLINE
 void log_underline_impl(int chars)
 {
@@ -232,7 +208,7 @@ void log_underline_impl(int chars)
 	log_append(2, 1, str_dup(buf));
 }
 
-void log_underline(void)
+void log_host_underline(void)
 {
 	/* In headless mode log lines go straight to stdout and nothing is
 	 * stored, so there's no previous line to measure. */
@@ -242,18 +218,11 @@ void log_underline(void)
 	log_underline_impl(lines[last_line].underline_len);
 }
 
-void log_perror(const char *prefix)
-{
-	char *e = strerror(errno);
-	perror(prefix);
-	log_appendf(4, "%s: %s", prefix, e);
-}
-
 /* ------------------------------------------------------------------------ */
 /* timestamps */
 
 /* takes in UTF-8 data always */
-void log_append_timestamp(int color, const char *text)
+static void log_append_timestamp_impl(int color, const char *text)
 {
 	char datestr[27], timestr[27];
 	time_t thetime;
@@ -329,24 +298,11 @@ void log_append_timestamp(int color, const char *text)
 	lines[last_line].underline_len = s;
 }
 
-void log_appendf_timestamp(int color, const char *format, ...)
+/* engine_hooks.log; the engine frees text when this returns */
+void log_host_append(int color, int flags, const char *text)
 {
-	char *ptr;
-	va_list ap;
-
-	va_start(ap, format);
-	if (vasprintf(&ptr, format, ap) == -1) {
-		perror("asprintf");
-		exit(255);
-	}
-	va_end(ap);
-
-	if (!ptr) {
-		perror("asprintf");
-		exit(255);
-	}
-
-	log_append_timestamp(color, ptr);
-
-	free(ptr);
+	if (flags & ENGINE_LOG_TIMESTAMP)
+		log_append_timestamp_impl(color, text);
+	else
+		log_append3(CHARSET_UTF8, color, 1, str_dup(text));
 }

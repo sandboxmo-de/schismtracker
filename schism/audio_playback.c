@@ -35,6 +35,7 @@
 #include "atomic.h"
 
 #include "disko.h"
+#include "engine-host.h"
 #include "backend/audio.h"
 #include "events.h"
 
@@ -1639,7 +1640,7 @@ agh:
 	}
 
 	// hmmmmm ? :)
-	schism_exit(0);
+	engine_hooks.exit(0);
 	return 0;
 }
 

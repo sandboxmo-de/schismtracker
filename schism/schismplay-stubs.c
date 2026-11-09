@@ -22,8 +22,7 @@
  * Only schismplay links this file. The list and the reasons for each entry
  * are in docs/engine-ui-coupling.md.
  *
- * Nothing here draws or reads input. Log lines and status messages go to
- * stderr when schismplay_verbose is set, and are dropped otherwise. */
+ * Nothing here draws or reads input. */
 
 #include "headers.h"
 
@@ -34,14 +33,8 @@
 #include "events.h"
 #include "fakemem.h"
 #include "config.h"
-#include "log.h"
 #include "song.h"
 #include "osdefs.h"
-
-#include <errno.h>
-#include <stdarg.h>
-
-int schismplay_verbose = 0;
 
 /* ------------------------------------------------------------------------ */
 /* Global tracker state (page.c, page_patedit.c, page_instruments.c, config.c)
@@ -140,61 +133,6 @@ void draw_box(SCHISM_UNUSED int xs, SCHISM_UNUSED int ys, SCHISM_UNUSED int xe,
 	SCHISM_UNUSED int ye, SCHISM_UNUSED uint32_t flags) {}
 void draw_vu_meter(SCHISM_UNUSED int x, SCHISM_UNUSED int y, SCHISM_UNUSED int val,
 	SCHISM_UNUSED int width, SCHISM_UNUSED int color, SCHISM_UNUSED int peak_color) {}
-
-/* ------------------------------------------------------------------------ */
-/* Log and status line (page_log.c, status.c) */
-
-static void vlog(const char *prefix, const char *format, va_list ap)
-{
-	if (!schismplay_verbose)
-		return;
-
-	fputs(prefix, stderr);
-	vfprintf(stderr, format, ap);
-	fputc('\n', stderr);
-}
-
-void log_appendf(SCHISM_UNUSED int color, const char *format, ...)
-{
-	va_list ap;
-
-	va_start(ap, format);
-	vlog("", format, ap);
-	va_end(ap);
-}
-
-void log_appendf_timestamp(SCHISM_UNUSED int color, const char *format, ...)
-{
-	va_list ap;
-
-	va_start(ap, format);
-	vlog("", format, ap);
-	va_end(ap);
-}
-
-void log_append_timestamp(SCHISM_UNUSED int color, const char *text)
-{
-	if (schismplay_verbose)
-		fprintf(stderr, "%s\n", text);
-}
-
-void log_nl(void) {}
-void log_underline(void) {}
-
-/* errors are worth showing even when quiet */
-void log_perror(const char *prefix)
-{
-	fprintf(stderr, "%s: %s\n", prefix, strerror(errno));
-}
-
-void status_text_flash(const char *format, ...)
-{
-	va_list ap;
-
-	va_start(ap, format);
-	vlog("status: ", format, ap);
-	va_end(ap);
-}
 
 /* ------------------------------------------------------------------------ */
 /* macOS keyboard quirk (ibook-support.c), referenced from osdefs.m.

@@ -319,6 +319,10 @@ SCHISM_NORETURN void schism_exit(int status);
 
 void schism_crash(void (*log_cb)(FILE *, void *), void *userdata);
 
+#ifndef NDEBUG
+SCHISM_NORETURN void tracker_assert_fail(const char *msg, const char *exp, const char *file, int line);
+#endif
+
 /* --------------------------------------------------------------------- */
 /* page_waterfall.c */
 

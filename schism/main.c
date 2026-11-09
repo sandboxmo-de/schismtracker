@@ -1020,7 +1020,7 @@ static void schism_assert_fail_log_cb(FILE *f, void *userdata)
  * also tries (but seemingly fails) to include the current process name.
  * We don't care about that, so we just give the file, line, and the
  * expression that caused the assertion. */
-void schism_assert_fail(const char *msg, const char *exp, const char *file, int line)
+void tracker_assert_fail(const char *msg, const char *exp, const char *file, int line)
 {
 	struct assert_log_cb_data_ xx;
 
@@ -1226,6 +1226,8 @@ static void schism_sighandler(SCHISM_UNUSED int x)
 /* the real main function is called per-platform */
 int schism_main(int argc, char **argv)
 {
+	tracker_host_register();
+
 	/* defaults */
 	BITARRAY_ZERO(startup_flags);
 	BITARRAY_SET(startup_flags, SF_HOOKS);
