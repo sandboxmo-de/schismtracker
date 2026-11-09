@@ -26,6 +26,7 @@
 #include "config-parser.h"
 #include "config.h"
 #include "disko.h"
+#include "sfx-bus.h"
 #include "dmoz.h"
 #include "engine-host.h"
 #include "it.h"
@@ -566,6 +567,7 @@ static void _export_setup(song_t *dwsong, int *bps)
 	GM_Reset(dwsong, 1);
 
 	dwsong->multi_write = NULL; /* should be null already, but to be sure... */
+	dwsong->sfx_bus = NULL; /* only song exports get the sound effects */
 
 	csf_set_current_order(dwsong, 0); /* rather indirect way of resetting playback variables */
 	csf_set_wave_config(dwsong, disko_output_rate, disko_output_bits, (dwsong->flags & SONG_NOSTEREO) ? 1 : disko_output_channels);
@@ -976,18 +978,37 @@ int disko_sync(void)
 {
 	uint8_t buf[DW_BUFFER_SIZE];
 	size_t frames;
-	int n;
+	int n, sfx_busy = 0, limit_hit = 0;
 
 	if (!export_format) {
 		log_appendf(4, "disko_sync: unexplained bacon");
 		return DW_SYNC_ERROR; /* no writer running (why are we here?) */
 	}
 
-	frames = csf_read(&export_dwsong, buf, sizeof(buf));
+	/* Sound effects only go into single-file exports. The host can start
+	 * and stop them while this runs, hence the lock. */
+	export_dwsong.sfx_bus = export_dwsong.multi_write ? NULL : sfx_bus_get();
+
+	if (export_dwsong.sfx_bus) {
+		song_lock_audio();
+
+		/* SONG_ENDREACHED is only still set here if the song finished
+		 * earlier and effects were still playing. */
+		frames = (export_dwsong.flags & SONG_ENDREACHED) ? 0 : csf_read(&export_dwsong, buf, sizeof(buf));
+		if (frames < sizeof(buf) / export_bps && sfx_bus_busy(export_dwsong.sfx_bus))
+			frames += csf_read_sfx(&export_dwsong, buf + frames * export_bps,
+				sizeof(buf) - frames * export_bps);
+		sfx_busy = sfx_bus_busy(export_dwsong.sfx_bus);
+
+		song_unlock_audio();
+	} else {
+		frames = csf_read(&export_dwsong, buf, sizeof(buf));
+	}
 
 	if (export_frame_limit && export_ds[0]->length + frames >= export_frame_limit) {
 		frames = export_frame_limit - export_ds[0]->length;
 		export_dwsong.flags |= SONG_ENDREACHED;
+		limit_hit = 1;
 	}
 
 	if (!export_dwsong.multi_write)
@@ -1004,7 +1025,7 @@ int disko_sync(void)
 	export_ds[0]->length += frames;
 	engine_hooks.diskwrite_progress(export_ds[0]->length, est_len, export_dwsong.mix_frequency);
 
-	if (export_dwsong.flags & SONG_ENDREACHED) {
+	if ((export_dwsong.flags & SONG_ENDREACHED) && (limit_hit || !sfx_busy)) {
 		disko_finish();
 		return DW_SYNC_DONE;
 	} else {

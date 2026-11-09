@@ -871,6 +871,10 @@ typedef struct song {
 
 	// multi-write stuff -- NULL if no multi-write is in progress, else array of one struct per channel
 	struct multi_write *multi_write;
+
+	// sound effects bus to mix in after the song (see sfx-bus.h); whoever
+	// calls csf_read sets this, NULL for none
+	struct sfx_bus *sfx_bus;
 } song_t;
 
 song_note_t *csf_allocate_pattern(uint32_t rows);
@@ -924,6 +928,7 @@ void csf_init_midi(song_t *csf, song_midi_out_raw_spec_t midi_out_raw);
 
 // sndmix
 uint32_t csf_read(song_t *csf, void *v_buffer, uint32_t bufsize);
+uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize);
 int32_t csf_process_tick(song_t *csf);
 int32_t csf_read_note(song_t *csf);
 

@@ -31,6 +31,7 @@
 #include "it.h"
 
 #include "util.h" /* for clamp */
+#include "sfx-bus.h"
 
 // Volume ramp length, in microseconds.
 // Stole these constants from OpenMPT defaults
@@ -725,6 +726,65 @@ int32_t csf_init_player(song_t *csf, int reset)
 	return 1;
 }
 
+static void set_vu(song_t *csf, int32_t vu_min[2], int32_t vu_max[2])
+{
+	// VU-Meter
+	//Reduce range to 8bits signed (-128 to 127).
+	vu_min[0] = rshift_signed(vu_min[0], 19);
+	vu_min[1] = rshift_signed(vu_min[1], 19);
+	vu_max[0] = rshift_signed(vu_max[0], 19);
+	vu_max[1] = rshift_signed(vu_max[1], 19);
+
+	if (vu_max[0] < vu_min[0])
+		vu_max[0] = vu_min[0];
+
+	if (vu_max[1] < vu_min[1])
+		vu_max[1] = vu_min[1];
+
+	csf->vu_left = (uint32_t)(vu_max[0] - vu_min[0]);
+	csf->vu_right = (uint32_t)(vu_max[1] - vu_min[1]);
+}
+
+static convert_t get_convert(song_t *csf, uint32_t *sample_size)
+{
+	*sample_size = csf->mix_channels;
+
+	switch (csf->mix_bits_per_sample) {
+	case 16: *sample_size *= 2; return clip_32_to_16;
+	case 24: *sample_size *= 3; return clip_32_to_24;
+	case 32: *sample_size *= 4; return clip_32_to_32;
+	default: return clip_32_to_8;
+	}
+}
+
+/* Fills the buffer with csf->sfx_bus's sound effects over silence, in the
+ * same output format as csf_read. This is for when the song isn't playing,
+ * or has ended partway through a buffer. Returns the number of frames. */
+uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize)
+{
+	uint8_t *buffer = (uint8_t *)v_buffer;
+	int32_t vu_min[2] = {0x7FFFFFFF, 0x7FFFFFFF};
+	int32_t vu_max[2] = {-0x7FFFFFFF, -0x7FFFFFFF};
+	uint32_t sample_size, max, bufleft, count;
+	convert_t convert_func = get_convert(csf, &sample_size);
+	int channels = (csf->mix_channels >= 2) ? 2 : 1;
+
+	max = bufsize / sample_size;
+	if (!max || !buffer)
+		return 0;
+
+	for (bufleft = max; bufleft > 0; bufleft -= count) {
+		count = MIN(bufleft, MIXBUFFERSIZE);
+		memset(csf->mix_buffer, 0, count * channels * sizeof(int32_t));
+		sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, channels, csf->mix_frequency);
+		buffer += convert_func(buffer, csf->mix_buffer, count * channels, vu_min, vu_max);
+	}
+
+	set_vu(csf, vu_min, vu_max);
+
+	return max;
+}
+
 uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 {
 	uint8_t * buffer = (uint8_t *)v_buffer;
@@ -814,6 +874,12 @@ uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 				normalize_mono(csf, csf->mix_buffer, count);
 		}
 
+		// Sound effects go in after the song's own processing, so the
+		// song's EQ and AGC don't touch them. Per-channel exports leave
+		// them out.
+		if (csf->sfx_bus && !csf->multi_write)
+			sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, (csf->mix_channels >= 2) ? 2 : 1, csf->mix_frequency);
+
 		mix_stat++;
 
 		if (csf->multi_write) {
@@ -844,21 +910,7 @@ uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 	if (bufleft)
 		memset(buffer, (csf->mix_bits_per_sample == 8) ? 0x80 : 0, bufleft * sample_size);
 
-	// VU-Meter
-	//Reduce range to 8bits signed (-128 to 127).
-	vu_min[0] = rshift_signed(vu_min[0], 19);
-	vu_min[1] = rshift_signed(vu_min[1], 19);
-	vu_max[0] = rshift_signed(vu_max[0], 19);
-	vu_max[1] = rshift_signed(vu_max[1], 19);
-
-	if (vu_max[0] < vu_min[0])
-		vu_max[0] = vu_min[0];
-
-	if (vu_max[1] < vu_min[1])
-		vu_max[1] = vu_min[1];
-
-	csf->vu_left = (uint32_t)(vu_max[0] - vu_min[0]);
-	csf->vu_right = (uint32_t)(vu_max[1] - vu_min[1]);
+	set_vu(csf, vu_min, vu_max);
 
 	if (mix_stat) {
 		csf->mix_stat += mix_stat - 1;

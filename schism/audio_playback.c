@@ -44,6 +44,7 @@
 #include "player/sndfile.h"
 #include "player/snd_fm.h"
 #include "player/snd_gm.h"
+#include "sfx-bus.h"
 
 // Default audio configuration
 
@@ -237,19 +238,33 @@ static void audio_mix(uint8_t *stream, uint32_t len)
 		return;
 	}
 
+	/* While the disk writer runs, it gets the sound effects instead. */
+	current_song->sfx_bus = engine_flag_test(DISKWRITER_ACTIVE) ? NULL : sfx_bus_get();
+
 	if (current_song->flags & SONG_ENDREACHED) {
 		n = audio_buffer_samples;
-		/* Fill it with silence */
-		memset(audio_buffer, (audio_output_bits == 8) ? 0x80 : 0, audio_buffer_samples * audio_sample_size);
+		if (sfx_bus_busy(current_song->sfx_bus)) {
+			csf_read_sfx(current_song, audio_buffer, audio_buffer_samples * audio_sample_size);
+		} else {
+			/* Fill it with silence */
+			memset(audio_buffer, (audio_output_bits == 8) ? 0x80 : 0, audio_buffer_samples * audio_sample_size);
+		}
 	} else {
 		n = csf_read(current_song, audio_buffer, audio_buffer_samples * audio_sample_size);
-		if (!n) {
+		samples_played += n;
+		if (n < audio_buffer_samples && sfx_bus_busy(current_song->sfx_bus)) {
+			/* the song ended partway through; keep the effects going */
+			csf_read_sfx(current_song, (uint8_t *)audio_buffer + n * audio_sample_size,
+				(audio_buffer_samples - n) * audio_sample_size);
+			if (!n)
+				song_stop_unlocked(0);
+			n = audio_buffer_samples;
+		} else if (!n) {
 			engine_hooks.vis_feed(NULL, 0, audio_output_bits, audio_output_channels);
 
 			song_stop_unlocked(0);
 			goto POST_EVENT;
 		}
-		samples_played += n;
 	}
 
 	/* hax: convert internal buffer output */

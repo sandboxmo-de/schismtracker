@@ -983,6 +983,34 @@ int song_load_sample(int n, const char *file)
 	return 1;
 }
 
+/* Load a sample file into smp without touching the song. The raw loader is
+ * left out, since it accepts any file at all. smp->data belongs to the
+ * caller afterwards (free it with csf_free_sample). Returns 1 on success. */
+int song_load_sample_file(const char *file, song_sample_t *smp)
+{
+	slurp_t s;
+	fmt_load_sample_func *load;
+
+	if (slurp(&s, file, NULL, 0))
+		return 0;
+
+	memset(smp, 0, sizeof(*smp));
+	smp->volume = 64 * 4;
+	smp->global_volume = 64;
+
+	for (load = load_sample_funcs; *load; load++) {
+		if (*load == fmt_raw_load_sample)
+			continue;
+		slurp_rewind(&s);
+		if ((*load)(&s, smp))
+			break;
+	}
+
+	unslurp(&s);
+
+	return *load != NULL;
+}
+
 // ------------------------------------------------------------------------
 
 int song_save_instrument(const char *filename, const char *type, song_instrument_t *ins, int num)

@@ -10,7 +10,8 @@ docs = \
 	docs/building_on_osx.md		\
 	docs/building_on_windows.md	\
 	docs/configuration.md		\
-	docs/engine.md
+	docs/engine.md			\
+	docs/sfx-bus.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\
@@ -122,6 +123,7 @@ noinst_HEADERS = \
 	include/disko.h			\
 	include/engine-alloc.h		\
 	include/engine-host.h		\
+	include/sfx-bus.h		\
 	include/dialog.h        \
 	include/dmoz.h			\
 	include/events.h		\
@@ -675,6 +677,7 @@ libschismengine_a_SOURCES = \
 	player/fmpatches.c		\
 	player/mixer.c			\
 	player/mixutil.c		\
+	player/sfx-bus.c		\
 	player/snd_fm.c			\
 	player/snd_gm.c			\
 	player/sndmix.c			\
@@ -851,6 +854,7 @@ schismtrackertest_SOURCES = \
 	test/cases/mem-arena.c		\
 	test/cases/mplink.c         \
 	test/cases/sanity.c			\
+	test/cases/sfx-bus.c		\
 	test/cases/slurp.c          \
 	test/cases/str.c			\
 	test/cases/util.c			\

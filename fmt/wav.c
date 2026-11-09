@@ -133,10 +133,17 @@ static int wav_load(song_sample_t *smp, slurp_t *fp, int load_sample)
 			return 0;
 	}
 
-	{
+	/* Some programs write odd-sized chunks without the pad byte RIFF calls
+	 * for. If walking the chunks the proper way finds no data, try again
+	 * without the padding. */
+	for (int pass = 0; pass < 2 && !data_chunk.id; pass++) {
+		const uint32_t peek_flags = IFF_CHUNK_SIZE_LE | (pass ? 0 : IFF_CHUNK_ALIGNED);
 		iff_chunk_t c;
 
-		while (riff_chunk_peek(&c, fp)) {
+		fmt_chunk = data_chunk = smpl_chunk = xtra_chunk = LISTINFO_chunk = (iff_chunk_t){0};
+		slurp_seek(fp, 12, SEEK_SET);
+
+		while (iff_chunk_peek_ex(&c, fp, peek_flags)) {
 			switch (c.id) {
 			case IFFID_fmt:
 				if (fmt_chunk.id)
