@@ -874,7 +874,11 @@ void csf_midi_send(song_t *csf, const unsigned char *data, uint32_t len, uint32_
 		}
 	} else if (!fake && csf->midi_out_raw) {
 		/* This was all wrong. */
-		double pos = csf_ticks_to_samples(csf_get_current_tick(csf), csf->mix_frequency, csf->current_tempo);
+		/* With no tempo set yet the tick length divides by zero, and
+		 * 0 ticks * inf is NaN, so report the start of the tick. */
+		double pos = (csf->current_tempo > 0)
+			? csf_ticks_to_samples(csf_get_current_tick(csf), csf->mix_frequency, csf->current_tempo)
+			: 0;
 
 		csf->midi_out_raw(csf, data, len, pos);
 	}
