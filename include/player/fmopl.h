@@ -25,6 +25,8 @@ typedef unsigned char (*OPL_PORTHANDLER_R)(void *param);
 
 /* OPL2 */
 void *ym3812_init(uint32_t clock, uint32_t rate);
+/* bytes ym3812_init() allocates */
+size_t ym3812_state_size(void);
 void ym3812_shutdown(void *chip);
 void ym3812_reset_chip(void *chip);
 int  ym3812_write(void *chip, int a, int v);
@@ -38,6 +40,8 @@ void ym3812_set_update_handler(void *chip, OPL_UPDATEHANDLER UpdateHandler, void
 
 /* OPL3 */
 void *ymf262_init(uint32_t clock, uint32_t rate);
+/* bytes ymf262_init() allocates */
+size_t ymf262_state_size(void);
 void ymf262_shutdown(void *chip);
 void ymf262_reset_chip(void *chip);
 int  ymf262_write(void *chip, int a, int v);

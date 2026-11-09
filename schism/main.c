@@ -1283,7 +1283,10 @@ int schism_main(int argc, char **argv)
 	SCHISM_RUNTIME_ASSERT(timer_init(), "Failed to initialize a timers backend!");
 	SCHISM_RUNTIME_ASSERT(localtime_r_init(), "Failed to initialize localtime_r replacement!");
 
-	song_initialise();
+	if (song_initialise() < 0) {
+		fprintf(stderr, "Error: Not enough memory to start the engine\n");
+		exit(1);
+	}
 	cfg_load();
 
 	if (!clippy_init()) {

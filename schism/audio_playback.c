@@ -1790,10 +1790,11 @@ void song_init_modplug(void)
 	song_unlock_audio();
 }
 
-void song_initialise(void)
+int song_initialise(void)
 {
 	current_song = csf_allocate();
-	SCHISM_RUNTIME_ASSERT(current_song, "Failed to allocate the song.");
+	if (!current_song)
+		return -1;
 
 	//song_stop(); <- song_new does this
 	song_set_linear_pitch_slides(1);
@@ -1801,6 +1802,12 @@ void song_initialise(void)
 
 	// hmm.
 	current_song->mix_flags |= SNDMIX_MUTECHNMODE;
+	return 0;
+}
+
+size_t song_engine_mem_minimum(void)
+{
+	return sizeof(song_t) + Fmdrv_ChipSize() + 2 * SONG_ENGINE_BLOCK_OVERHEAD;
 }
 
 void audio_worker(void)

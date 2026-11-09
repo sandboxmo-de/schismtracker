@@ -90,6 +90,8 @@ static volatile sig_atomic_t interrupted = 0;
 
 /* ------------------------------------------------------------------------ */
 
+static void shutdown_base(void);
+
 static void shutdown_all(void)
 {
 	song_lock_audio();
@@ -124,6 +126,13 @@ static void shutdown_all(void)
 	/* nothing plays any more, so the song can go */
 	csf_free(current_song);
 	current_song = NULL;
+
+	shutdown_base();
+}
+
+/* what main() sets up before song_initialise() */
+static void shutdown_base(void)
+{
 	engine_free((void *)opt_driver, ENGINE_MEM_ENGINE);
 	engine_free((void *)opt_device, ENGINE_MEM_ENGINE);
 	opt_driver = opt_device = NULL;
@@ -624,6 +633,16 @@ static void setup_arena(void)
 		exit(2);
 	}
 
+	/* Nothing would work, so say so here instead of failing somewhere in
+	 * startup. */
+	if (arena.r[ENGINE_MEM_ENGINE].size < song_engine_mem_minimum()) {
+		fprintf(stderr, "schismplay: the ENGINE region of a %s arena is %" PRIuSZ
+			" bytes; the engine needs at least %" PRIuSZ "\n",
+			opt_arena, arena.r[ENGINE_MEM_ENGINE].size, song_engine_mem_minimum());
+		free(arena_block);
+		exit(1);
+	}
+
 	mem_arena_get_allocator(&arena, &a);
 	engine_allocator_register(&a);
 	return;
@@ -680,6 +699,22 @@ static void print_mem_stats(const char *stage)
 	if (opt_arena)
 		fprintf(stderr, "mem-stats %s unfreed song=%" PRIuSZ " scratch=%" PRIuSZ "\n",
 			stage, arena.song_leaks, arena.scratch_leaks);
+}
+
+/* Most ENGINE allocations after startup can fail without stopping
+ * anything (the OPL chip, for one, just stays silent), so an arena whose
+ * ENGINE region turned out too small is only caught here. Returns 1 if
+ * that happened. */
+static int engine_region_short(void)
+{
+	const struct mem_arena_region *r = &arena.r[ENGINE_MEM_ENGINE];
+
+	if (!opt_arena || !r->fails)
+		return 0;
+
+	fprintf(stderr, "schismplay: the ENGINE region (%" PRIuSZ " bytes) is too small;"
+		" %" PRIuSZ " allocations in it failed\n", r->size, r->fails);
+	return 1;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -995,7 +1030,13 @@ int main(int argc, char **argv)
 	SCHISM_RUNTIME_ASSERT(timer_init(), "Failed to initialize a timers backend!");
 	SCHISM_RUNTIME_ASSERT(localtime_r_init(), "Failed to initialize localtime_r replacement!");
 
-	song_initialise();
+	if (song_initialise() < 0) {
+		fprintf(stderr, "schismplay: not enough memory to start the engine (it needs %" PRIuSZ
+			" bytes of ENGINE memory)\n", song_engine_mem_minimum());
+		shutdown_base();
+		release_memory();
+		return 1;
+	}
 	load_settings();
 
 	if (!opt_output) {
@@ -1036,6 +1077,7 @@ int main(int argc, char **argv)
 
 	if (sfx_bus_init(opt_sfx_voices) < 0) {
 		fprintf(stderr, "schismplay: couldn't set up the effects bus\n");
+		engine_region_short();
 		shutdown_all();
 		release_memory();
 		return 1;
@@ -1044,6 +1086,7 @@ int main(int argc, char **argv)
 
 	if (song && !song_load_unchecked(song)) {
 		fprintf(stderr, "schismplay: couldn't load %s\n", song);
+		engine_region_short();
 		print_mem_stats("load");
 		sfx_bus_quit();
 		shutdown_all();
@@ -1067,6 +1110,8 @@ int main(int argc, char **argv)
 		song_new(0);
 
 	r = opt_output ? render(song) : play();
+	if (engine_region_short())
+		r = 1;
 	print_mem_stats(opt_output ? "render" : "play");
 
 	sfx_bus_quit();

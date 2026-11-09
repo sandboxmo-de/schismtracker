@@ -234,8 +234,22 @@ int song_is_instrument_mode(void);
 void song_set_instrument_mode(int value);
 
 
-/* this is called way early */
-void song_initialise(void);
+/* Allocate the song structure and start with an empty song. Call it once,
+ * early, after the allocator is registered. Returns 0, or -1 if the song
+ * structure couldn't be allocated; then nothing else in the engine is
+ * usable, and the host should report it and give up. */
+int song_initialise(void);
+
+/* ENGINE bytes the engine itself holds once it's playing: the song
+ * structure and the OPL chip, plus SONG_ENGINE_BLOCK_OVERHEAD for each of
+ * them. A host sizing an ENGINE region adds its own buffers on top: live
+ * audio output, the effects bus, and anything it asks the engine to
+ * allocate. docs/engine-memory.md has measured numbers. */
+size_t song_engine_mem_minimum(void);
+
+/* what song_engine_mem_minimum() allows per block for the allocator's own
+ * bookkeeping; the reference arena uses less than this */
+#define SONG_ENGINE_BLOCK_OVERHEAD 64
 
 /* called later at startup, and also when the relevant settings are changed */
 void song_init_modplug(void);

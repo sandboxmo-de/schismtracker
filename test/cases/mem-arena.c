@@ -21,6 +21,7 @@
 #include "test-assertions.h"
 
 #include "mem-arena.h"
+#include "song.h"
 
 /* the arena's memory; a union keeps it aligned */
 static union {
@@ -65,6 +66,23 @@ testresult_t test_mem_arena_split(void)
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 65536, 16, 16) < 0);
 	/* nothing left for the engine */
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 32768, 32768, 0) < 0);
+
+	RETURN_PASS;
+}
+
+/* An ENGINE region that can't hold the song structure makes
+ * song_initialise() fail instead of aborting. */
+testresult_t test_mem_arena_engine_too_small(void)
+{
+	setup(0, 0, 0);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].size < song_engine_mem_minimum());
+	engine_allocator_register(&alloc);
+
+	ASSERT(song_initialise() < 0);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].fails == 1);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].live == 0);
+
+	engine_allocator_register(NULL);
 
 	RETURN_PASS;
 }

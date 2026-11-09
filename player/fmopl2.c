@@ -1862,6 +1862,12 @@ static int OPLTimerOver(FM_OPL *OPL,int c)
 
 #define MAX_OPL_CHIPS 2
 
+size_t ym3812_state_size(void)
+{
+	/* OPLCreate only adds the ADPCM unit for the Y8950 */
+	return sizeof(FM_OPL);
+}
+
 void * ym3812_init(uint32_t clock, uint32_t rate)
 {
     /* emulator create */

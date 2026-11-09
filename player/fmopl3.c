@@ -2263,6 +2263,11 @@ void * ymf262_init(uint32_t clock, uint32_t rate)
 	return OPL3Create(clock,rate,OPL3_TYPE_YMF262);
 }
 
+size_t ymf262_state_size(void)
+{
+	return sizeof(OPL3);
+}
+
 void ymf262_shutdown(void *chip)
 {
 	OPL3Destroy((OPL3 *)chip);
