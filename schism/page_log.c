@@ -226,16 +226,19 @@ void log_underline_impl(int chars)
 	char buf[MAX_LINE_LENGTH + 1];
 
 	chars = CLAMP(chars, 0, (int) sizeof(buf) - 1);
-	buf[chars--] = '\0';
-	do {
-		buf[chars] = 0x81;
-	} while (chars--);
+	memset(buf, 0x81, chars);
+	buf[chars] = '\0';
 
 	log_append(2, 1, str_dup(buf));
 }
 
 void log_underline(void)
 {
+	/* In headless mode log lines go straight to stdout and nothing is
+	 * stored, so there's no previous line to measure. */
+	if (last_line < 0)
+		return;
+
 	log_underline_impl(lines[last_line].underline_len);
 }
 
