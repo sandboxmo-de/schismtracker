@@ -28,7 +28,6 @@
 #include "util.h"
 #include "midi.h"
 #include "song.h"
-#include "page.h"
 #include "it.h"
 #include "config-parser.h"
 #include "config.h"

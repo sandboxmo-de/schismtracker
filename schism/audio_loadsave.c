@@ -28,7 +28,6 @@
 #include "it.h"
 #include "song.h"
 #include "slurp.h"
-#include "page.h"
 #include "version.h"
 #include "osdefs.h"
 #include "mem.h"

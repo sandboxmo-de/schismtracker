@@ -25,7 +25,6 @@
 
 #include "it.h"
 #include "config.h"
-#include "page.h"
 #include "song.h"
 #include "slurp.h"
 #include "config-parser.h"
