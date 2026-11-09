@@ -235,6 +235,11 @@ AC_ARG_ENABLE(tests,
 	BUILD_TESTS=$enableval,
 	BUILD_TESTS=no)
 
+AC_ARG_ENABLE(schismplay,
+	AS_HELP_STRING([--enable-schismplay], [Also build 'schismplay', a command-line player and renderer with no UI @<:default=no@:>@]),
+	BUILD_SCHISMPLAY=$enableval,
+	BUILD_SCHISMPLAY=no)
+
 AC_ARG_ENABLE(threads,
 	AS_HELP_STRING([--enable-threads], [Use multithreading]),
 	THREADS=$enableval,
@@ -1389,6 +1394,7 @@ fi
 dnl --------------------------------------------------------------------------
 
 AM_CONDITIONAL([BUILD_TESTS], [test "x$BUILD_TESTS" = "xyes"])
+AM_CONDITIONAL([BUILD_SCHISMPLAY], [test "x$BUILD_SCHISMPLAY" = "xyes"])
 
 dnl --------------------------------------------------------------------------
 

@@ -9,7 +9,8 @@ docs = \
 	docs/building_on_linux.md	\
 	docs/building_on_osx.md		\
 	docs/building_on_windows.md	\
-	docs/configuration.md
+	docs/configuration.md		\
+	docs/engine-ui-coupling.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\
@@ -84,7 +85,8 @@ scripts = \
 	scripts/itf2half.py		\
 	scripts/itmidicfg.py		\
 	scripts/lutgen.c		\
-	scripts/palette.py
+	scripts/palette.py		\
+	scripts/render-compare.py
 
 EXTRA_DIST = \
 	README.md include/auto/README	\
@@ -829,3 +831,214 @@ schismtrackertest_DEPENDENCIES = $(schismtracker_DEPENDENCIES) schismtracker$(EX
 schismtrackertest_LDADD = $(filter-out $(mains),$(schismtracker_OBJECTS)) $(schismtracker_LDADD)
 schismtrackertest_LDFLAGS = $(schismtracker_LDFLAGS)
 
+# ---------------------------------------------------------------------------
+# schismplay: the player, the loaders and the audio backends behind a small
+# command-line front end, with none of the UI (pages, widgets, video, fonts,
+# keyboard handling, dialogs, help text). schism/schismplay-stubs.c fills in
+# the few UI symbols the engine still refers to; docs/engine-ui-coupling.md
+# lists them.
+
+if BUILD_SCHISMPLAY
+bin_PROGRAMS += schismplay
+endif
+
+if USE_SDL3
+sys/sdl3/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/schismplay-dmoz.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/schismplay-init.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+play_sdl3 = sys/sdl3/audio.c sys/sdl3/dmoz.c sys/sdl3/init.c sys/sdl3/timer.c
+endif
+
+if USE_SDL2
+sys/sdl2/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/schismplay-dmoz.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/schismplay-init.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+play_sdl2 = sys/sdl2/audio.c sys/sdl2/dmoz.c sys/sdl2/init.c sys/sdl2/timer.c
+endif
+
+if USE_SDL12
+sys/sdl12/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/schismplay-init.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+play_sdl12 = sys/sdl12/audio.c sys/sdl12/init.c sys/sdl12/timer.c
+endif
+
+if USE_MACOSX
+play_macosx = \
+	sys/macosx/midi-macosx.c	\
+	sys/macosx/osdefs.m	\
+	sys/macosx/dmoz.m	\
+	sys/macosx/audio.c	\
+	fmt/macosxca.c
+endif
+
+if USE_WIN32
+sys/win32/schismplay-audio-dsound.$(OBJEXT): CFLAGS += $(DSOUND_CFLAGS)
+play_win32 = \
+	sys/win32/filetype.c	\
+	sys/win32/midi-win32mm.c	\
+	sys/win32/osdefs.c	\
+	sys/win32/slurp-win32.c	\
+	sys/win32/dmoz.c	\
+	sys/win32/timer.c	\
+	sys/win32/audio-waveout.c	\
+	sys/win32/audio-dsound.c
+if USE_THREADS
+play_win32 += sys/win32/mt.c
+endif
+if USE_MEDIAFOUNDATION
+fmt/schismplay-win32mf.$(OBJEXT): CFLAGS += $(MEDIAFOUNDATION_CFLAGS)
+endif
+endif
+
+if USE_MACOS
+play_macos = \
+	sys/macos/audio-sndmgr.c	\
+	sys/macos/osdefs.c	\
+	sys/macos/dirent/macos-dirent.c	\
+	sys/macos/dmoz.c	\
+	sys/macos/midi-midimgr.c	\
+	sys/asio/audio-asio.c	\
+	sys/asio/audio-asio-mac.c
+endif
+
+if USE_GSTREAMER
+fmt/schismplay-gstreamer.$(OBJEXT): CFLAGS += $(GSTREAMER_CFLAGS)
+endif
+
+if SCHISM_ALTIVEC
+schism/schismplay-util-altivec.$(OBJEXT): CFLAGS += -maltivec
+endif
+
+schismplay_SOURCES = \
+	fmt/669.c	\
+	fmt/aiff.c	\
+	fmt/ams.c	\
+	fmt/au.c	\
+	fmt/brr.c	\
+	fmt/compression.c	\
+	fmt/d00.c	\
+	fmt/dsm.c	\
+	fmt/edl.c	\
+	fmt/f2r.c	\
+	fmt/far.c	\
+	fmt/generic.c	\
+	fmt/imf.c	\
+	fmt/iff.c	\
+	fmt/it.c	\
+	fmt/iti.c	\
+	fmt/its.c	\
+	fmt/liq.c	\
+	fmt/mdl.c	\
+	fmt/med.c	\
+	fmt/mf.c	\
+	fmt/mid.c	\
+	fmt/mmcmp.c	\
+	fmt/mod.c	\
+	fmt/mt2.c	\
+	fmt/mtm.c	\
+	fmt/mus.c	\
+	fmt/ntk.c	\
+	fmt/okt.c	\
+	fmt/pat.c	\
+	fmt/psm.c	\
+	fmt/raw.c	\
+	fmt/s3i.c	\
+	fmt/s3m.c	\
+	fmt/sbi.c	\
+	fmt/sf2.c	\
+	fmt/sfx.c	\
+	fmt/stm.c	\
+	fmt/stx.c	\
+	fmt/ult.c	\
+	fmt/w64.c	\
+	fmt/wav.c	\
+	fmt/xi.c	\
+	fmt/xm.c	\
+	player/csndfile.c	\
+	player/effects.c	\
+	player/equalizer.c	\
+	player/filters.c	\
+	player/fmpatches.c	\
+	player/mixer.c	\
+	player/mixutil.c	\
+	player/snd_fm.c	\
+	player/snd_gm.c	\
+	player/sndmix.c	\
+	player/tables.c	\
+	schism/atomic.c	\
+	schism/audio_loadsave.c	\
+	schism/audio_playback.c	\
+	schism/charset.c	\
+	schism/charset_stdlib.c	\
+	schism/charset_unicode.c	\
+	schism/config-parser.c	\
+	schism/cpu.c	\
+	schism/disko.c	\
+	schism/dmoz.c	\
+	schism/ieee-float.c	\
+	schism/loadso.c	\
+	schism/mem.c	\
+	schism/midi-core.c	\
+	schism/midi-ip.c	\
+	schism/mplink.c	\
+	schism/mt.c	\
+	schism/sample-edit.c	\
+	schism/schismplay.c	\
+	schism/schismplay-stubs.c	\
+	schism/slurp.c	\
+	schism/str.c	\
+	schism/timer.c	\
+	schism/util.c	\
+	schism/version.c	\
+	sys/posix/osdefs.c	\
+	$(play_macosx)	\
+	$(files_alsa)	\
+	$(files_oss)	\
+	$(play_win32)	\
+	$(files_stdlib)	\
+	$(files_mmap)	\
+	$(files_wii)	\
+	$(files_flac)	\
+	$(files_jack)	\
+	$(files_opl)	\
+	$(files_mediafoundation)	\
+	$(files_gstreamer)	\
+	$(files_wiiu)	\
+	$(play_sdl3)	\
+	$(play_sdl2)	\
+	$(play_sdl12)	\
+	$(play_macos)	\
+	$(files_os2)	\
+	$(files_xbox)	\
+	$(files_avformat)	\
+	$(files_asio)	\
+	$(files_mt)	\
+	$(files_zlib)	\
+	$(files_bzip2)	\
+	$(files_lzma)	\
+	$(files_zstd)	\
+	$(files_altivec)
+
+# a console program on Windows, so no -mwindows
+schismplay_CPPFLAGS = $(schismtracker_CPPFLAGS)
+schismplay_CFLAGS = $(AM_CFLAGS) $(filter-out -mwindows,$(component_cflags))
+schismplay_OBJCFLAGS = $(AM_OBJCFLAGS) $(filter-out -mwindows,$(component_cflags))
+
+# same as schismtracker minus X11, which is only used by the UI
+schismplay_LDADD = $(LIBM) $(libs_sdl3) \
+	$(libs_wii) $(libs_wiiu) \
+	$(libs_jack) $(libs_macosx) $(lib_asound) \
+	$(lib_win32) $(libs_network) $(libs_flac) \
+	$(lib_mediafoundation) $(UTF8PROC_LIBS) \
+	$(lib_gstreamer) \
+	$(libs_sdl2) $(libs_sdl12) $(libs_macos) \
+	$(libs_os2) $(libs_xbox) $(libs_avformat) \
+	$(libs_asio) $(libs_zlib) $(libs_bzip2) \
+	$(libs_lzma) $(libs_zstd)
+schismplay_LDFLAGS = $(schismtracker_LDFLAGS)

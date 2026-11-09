@@ -112,6 +112,9 @@ void song_pattern_to_sample(int pattern, int split, int bind);
 struct save_format;
 int disko_export_song(const char *filename, const struct save_format *format);
 
+/* cap the length of later song exports, in sample frames (0 = no cap) */
+void disko_set_export_limit(size_t frames);
+
 /* call periodically if (status.flags & DISKWRITER_ACTIVE) to write more stuff.
 return: DW_SYNC_*, self explanatory */
 int disko_sync(void);

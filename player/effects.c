@@ -429,7 +429,7 @@ static void fx_panbrello(song_voice_t *chan, uint32_t param)
 		pdelta = square_table[panpos];
 		break;
 	case VIB_RANDOM:
-		pdelta = (rand() & 0x7F) - 0x40;
+		pdelta = (csf_random() & 0x7F) - 0x40;
 		break;
 	}
 
@@ -562,7 +562,7 @@ static void fx_tremolo(uint32_t flags, song_voice_t *chan, uint32_t param)
 		tdelta = square_table[trempos];
 		break;
 	case VIB_RANDOM:
-		tdelta = 128 * ((double) rand() / RAND_MAX) - 64;
+		tdelta = 128 * ((double) csf_random() / RAND_MAX) - 64;
 		break;
 	}
 
@@ -1395,13 +1395,13 @@ void csf_instrument_change(song_t *csf, song_voice_t *chan, uint32_t instr, int 
 			if (penv->vol_swing) {
 				/* this was wrong, and then it was still wrong.
 				(possibly it continues to be wrong even now?) */
-				double d = 2 * (((double) rand()) / RAND_MAX) - 1;
+				double d = 2 * (((double) csf_random()) / RAND_MAX) - 1;
 				// floor() is applied to get exactly the same volume levels as in IT. -- Saga
 				chan->vol_swing = floor(d * penv->vol_swing / 100.0 * chan->instrument_volume);
 			}
 			if (penv->pan_swing) {
 				/* this was also wrong, and even more so */
-				double d = 2 * (((double) rand()) / RAND_MAX) - 1;
+				double d = 2 * (((double) csf_random()) / RAND_MAX) - 1;
 				chan->pan_swing = d * penv->pan_swing * 4;
 			}
 		}

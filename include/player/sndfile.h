@@ -722,6 +722,14 @@ typedef struct {
 // XXX why are these extern? moreover, why is default_midi_config NOT const?
 extern midi_config_t default_midi_config;
 
+// Random numbers for the mixer (random LFO waveforms, instrument volume and
+// pan swing), in the range 0 to RAND_MAX. Until csf_seed_random() is called
+// these come straight from rand(), so the mixer shares the C library's
+// sequence with everything else in the program. Once it's seeded, the mixer
+// uses a generator of its own and the output depends only on the seed.
+void csf_seed_random(uint32_t seed);
+int csf_random(void);
+
 extern const song_note_t blank_pattern[64 * MAX_CHANNELS];
 extern const song_note_t *blank_note;
 
