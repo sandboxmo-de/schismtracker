@@ -664,15 +664,15 @@ static void fake_vu_meter(song_voice_t *channel, uint32_t smpcount, struct song_
 \
 		minmax_##BITS##_arr((int##BITS##_t *)buf, buflen, min16, max16, 2); \
 \
-		minl = min16[0] << (23 - BITS); \
-		maxl = min16[0] << (23 - BITS); \
-		maxr = max16[1] << (23 - BITS); \
-		minr = min16[1] << (23 - BITS); \
+		minl = (int32_t)min16[0] * (1 << (23 - BITS)); \
+		maxl = (int32_t)max16[0] * (1 << (23 - BITS)); \
+		maxr = (int32_t)max16[1] * (1 << (23 - BITS)); \
+		minr = (int32_t)min16[1] * (1 << (23 - BITS)); \
 	} else { \
 		minmax_##BITS((int##BITS##_t *)buf, buflen, min16, max16, 1); \
 \
-		minl = minr = min16[0] << (23 - BITS); \
-		maxl = maxr = min16[0] << (23 - BITS); \
+		minl = minr = (int32_t)min16[0] * (1 << (23 - BITS)); \
+		maxl = maxr = (int32_t)max16[0] * (1 << (23 - BITS)); \
 	}
 
 		DOIT(16)
