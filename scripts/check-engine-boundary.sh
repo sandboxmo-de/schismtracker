@@ -4,7 +4,7 @@
 #
 #   check-engine-boundary.sh LIBRARY [UI_OBJECT ...]
 #
-# Two checks:
+# Three checks:
 #
 # 1. With nm: every symbol LIBRARY leaves undefined is compared with the
 #    global symbols the UI objects define. Any overlap means an engine file
@@ -15,9 +15,16 @@
 #    a default), into a throwaway program. The link fails if anything is left
 #    undefined that the system libraries don't provide.
 #
+# 3. With nm again: none of the objects listed in CORE_OBJECTS (a
+#    space-separated list from the environment) may refer to the libc heap
+#    (malloc, calloc, realloc, free, strdup, strndup, asprintf, vasprintf and
+#    friends) or to the aborting wrappers in schism/mem.c. They allocate
+#    through include/engine-alloc.h instead. Skipped if CORE_OBJECTS is unset.
+#
 # The second check needs CC, and takes CPPFLAGS, CFLAGS, LDFLAGS and LIBS
 # from the environment; `make check-engine-boundary` passes the ones
-# schismplay is built with. Set NM to use something other than nm.
+# schismplay is built with, and the core object list. Set NM to use something
+# other than nm.
 
 set -e
 
@@ -92,6 +99,32 @@ else
 	echo "FAIL: linking the library on its own:"
 	cat "$tmp/cc.log" "$tmp/ld.log" 2>/dev/null | sed 's/^/  /'
 	status=1
+fi
+
+if [ -n "${CORE_OBJECTS:-}" ]; then
+	heap='malloc calloc realloc reallocf free strdup strndup wcsdup asprintf vasprintf
+		valloc pvalloc memalign posix_memalign aligned_alloc
+		malloc_type_malloc malloc_type_calloc malloc_type_realloc
+		mem_alloc mem_calloc mem_realloc str_dup strn_dup'
+	: > "$tmp/heap-bad"
+	ncore=0
+	for obj in $CORE_OBJECTS; do
+		ncore=$((ncore + 1))
+		# undefined symbols, with the leading underscore some platforms add
+		"$NM" -g -P "$obj" 2>/dev/null | awk '$2 == "U" { sub(/^_/, "", $1); print $1 }' > "$tmp/obj-undef"
+		for fn in $heap; do
+			if grep -qx "$fn" "$tmp/obj-undef"; then
+				echo "$obj: $fn" >> "$tmp/heap-bad"
+			fi
+		done
+	done
+	if [ -s "$tmp/heap-bad" ]; then
+		echo "FAIL: core engine objects call the libc heap directly:"
+		sed 's/^/  /' "$tmp/heap-bad"
+		status=1
+	else
+		echo "ok: none of the $ncore core engine objects calls the libc heap"
+	fi
 fi
 
 exit $status

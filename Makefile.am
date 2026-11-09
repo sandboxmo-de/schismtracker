@@ -898,11 +898,60 @@ schismplay_LDADD = libschismengine.a $(LIBM) $(libs_sdl3) \
 schismplay_LDFLAGS = $(schismtracker_LDFLAGS)
 
 # ---------------------------------------------------------------------------
-# Fail if the engine library refers to anything the UI defines, or can't be
-# linked into a program on its own. See scripts/check-engine-boundary.sh.
+# Engine files that may call the libc heap directly: the default allocator
+# (mem-libc.c), and the parts of the library a host without a general-purpose
+# heap does without (config files, directory listing, dynamic loading, MIDI
+# ports, threads and timers, and the platform and third-party decoder
+# backends). Everything else in libschismengine.a is the core engine, which
+# allocates only through include/engine-alloc.h. docs/engine-memory.md has
+# the reasons for each.
+engine_heap_sources = \
+	schism/config-parser.c	\
+	schism/dmoz.c		\
+	schism/loadso.c		\
+	schism/mem.c		\
+	schism/mem-libc.c	\
+	schism/midi-core.c	\
+	schism/midi-ip.c	\
+	schism/mt.c		\
+	schism/timer.c		\
+	sys/posix/osdefs.c	\
+	$(files_macosx)		\
+	$(files_alsa)		\
+	$(files_oss)		\
+	$(files_win32)		\
+	$(files_stdlib)		\
+	$(files_mmap)		\
+	$(files_wii)		\
+	$(files_flac)		\
+	$(files_jack)		\
+	$(files_mediafoundation)	\
+	$(files_gstreamer)	\
+	$(files_wiiu)		\
+	$(files_sdl3)		\
+	$(files_sdl2)		\
+	$(files_sdl12)		\
+	$(files_macos)		\
+	$(files_os2)		\
+	$(files_xbox)		\
+	$(files_avformat)	\
+	$(files_asio)		\
+	$(files_mt)		\
+	$(files_zlib)		\
+	$(files_bzip2)		\
+	$(files_lzma)		\
+	$(files_zstd)		\
+	$(files_altivec)
+engine_heap_objects = $(foreach s,$(engine_heap_sources),$(dir $(s))libschismengine_a-$(basename $(notdir $(s))).$(OBJEXT))
+engine_core_objects = $(filter-out $(engine_heap_objects),$(libschismengine_a_OBJECTS))
+
+# Fail if the engine library refers to anything the UI defines, can't be
+# linked into a program on its own, or if a core engine object calls the libc
+# heap. See scripts/check-engine-boundary.sh.
 
 check-engine-boundary: libschismengine.a $(schismtracker_OBJECTS)
 	@NM="$(NM)" CC="$(CC)" \
+	CORE_OBJECTS="$(engine_core_objects)" \
 	CPPFLAGS="$(DEFS) $(DEFAULT_INCLUDES) $(schismplay_CPPFLAGS) $(CPPFLAGS)" \
 	CFLAGS="$(schismplay_CFLAGS) $(CFLAGS)" \
 	LDFLAGS="$(schismplay_LDFLAGS) $(LDFLAGS)" \
