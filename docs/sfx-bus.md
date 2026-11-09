@@ -8,7 +8,9 @@ and they share the output format, clipping and VU meter with the song.
 
 This is a simple mixer of its own, separate from the song's channels. Effects
 don't go through the song's interpolation modes, filters, envelopes or
-equalizer.
+equalizer. For effects that should, use the effects voice pool
+([sfx-voices.md](sfx-voices.md)), which plays instruments through the song's
+own voice code; the bus stays as the cheap path for plain PCM.
 
 The API is in `include/sfx-bus.h` and the code in `player/sfx-bus.c`.
 

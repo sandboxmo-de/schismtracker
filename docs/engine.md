@@ -108,6 +108,18 @@ playback and the disk writer both get them. The bus needs nothing from
 [sfx-bus.md](sfx-bus.md) has the details: volume and pan law, threading
 rules, and schismplay's `--sfx` options.
 
+For effects that need the full engine (envelopes, fadeout, sustain loops,
+filters, the song's interpolation) there's the effects voice pool
+(`include/sfx-voices.h`): a host-sized array of `song_voice_t` separate from
+the song's, playing instruments and samples from banks the host loads. Pool
+voices go through the same per-voice code as the song's. The song's
+per-tick voice update is `csf_voice_update()`, which takes a
+`struct csf_voice_env` with the song-wide settings it needs instead of the
+whole `song_t`, and its per-voice mix is `csf_mix_voice()`. The song and
+the pool each pass their own env, so pool voices get their own tick rate,
+global volume and random numbers. The pool mixes in the same place as the
+bus. See [sfx-voices.md](sfx-voices.md).
+
 ## Boundary check
 
     make check-engine-boundary        # also run by `make check`
@@ -165,7 +177,9 @@ for output: it fills in the default SFx/Zxx macros.
 Renders go through the same disk writer as `schismtracker --diskwrite`.
 
 The `--sfx` options play sound effects through the effects bus on top of the
-song, at given song times; see [sfx-bus.md](sfx-bus.md).
+song, at given song times; see [sfx-bus.md](sfx-bus.md). `--sfx-bank` and
+`--sfx-note` play instruments through the effects voice pool; see
+[sfx-voices.md](sfx-voices.md).
 
     scripts/render-compare.py --corpus DIR --ext it,s3m --seed 1 \
         tracker=./schismtracker play=./schismplay
@@ -217,14 +231,10 @@ branch point, before the split.
 
 These aren't implemented; this is where they'd go.
 
-* **Sound-effect voices.** The effects bus ([sfx-bus.md](sfx-bus.md)) plays
-  PCM effects with its own small mixer, added to the mix buffer in
-  `csf_read()`. The step after that is real engine voices: a host-sized
-  pool next to `current_song->voices`, run through the same per-voice code
-  as the song so effects get its interpolation, filters and envelopes.
-  Keyjazz already plays notes outside the pattern data through
-  `song_keydown()`, but on the song's own voices. The host interface might
-  want a callback when a voice ends.
+* **Sound-effect voices.** The effects voice pool
+  ([sfx-voices.md](sfx-voices.md)) is in. The host interface might still
+  want a callback when a note ends, and the tracker UI has no way to play
+  pool notes yet; keyjazz still uses the song's own voices.
 * **Embedded host.** A host without SDL would provide its own audio backend
   (`schism_audio_backend_t`, include/backend/audio.h) and timer/thread
   backends, register a `struct engine_host`, and call `csf_read()` or let the

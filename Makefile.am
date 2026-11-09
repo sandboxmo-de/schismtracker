@@ -12,7 +12,8 @@ docs = \
 	docs/configuration.md		\
 	docs/engine.md			\
 	docs/engine-memory.md		\
-	docs/sfx-bus.md
+	docs/sfx-bus.md			\
+	docs/sfx-voices.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\
