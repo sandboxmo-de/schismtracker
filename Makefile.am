@@ -10,7 +10,8 @@ docs = \
 	docs/building_on_osx.md		\
 	docs/building_on_windows.md	\
 	docs/configuration.md		\
-	docs/engine.md
+	docs/engine.md			\
+	docs/sfx-bus.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\

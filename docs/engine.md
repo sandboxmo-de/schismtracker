@@ -95,6 +95,17 @@ handling are in `sys/macosx/ibook-support.c`; the tracker calls
 `macosx_ibook_init()` and `macosx_ibook_quit()` around `os_sysinit()` and
 `os_sysexit()`.
 
+## Sound effects
+
+Hosts can play PCM sound effects on top of the song through the effects bus
+(`include/sfx-bus.h`): `sfx_bus_init()` with a voice count, sources from
+memory, files or the song's samples, and `sfx_play()`, `sfx_stop()` and
+friends. They're mixed in `csf_read()` before the output conversion, so live
+playback and the disk writer both get them. The bus needs nothing from
+`struct engine_host`; its calls take the audio lock themselves.
+[sfx-bus.md](sfx-bus.md) has the details: volume and pan law, threading
+rules, and schismplay's `--sfx` options.
+
 ## Boundary check
 
     make check-engine-boundary        # also run by `make check`
@@ -116,7 +127,7 @@ It does two things:
 
 On macOS arm64 with each of SDL 3, sdl2-compat and sdl12-compat:
 
-    engine library: 806 symbols defined, 196 needed from outside
+    engine library: 835 symbols defined, 196 needed from outside
     ok: none of them is defined by the 51 UI objects
     ok: the whole library links on its own with the default callbacks
 
@@ -136,6 +147,9 @@ the same defaults as a fresh schismtracker config. `cfg_load_midi()` matters
 for output: it fills in the default SFx/Zxx macros.
 
 Renders go through the same disk writer as `schismtracker --diskwrite`.
+
+The `--sfx` options play sound effects through the effects bus on top of the
+song, at given song times; see [sfx-bus.md](sfx-bus.md).
 
     scripts/render-compare.py --corpus DIR --ext it,s3m --seed 1 \
         tracker=./schismtracker play=./schismplay
@@ -193,11 +207,14 @@ These aren't implemented; this is where they'd go.
   pair (taking an arena id: song, sample data, scratch) would be added to
   `struct engine_host`, mem.c would call it, and the direct calls would be
   moved over to mem.c. The default would be libc.
-* **Sound-effect voices.** Keyjazz already plays notes outside the pattern
-  data through `song_keydown()` in audio_playback.c, but on the song's own
-  voices. A separate pool would sit next to `current_song->voices` and be
-  mixed in `csf_read()`; the host interface needs nothing new except perhaps
-  a callback when a voice ends.
+* **Sound-effect voices.** The effects bus ([sfx-bus.md](sfx-bus.md)) plays
+  PCM effects with its own small mixer, added to the mix buffer in
+  `csf_read()`. The step after that is real engine voices: a host-sized
+  pool next to `current_song->voices`, run through the same per-voice code
+  as the song so effects get its interpolation, filters and envelopes.
+  Keyjazz already plays notes outside the pattern data through
+  `song_keydown()`, but on the song's own voices. The host interface might
+  want a callback when a voice ends.
 * **Embedded host.** A host without SDL would provide its own audio backend
   (`schism_audio_backend_t`, include/backend/audio.h) and timer/thread
   backends, register a `struct engine_host`, and call `csf_read()` or let the

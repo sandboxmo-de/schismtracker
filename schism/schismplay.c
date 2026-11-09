@@ -39,8 +39,11 @@
 #include "version.h"
 #include "osdefs.h"
 #include "engine-host.h"
+#include "sfx-bus.h"
+#include "mem.h"
 
 #include <signal.h>
+#include <math.h>
 
 static int verbose = 0;
 
@@ -56,6 +59,24 @@ static int opt_seeded = 0;
 static uint32_t opt_seed = 0;
 static int opt_loop = 0;
 static int opt_quiet = 0;
+
+/* sound effects to play at given times (--sfx, --sfx-sample) */
+struct sfx_cue {
+	const char *file; /* NULL for a song sample */
+	int sample;
+	double at;
+	float volume;
+	float pan;
+	uint32_t rate;
+	double length; /* loop for this long; 0 plays once */
+	sfx_source_t *src;
+};
+static struct sfx_cue *sfx_cues = NULL;
+static int sfx_ncues = 0;
+static int opt_sfx_only = 0;
+static int opt_sfx_voices = 64;
+static float opt_sfx_volume = 1.0f;
+static double opt_sfx_stress = 0;
 
 static int opening_audio = 0;
 static int audio_opened = 0;
@@ -166,6 +187,7 @@ static void usage(FILE *f, const char *argv0)
 {
 	fprintf(f,
 		"Usage: %s [OPTIONS] FILE\n"
+		"       %s [OPTIONS] --sfx-only [--sfx=...] [FILE]\n"
 		"Play a module, or render it to a WAV file with -o.\n"
 		"\n"
 		"  -o, --output=FILE         render to FILE instead of playing\n"
@@ -178,11 +200,21 @@ static void usage(FILE *f, const char *argv0)
 		"  -d, --driver=DRIVER[:DEVICE]\n"
 		"                            audio driver for playback\n"
 		"      --loop                keep playing at the end of the song\n"
+		"      --sfx=FILE@SECONDS[:VOL[:PAN[:RATE[:LENGTH]]]]\n"
+		"                            play a sound effect at that song time\n"
+		"                            (repeatable; see docs/sfx-bus.md)\n"
+		"      --sfx-sample=N@SECONDS[:VOL[:PAN[:RATE[:LENGTH]]]]\n"
+		"                            the same with sample N of the song\n"
+		"      --sfx-only            play or render the effects without the song\n"
+		"      --sfx-voices=N        size of the effects voice pool (default 64)\n"
+		"      --sfx-volume=V        effects master volume (default 1.0)\n"
+		"      --sfx-stress=SECONDS  start and stop effects at random while\n"
+		"                            playing, as a threading test\n"
 		"  -q, --quiet               don't show the play position\n"
 		"  -v, --verbose             show loader and engine messages\n"
 		"      --version\n"
 		"  -h, --help\n",
-		argv0);
+		argv0, argv0);
 }
 
 static int parse_int(const char *s, const char *what, long lo, long hi)
@@ -213,7 +245,72 @@ static int parse_interp(const char *s)
 enum {
 	O_LOOP = 256,
 	O_VERSION,
+	O_SFX,
+	O_SFX_SAMPLE,
+	O_SFX_ONLY,
+	O_SFX_VOICES,
+	O_SFX_VOLUME,
+	O_SFX_STRESS,
 };
+
+static double parse_double(const char *s, const char *what)
+{
+	char *end;
+	double v = strtod(s, &end);
+
+	if (!*s || *end) {
+		fprintf(stderr, "schismplay: bad %s '%s'\n", what, s);
+		exit(2);
+	}
+
+	return v;
+}
+
+/* FILE@SECONDS[:VOL[:PAN[:RATE[:LENGTH]]]], or N@... for a song sample */
+static void add_sfx_cue(char *arg, int is_sample)
+{
+	static const char *what[] = {"effect time", "effect volume", "effect pan",
+		"effect rate", "effect length"};
+	struct sfx_cue *c;
+	char *at = strrchr(arg, '@'), *field, *next;
+	int i;
+
+	if (!at || at == arg) {
+		fprintf(stderr, "schismplay: effect '%s' needs @SECONDS\n", arg);
+		exit(2);
+	}
+	*at = '\0';
+
+	sfx_cues = mem_realloc(sfx_cues, (sfx_ncues + 1) * sizeof(*sfx_cues));
+	c = sfx_cues + sfx_ncues++;
+	memset(c, 0, sizeof(*c));
+	c->volume = 1.0f;
+
+	if (is_sample)
+		c->sample = parse_int(arg, "sample number", 1, MAX_SAMPLES - 1);
+	else
+		c->file = arg;
+
+	for (i = 0, field = at + 1; field && i < 5; i++, field = next) {
+		double v;
+
+		next = strchr(field, ':');
+		if (next)
+			*next++ = '\0';
+		v = parse_double(field, what[i]);
+		switch (i) {
+		case 0: c->at = v; break;
+		case 1: c->volume = (float)v; break;
+		case 2: c->pan = (float)v; break;
+		case 3: c->rate = (uint32_t)MAX(v, 0); break;
+		case 4: c->length = v; break;
+		}
+	}
+	if (field || c->at < 0 || c->length < 0) {
+		fprintf(stderr, "schismplay: bad effect time or too many fields\n");
+		exit(2);
+	}
+}
 
 static const char *parse_options(int argc, char **argv)
 {
@@ -227,6 +324,12 @@ static const char *parse_options(int argc, char **argv)
 		{"seed", 1, NULL, 's'},
 		{"driver", 1, NULL, 'd'},
 		{"loop", 0, NULL, O_LOOP},
+		{"sfx", 1, NULL, O_SFX},
+		{"sfx-sample", 1, NULL, O_SFX_SAMPLE},
+		{"sfx-only", 0, NULL, O_SFX_ONLY},
+		{"sfx-voices", 1, NULL, O_SFX_VOICES},
+		{"sfx-volume", 1, NULL, O_SFX_VOLUME},
+		{"sfx-stress", 1, NULL, O_SFX_STRESS},
 		{"quiet", 0, NULL, 'q'},
 		{"verbose", 0, NULL, 'v'},
 		{"version", 0, NULL, O_VERSION},
@@ -278,6 +381,22 @@ static const char *parse_options(int argc, char **argv)
 		case O_LOOP:
 			opt_loop = 1;
 			break;
+		case O_SFX:
+		case O_SFX_SAMPLE:
+			add_sfx_cue(optarg, opt == O_SFX_SAMPLE);
+			break;
+		case O_SFX_ONLY:
+			opt_sfx_only = 1;
+			break;
+		case O_SFX_VOICES:
+			opt_sfx_voices = parse_int(optarg, "voice count", 1, SFX_MAX_VOICES);
+			break;
+		case O_SFX_VOLUME:
+			opt_sfx_volume = (float)parse_double(optarg, "effects volume");
+			break;
+		case O_SFX_STRESS:
+			opt_sfx_stress = parse_double(optarg, "stress time");
+			break;
 		case 'q':
 			opt_quiet = 1;
 			break;
@@ -296,6 +415,9 @@ static const char *parse_options(int argc, char **argv)
 		}
 	}
 
+	if (opt_sfx_only && optind == argc)
+		return NULL;
+
 	if (optind != argc - 1) {
 		usage(stderr, argv[0]);
 		exit(2);
@@ -303,6 +425,142 @@ static const char *parse_options(int argc, char **argv)
 
 	return argv[optind];
 }
+
+/* ------------------------------------------------------------------------ */
+/* sound effects */
+
+static int load_sfx_sources(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_ncues; i++) {
+		struct sfx_cue *c = sfx_cues + i;
+
+		c->src = c->file ? sfx_source_load(c->file) : sfx_source_from_song_sample(c->sample);
+		if (!c->src) {
+			if (c->file)
+				fprintf(stderr, "schismplay: couldn't load effect %s\n", c->file);
+			else
+				fprintf(stderr, "schismplay: sample %d has no data\n", c->sample);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+static void free_sfx_sources(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_ncues; i++) {
+		sfx_source_free(sfx_cues[i].src);
+		sfx_cues[i].src = NULL;
+	}
+	free(sfx_cues);
+	sfx_cues = NULL;
+	sfx_ncues = 0;
+}
+
+/* Every cue is started now with a delay, so where it lands only depends on
+ * how much audio has been mixed since, which in a render is exact. */
+static void schedule_sfx(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_ncues; i++) {
+		struct sfx_cue *c = sfx_cues + i;
+		struct sfx_play_args args = {
+			.volume = c->volume,
+			.pan = c->pan,
+			.frequency = c->rate,
+			.loop = c->length > 0,
+			.delay = c->at,
+			.duration = c->length,
+		};
+
+		if (sfx_play_ex(c->src, &args) == SFX_VOICE_NONE)
+			fprintf(stderr, "schismplay: no free voice for effect %d\n", i + 1);
+	}
+}
+
+/* --sfx-stress: hammer the bus from this thread while the audio thread
+ * mixes. Uses its own generator, so a run does the same calls in the same
+ * order every time (the timing against the audio thread still varies). */
+static uint32_t stress_state = 0x12345678;
+
+static uint32_t stress_rand(void)
+{
+	stress_state ^= stress_state << 13;
+	stress_state ^= stress_state >> 17;
+	stress_state ^= stress_state << 5;
+	return stress_state;
+}
+
+static float stress_unit(void)
+{
+	return (stress_rand() & 0xffff) / 65535.0f;
+}
+
+static sfx_source_t *stress_tone(void)
+{
+	int16_t buf[4410];
+	int i;
+
+	for (i = 0; i < 4410; i++)
+		buf[i] = (int16_t)(4000.0 * sin(2.0 * 3.14159265358979 * 440.0 * i / 44100.0));
+
+	return sfx_source_from_pcm(buf, 4410, SFX_PCM_S16, 1, 44100);
+}
+
+static void stress_step(sfx_voice_t *handles, int nhandles, sfx_source_t **tones, int ntones,
+	unsigned long *ops)
+{
+	sfx_voice_t *h = handles + stress_rand() % nhandles;
+	sfx_source_t *src;
+	int k = stress_rand() % 100;
+
+	if (k < 40) {
+		struct sfx_play_args args = {
+			.volume = stress_unit() * 0.2f,
+			.pan = stress_unit() * 2.0f - 1.0f,
+			.pitch = 0.25f + stress_unit() * 3.0f,
+			.loop = (stress_rand() & 3) == 0,
+			.delay = (stress_rand() & 7) ? 0.0 : stress_unit() * 0.1,
+			.duration = (stress_rand() & 3) ? 0.0 : stress_unit() * 0.5,
+		};
+		if (sfx_ncues && (stress_rand() & 1))
+			src = sfx_cues[stress_rand() % sfx_ncues].src;
+		else
+			src = tones[stress_rand() % ntones];
+		*h = sfx_play_ex(src, &args);
+	} else if (k < 65) {
+		sfx_stop(*h);
+	} else if (k < 75) {
+		sfx_set_volume(*h, stress_unit() * 0.2f);
+	} else if (k < 83) {
+		sfx_set_pan(*h, stress_unit() * 2.0f - 1.0f);
+	} else if (k < 90) {
+		sfx_set_pitch(*h, 0.25f + stress_unit() * 3.0f);
+	} else if (k < 95) {
+		sfx_set_frequency(*h, 4000 + stress_rand() % 90000);
+	} else if (k < 97) {
+		(void)sfx_is_playing(*h);
+		(void)sfx_bus_voices_playing();
+	} else if (k < 98) {
+		sfx_bus_set_volume(0.5f + stress_unit());
+	} else if (k < 99) {
+		/* free a tone that may be playing and make a new one */
+		int t = stress_rand() % ntones;
+		sfx_source_free(tones[t]);
+		tones[t] = stress_tone();
+	} else {
+		sfx_stop_all();
+	}
+
+	(*ops)++;
+}
+
 
 /* ------------------------------------------------------------------------ */
 
@@ -341,6 +599,10 @@ static int render(const char *song)
 		return 1;
 	}
 
+	/* after starting the export, so the effects' delays count from its
+	 * first frame */
+	schedule_sfx();
+
 	do {
 		q = disko_sync();
 	} while (q == DW_SYNC_MORE && !interrupted);
@@ -351,7 +613,7 @@ static int render(const char *song)
 	}
 
 	if (q != DW_SYNC_DONE) {
-		fprintf(stderr, "schismplay: error while rendering %s\n", song);
+		fprintf(stderr, "schismplay: error while rendering %s\n", song ? song : "effects");
 		return 1;
 	}
 
@@ -362,18 +624,44 @@ static int play(void)
 {
 	int last_order = -1, last_row = -1;
 	unsigned int last_time = (unsigned int)-1;
-	int ended;
+	int ended = 0;
+	timer_ticks_t start = timer_ticks();
+	sfx_voice_t stress_handles[256] = {0};
+	sfx_source_t *stress_tones[4] = {0};
+	unsigned long stress_ops = 0;
+	int i;
 
-	if (opt_loop)
-		song_start();
-	else
-		song_start_once();
+	/* with --sfx-only the song stays stopped and the effects play over
+	 * silence */
+	if (!opt_sfx_only) {
+		if (opt_loop)
+			song_start();
+		else
+			song_start_once();
+	}
+
+	schedule_sfx();
+
+	if (opt_sfx_stress > 0)
+		for (i = 0; i < (int)ARRAY_SIZE(stress_tones); i++)
+			stress_tones[i] = stress_tone();
 
 	for (;;) {
 		unsigned int t;
 		int order, row;
+		double elapsed = (timer_ticks() - start) / 1000.0;
 
 		audio_worker();
+
+		if (opt_sfx_stress > 0) {
+			if (elapsed >= opt_sfx_stress)
+				break;
+			for (i = 0; i < 50; i++)
+				stress_step(stress_handles, ARRAY_SIZE(stress_handles),
+					stress_tones, ARRAY_SIZE(stress_tones), &stress_ops);
+			timer_msleep(1);
+			continue;
+		}
 
 		song_lock_audio();
 		ended = !!(current_song->flags & SONG_ENDREACHED);
@@ -392,12 +680,23 @@ static int play(void)
 			last_row = row;
 		}
 
-		if (ended || interrupted)
+		/* once the song is over, wait for the effects to finish */
+		if (interrupted || (ended && !sfx_bus_voices_playing()))
 			break;
-		if (opt_length > 0 && t >= opt_length)
+		if (opt_length > 0 && (ended ? elapsed : t) >= opt_length)
 			break;
 
 		timer_msleep(10);
+	}
+
+	if (opt_sfx_stress > 0) {
+		sfx_stop_all();
+		for (i = 0; i < (int)ARRAY_SIZE(stress_tones); i++)
+			sfx_source_free(stress_tones[i]);
+		printf("sfx stress: %lu calls in %.1f s, song time %u s, %u voices still playing\n",
+			stress_ops, (timer_ticks() - start) / 1000.0, song_get_current_time(),
+			sfx_bus_voices_playing());
+		return interrupted ? 1 : 0;
 	}
 
 	if (!opt_quiet)
@@ -474,13 +773,32 @@ int main(int argc, char **argv)
 	signal(SIGINT, on_signal);
 	signal(SIGTERM, on_signal);
 
-	if (!song_load_unchecked(song)) {
+	if (sfx_bus_init(opt_sfx_voices) < 0) {
+		fprintf(stderr, "schismplay: couldn't set up the effects bus\n");
+		shutdown_all();
+		return 1;
+	}
+	sfx_bus_set_volume(opt_sfx_volume);
+
+	if (song && !song_load_unchecked(song)) {
 		fprintf(stderr, "schismplay: couldn't load %s\n", song);
 		shutdown_all();
 		return 1;
 	}
 
+	if (!load_sfx_sources()) {
+		shutdown_all();
+		return 1;
+	}
+
+	/* the song's samples have been copied by now, so it can go */
+	if (opt_sfx_only && song)
+		song_new(0);
+
 	r = opt_output ? render(song) : play();
+
+	sfx_bus_quit();
+	free_sfx_sources();
 
 	shutdown_all();
 	return r;
