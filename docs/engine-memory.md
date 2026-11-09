@@ -154,7 +154,10 @@ leaves an empty song rather than the old one.
 
 `schism/mem-arena.c` is the reference allocator for hosts without a heap.
 `mem_arena_init()` takes one block and splits it into SONG, SCRATCH and
-ENGINE regions; sizes given as 0 share whatever's left 4:3:1.
+ENGINE regions. Sizes given as 0 share whatever's left: ENGINE gets
+`MEM_ARENA_DEFAULT_ENGINE` (256 KB), or half of what's left if that's less,
+and SONG and SCRATCH split the remainder 4:3. ENGINE gets a fixed size
+because what the engine keeps there hardly changes from song to song.
 `mem_arena_get_allocator()` fills in a `struct engine_allocator` with
 `ENGINE_ALLOC_ONE_SONG` set.
 
@@ -176,23 +179,60 @@ The arena never calls the libc heap. `test/cases/mem-arena.c` covers it.
 
 ## Setting up a host without a general-purpose heap
 
-1. Reserve one block of memory for the engine and pick the region sizes.
-   SONG has to hold the biggest module you'll play, SCRATCH the biggest
-   temporary a load or export makes, and ENGINE the device buffers, the OPL
-   chip and your sound effects. `scripts/mem-stats.py` measures all three on
-   a set of files (see below).
+1. Reserve one block of memory for the engine and pick the region sizes
+   (next section).
 2. Call `mem_arena_init()` and `mem_arena_get_allocator()`, then
    `engine_allocator_register()`, before any other engine call. Or write your
    own allocator against `engine-alloc.h`, for instance to put SONG in a
    large, slower memory and the rest in fast internal memory.
-3. Build the core objects plus whatever from the excluded list your platform
+3. Call `song_initialise()` and check its result. It returns -1 if the song
+   structure doesn't fit in ENGINE, and nothing else in the engine works
+   after that, so report it and stop.
+4. Build the core objects plus whatever from the excluded list your platform
    has a use for. `make check-engine-boundary` tells you if a core object
    picked up a libc heap call.
-4. Load sound effects once, after the engine is up, and keep them. They're
+5. Load sound effects once, after the engine is up, and keep them. They're
    ENGINE memory, and the arena only gets ENGINE space back when the newest
    blocks are freed.
-5. A song that doesn't fit fails to load: the loader returns an error, the
+6. A song that doesn't fit fails to load: the loader returns an error, the
    song is left empty, and SONG and SCRATCH are back where they started.
+
+### Choosing region sizes
+
+**ENGINE** barely depends on the song. `song_engine_mem_minimum()`
+(`song.h`) returns what the engine itself keeps there: the song structure
+and the OPL chip, plus `SONG_ENGINE_BLOCK_OVERHEAD` (64 bytes) per block for
+the allocator's headers. On a 64-bit macOS build that's 192400 bytes, nearly
+all of it `song_t` (178072) and the OPL3 chip (14200). It's computed from
+`sizeof`, so it's right for whatever you build. On top of that, add:
+
+- the effects pool, about 136 bytes per voice on a 64-bit build (8.7 KB for
+  `sfx_bus_init(64)`), plus the effect sources you load;
+- for live output, the mixing buffer and the device's own buffer, each
+  samples × channels × bytes per sample, and a few hundred bytes of driver
+  and device names;
+- the `dmoz_file_t` strings, if the host browses files.
+
+`schismplay` measured an ENGINE peak of about 201 KB rendering with the
+default 64 effect voices, and about 224 KB playing live through the dummy
+driver with 1024-sample buffers. The 256 KB default covers both. If ENGINE
+is smaller than `song_engine_mem_minimum()`, `song_initialise()` fails.
+Most of the other ENGINE allocations fail without stopping anything (no
+OPL chip just means AdLib instruments are silent), so after a test run,
+check the region's `fails` count as well.
+
+**SONG** has to hold the biggest module you'll play, sample data and all.
+Over the test corpus the median SONG peak was about 3.3 MB, but one outlier
+needed 161 MB, so it depends entirely on what you play. **SCRATCH** has to
+hold the biggest temporary a load makes: the file itself while it's read,
+plus decompression buffers for compressed files and MO3. Its median peak
+was about 0.7 MB, and it scales with file size more than with the song in
+memory.
+
+The simplest way to pick SONG and SCRATCH is to measure the files you'll
+ship with `scripts/mem-stats.py` (below), take the largest peak of each
+class and add some margin. The arena's peaks include block headers and
+alignment, so they're the sizes a region needs.
 
 ## The audio thread
 
@@ -231,6 +271,11 @@ and commit the new header.
     schismplay --arena SIZE[,SONG,SCRATCH,ENGINE] ...   # run on the arena
     schismplay --mem-stats ...                          # peak use per class
     schismplay --mem-limit SIZE ...                     # libc, fail past SIZE
+
+With `--arena`, `schismplay` refuses to start if the ENGINE region is
+smaller than `song_engine_mem_minimum()`, and it exits 1 after a run in
+which any ENGINE allocation failed, since those failures don't stop
+playback by themselves. Both cases print the region size.
 
 `--mem-stats` prints the peak, current use and live block count of each
 class after loading, after playing or rendering, and at exit. On the arena

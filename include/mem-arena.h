@@ -60,8 +60,18 @@ struct mem_arena {
 	size_t song_leaks, scratch_leaks;
 };
 
+/* What the ENGINE region gets when the caller leaves it to mem_arena_init.
+ * The engine's own ENGINE memory is about 190 KB on a 64-bit build
+ * (song_engine_mem_minimum() in song.h gives the exact figure), and live
+ * audio output and the effects bus add some tens of KB on top. */
+#define MEM_ARENA_DEFAULT_ENGINE (256 * 1024)
+
 /* Split size bytes at mem into the three regions. Regions given as 0 share
- * whatever the others leave, weighted 4:3:1 for SONG, SCRATCH and ENGINE.
+ * whatever the others leave. If ENGINE is one of them it takes
+ * MEM_ARENA_DEFAULT_ENGINE, or half of what's left if that's less, and
+ * SONG and SCRATCH split the rest 4:3. A region that's the only one given
+ * as 0 gets everything that's left.
+ *
  * Returns 0 on success, -1 if the sizes don't fit or a region would be
  * empty. mem should be aligned to ENGINE_ALIGN_DEFAULT. */
 int mem_arena_init(struct mem_arena *arena, void *mem, size_t size,

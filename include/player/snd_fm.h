@@ -4,6 +4,8 @@
 #include "player/sndfile.h"
 
 void Fmdrv_Init(song_t *csf, int32_t mixfreq);
+/* ENGINE bytes Fmdrv_Init allocates for the chip */
+size_t Fmdrv_ChipSize(void);
 void Fmdrv_Mix(song_t *csf, uint32_t count);
 
 void OPL_NoteOff(song_t *csf, int32_t c);

@@ -33,6 +33,7 @@
 
 #if OPLSOURCE == 2
 	#define OPLNew(x,r)  ym3812_init(x, r)
+	#define OPLStateSize ym3812_state_size
 	#define OPLResetChip ym3812_reset_chip
 	#define OPLWrite     ym3812_write
 	#define OPLReadChip     ym3812_read
@@ -42,6 +43,7 @@
 	#define OPLRATEDIVISOR 72
 #elif OPLSOURCE == 3
 	#define OPLNew(x,r)  ymf262_init(x, r)
+	#define OPLStateSize ymf262_state_size
 	#define OPLResetChip ymf262_reset_chip
 	#define OPLWrite     ymf262_write
 	#define OPLReadChip     ymf262_read
@@ -215,6 +217,11 @@ static unsigned char Fmdrv_Inportb(song_t *csf, uint32_t port)
 		((int32_t) port) < OPL_BASE + 4) ? csf->oplretval : 0;
 }
 
+
+size_t Fmdrv_ChipSize(void)
+{
+	return OPLStateSize();
+}
 
 void Fmdrv_Init(song_t *csf, int32_t mixfreq)
 {

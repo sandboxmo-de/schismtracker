@@ -263,6 +263,8 @@ TEST_FUNC(test_iff_chunk_peek_ex_end_of_file)
 TEST_FUNC(test_iff_chunk_peek_ex_truncated)
 
 TEST_FUNC(test_mem_arena_split)
+TEST_FUNC(test_mem_arena_split_default_engine)
+TEST_FUNC(test_mem_arena_engine_too_small)
 TEST_FUNC(test_mem_arena_alignment)
 TEST_FUNC(test_mem_arena_free_rolls_back)
 TEST_FUNC(test_mem_arena_realloc)

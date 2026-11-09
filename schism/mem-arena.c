@@ -265,17 +265,28 @@ int mem_arena_init(struct mem_arena *arena, void *mem, size_t size,
 	fixed = song + scratch + engine;
 	rest = size - fixed;
 
+	/* ENGINE needs about the same amount whatever the song, so it gets a
+	 * fixed size instead of a share. With SONG and SCRATCH both given it
+	 * takes whatever they leave. */
+	if (!engine) {
+		if (song && scratch) {
+			engine = rest & ~(ENGINE_ALIGN_DEFAULT - 1);
+		} else {
+			engine = MIN(MEM_ARENA_DEFAULT_ENGINE, rest / 2);
+			engine &= ~(ENGINE_ALIGN_DEFAULT - 1);
+		}
+		rest -= engine;
+	}
+
 	if (!song) shares += 4;
 	if (!scratch) shares += 3;
-	if (!engine) shares += 1;
 
 	if (shares) {
-		/* SONG, SCRATCH and ENGINE get 4:3:1 of whatever wasn't given */
+		/* SONG and SCRATCH get 4:3 of whatever's left */
 		size_t unit = (rest / shares) & ~(ENGINE_ALIGN_DEFAULT - 1);
 
 		if (!song) song = unit * 4;
 		if (!scratch) scratch = unit * 3;
-		if (!engine) engine = unit;
 	}
 
 	if (!song || !scratch || !engine)
