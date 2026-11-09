@@ -940,6 +940,7 @@ schismplay_SOURCES = \
 	fmt/mf.c	\
 	fmt/mid.c	\
 	fmt/mmcmp.c	\
+	fmt/mo3.c	\
 	fmt/mod.c	\
 	fmt/mt2.c	\
 	fmt/mtm.c	\
