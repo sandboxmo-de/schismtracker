@@ -446,15 +446,21 @@ int disko_memopen_estimate(disko_t *ds, size_t estimated_size)
 
 	estimated_size = MAX(16, estimated_size);
 
-	ds->data = engine_alloc(estimated_size * sizeof(uint8_t), ENGINE_MEM_SCRATCH);
-	if (!ds->data)
-		return -1;
-
-	ds->allocated = estimated_size;
-
+	/* Set these up even if the buffer can't be allocated. Callers that
+	 * don't check the return value then write into a stream that's
+	 * already in error, which ignores the writes, and disko_memclose
+	 * reports the error. */
 	ds->_write = _dw_mem_write;
 	ds->_seek = _dw_mem_seek;
 	ds->_tell = _dw_mem_tell;
+
+	ds->data = engine_alloc(estimated_size * sizeof(uint8_t), ENGINE_MEM_SCRATCH);
+	if (!ds->data) {
+		disko_seterror(ds, ENOMEM);
+		return -1;
+	}
+
+	ds->allocated = estimated_size;
 
 	return 0;
 }
