@@ -157,7 +157,20 @@ void log_append3(charset_t set, int color, int must_free, const char *text)
 	if (status.flags & STATUS_IS_HEADLESS) {
 		// XXX: Maybe stdout should always get all of the log messages,
 		// regardless of whether we're headless or not? Hm.
-		puts(text);
+		if (set == CHARSET_UTF8) {
+			puts(text);
+		} else {
+			/* stdout expects UTF-8, and the timestamped lines are UCS-4,
+			 * which puts() would cut off after the first character. */
+			char *utf8 = NULL;
+
+			if (!charset_iconv(text, &utf8, set, CHARSET_UTF8, SIZE_MAX)) {
+				puts(utf8);
+				free(utf8);
+			} else if (set != CHARSET_UCS4LE && set != CHARSET_UCS4BE) {
+				puts(text);
+			}
+		}
 
 		if (must_free)
 			free((void *)text);
@@ -325,8 +338,9 @@ void log_append_timestamp(int color, const char *text)
 		log_append3(CHARSET_UCS4, color, 1, (const char *)x);
 	}
 
-	/* fix the underline length */
-	lines[last_line].underline_len = s;
+	/* fix the underline length; headless mode doesn't store lines */
+	if (last_line >= 0)
+		lines[last_line].underline_len = s;
 }
 
 void log_appendf_timestamp(int color, const char *format, ...)
