@@ -212,16 +212,17 @@ endif
 
 if USE_SDL3
 # hax: we want to use specific CFLAGS...
-sys/sdl3/schismtracker-audio.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismtracker-dmoz.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/libschismengine_a-audio.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/libschismengine_a-dmoz.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/libschismengine_a-init.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/libschismengine_a-timer.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
+sys/sdl3/libschismengine_a-mt.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
 sys/sdl3/schismtracker-clippy.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
 sys/sdl3/schismtracker-events.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismtracker-init.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismtracker-timer.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
 sys/sdl3/schismtracker-video.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismtracker-mt.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
 
-files_sdl3 = sys/sdl3/audio.c sys/sdl3/dmoz.c sys/sdl3/clippy.c sys/sdl3/events.c sys/sdl3/init.c sys/sdl3/timer.c sys/sdl3/video.c
+files_sdl3 = sys/sdl3/audio.c sys/sdl3/dmoz.c sys/sdl3/init.c sys/sdl3/timer.c
+ui_sdl3 = sys/sdl3/clippy.c sys/sdl3/events.c sys/sdl3/video.c
 
 if USE_THREADS
 files_mt += sys/sdl3/mt.c
@@ -235,16 +236,17 @@ endif
 
 if USE_SDL2
 # hax: we want to use specific CFLAGS...
-sys/sdl2/schismtracker-audio.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismtracker-dmoz.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/libschismengine_a-audio.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/libschismengine_a-dmoz.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/libschismengine_a-init.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/libschismengine_a-timer.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
+sys/sdl2/libschismengine_a-mt.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
 sys/sdl2/schismtracker-clippy.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
 sys/sdl2/schismtracker-events.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismtracker-init.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismtracker-timer.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
 sys/sdl2/schismtracker-video.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismtracker-mt.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
 
-files_sdl2 = sys/sdl2/audio.c sys/sdl2/dmoz.c sys/sdl2/clippy.c sys/sdl2/events.c sys/sdl2/init.c sys/sdl2/timer.c sys/sdl2/video.c
+files_sdl2 = sys/sdl2/audio.c sys/sdl2/dmoz.c sys/sdl2/init.c sys/sdl2/timer.c
+ui_sdl2 = sys/sdl2/clippy.c sys/sdl2/events.c sys/sdl2/video.c
 
 if USE_THREADS
 files_mt += sys/sdl2/mt.c
@@ -257,14 +259,15 @@ endif
 endif
 
 if USE_SDL12
-sys/sdl12/schismtracker-audio.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/libschismengine_a-audio.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/libschismengine_a-init.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/libschismengine_a-timer.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
+sys/sdl12/libschismengine_a-mt.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
 sys/sdl12/schismtracker-events.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismtracker-init.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismtracker-timer.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
 sys/sdl12/schismtracker-video.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismtracker-mt.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
 
-files_sdl12 = sys/sdl12/audio.c sys/sdl12/events.c sys/sdl12/init.c sys/sdl12/timer.c sys/sdl12/video.c
+files_sdl12 = sys/sdl12/audio.c sys/sdl12/init.c sys/sdl12/timer.c
+ui_sdl12 = sys/sdl12/events.c sys/sdl12/video.c
 
 if LINK_TO_SDL12
 libs_sdl12 = $(SDL12_LIBS)
@@ -294,7 +297,7 @@ files_mmap = sys/posix/slurp-mmap.c
 endif
 
 if USE_X11
-files_x11 = sys/x11/clippy.c sys/x11/init.c sys/x11/events.c
+ui_x11 = sys/x11/clippy.c sys/x11/init.c sys/x11/events.c
 cflags_x11 = -Isys/x11 $(X_CFLAGS)
 
 if LINK_TO_X11
@@ -306,21 +309,21 @@ endif
 if SCHISM_ALTIVEC
 files_altivec = schism/util-altivec.c
 
-schism/schismtracker-util-altivec.$(OBJEXT): CFLAGS += -maltivec
+schism/libschismengine_a-util-altivec.$(OBJEXT): CFLAGS += -maltivec
 endif
 
 if USE_WIN32
-sys/win32/schismtracker-audio-dsound.$(OBJEXT): CFLAGS += $(DSOUND_CFLAGS)
+sys/win32/libschismengine_a-audio-dsound.$(OBJEXT): CFLAGS += $(DSOUND_CFLAGS)
 files_win32 = \
 	sys/win32/filetype.c \
 	sys/win32/midi-win32mm.c	\
 	sys/win32/osdefs.c		\
 	sys/win32/slurp-win32.c \
 	sys/win32/dmoz.c \
-	sys/win32/clippy.c \
 	sys/win32/timer.c \
 	sys/win32/audio-waveout.c \
 	sys/win32/audio-dsound.c
+ui_win32 = sys/win32/clippy.c
 cflags_win32=-I$(srcdir)/sys/win32
 lib_win32=-lwinmm -lgdi32 $(DSOUND_LIBS)
 
@@ -329,7 +332,7 @@ files_win32 += sys/win32/mt.c
 endif
 
 if USE_MEDIAFOUNDATION
-fmt/schismtracker-win32mf.$(OBJEXT): CFLAGS += $(MEDIAFOUNDATION_CFLAGS)
+fmt/libschismengine_a-win32mf.$(OBJEXT): CFLAGS += $(MEDIAFOUNDATION_CFLAGS)
 
 files_mediafoundation=fmt/win32mf.c
 lib_mediafoundation=-luuid $(MEDIAFOUNDATION_LIBS)
@@ -412,14 +415,15 @@ endif
 
 if USE_MACOSX
 files_macosx = \
-	sys/macosx/macosx-sdlmain.m	\
-	sys/macosx/ibook-support.c	\
 	sys/macosx/midi-macosx.c	\
 	sys/macosx/osdefs.m \
-	sys/macosx/clippy.m \
 	sys/macosx/dmoz.m \
 	sys/macosx/audio.c \
 	fmt/macosxca.c
+ui_macosx = \
+	sys/macosx/macosx-sdlmain.m	\
+	sys/macosx/ibook-support.c	\
+	sys/macosx/clippy.m
 cflags_macosx=
 libs_macosx=
 ldflags_macosx=-framework Cocoa \
@@ -436,10 +440,10 @@ files_macos = \
 	sys/macos/osdefs.c \
 	sys/macos/dirent/macos-dirent.c \
 	sys/macos/dmoz.c \
-	sys/macos/clippy.c \
 	sys/macos/midi-midimgr.c \
 	sys/asio/audio-asio.c \
 	sys/asio/audio-asio-mac.c
+ui_macos = sys/macos/clippy.c
 cflags_macos=-I$(top_srcdir)/sys/macos/dirent
 libs_macos= \
 	-lAppearanceLib \
@@ -553,7 +557,7 @@ endif
 endif
 
 if USE_GSTREAMER
-fmt/schismtracker-gstreamer.$(OBJEXT): CFLAGS += $(GSTREAMER_CFLAGS)
+fmt/libschismengine_a-gstreamer.$(OBJEXT): CFLAGS += $(GSTREAMER_CFLAGS)
 
 files_gstreamer=fmt/gstreamer.c
 
@@ -604,10 +608,13 @@ if NEED_GETOPT
 files_stdlib += sys/stdlib/getopt.c
 endif
 
-## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
-schismtracker_SOURCES = \
-	auto/default-font.c		\
-	auto/helptext.c			\
+# The engine: the player, the loaders, the song, playback, disk writer and
+# MIDI code, and the audio, timer, thread and filesystem backends. It talks
+# to the program it's linked into through include/engine-host.h, and must
+# not refer to anything in the UI.
+noinst_LIBRARIES = libschismengine.a
+
+libschismengine_a_SOURCES = \
 	fmt/669.c			\
 	fmt/aiff.c			\
 	fmt/ams.c			\
@@ -664,36 +671,75 @@ schismtracker_SOURCES = \
 	player/snd_gm.c			\
 	player/sndmix.c			\
 	player/tables.c			\
-	schism/auto/schismico_hires.c \
-	schism/auto/schismico.c \
 	schism/atomic.c			\
 	schism/audio_loadsave.c		\
 	schism/audio_playback.c		\
 	schism/charset.c		\
 	schism/charset_stdlib.c \
 	schism/charset_unicode.c   \
-	schism/clippy.c			\
 	schism/config-parser.c		\
-	schism/config.c			\
 	schism/cpu.c			\
-	schism/dialog.c			\
 	schism/disko.c			\
 	schism/dmoz.c			\
 	schism/engine-host.c		\
-	schism/events.c  		\
-	schism/fakemem.c		\
-	schism/fonts.c          \
 	schism/ieee-float.c     \
-	schism/itf.c			\
-	schism/keyboard.c		\
 	schism/loadso.c         \
-	schism/main.c			\
 	schism/mem.c           \
-	schism/menu.c			\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
 	schism/mplink.c			\
 	schism/mt.c				\
+	schism/sample-edit.c		\
+	schism/slurp.c			\
+	schism/str.c             \
+	schism/timer.c          \
+	schism/util.c			\
+	schism/version.c		\
+	sys/posix/osdefs.c \
+	$(files_macosx)			\
+	$(files_alsa)			\
+	$(files_oss)			\
+	$(files_win32)			\
+	$(files_stdlib)			\
+	$(files_mmap)			\
+	$(files_wii)			\
+	$(files_flac)			\
+	$(files_jack)			\
+	$(files_opl)			\
+	$(files_mediafoundation)	\
+	$(files_gstreamer)		\
+	$(files_wiiu)			\
+	$(files_sdl3)			\
+	$(files_sdl2)			\
+	$(files_sdl12)			\
+	$(files_macos)			\
+	$(files_os2)			\
+	$(files_xbox)			\
+	$(files_avformat)		\
+	$(files_asio)			\
+	$(files_mt)				\
+	$(files_zlib)			\
+	$(files_bzip2)			\
+	$(files_lzma)			\
+	$(files_zstd)			\
+	$(files_altivec)
+
+## aaaaaaaaahhhhhhhhhhhhhhhhhhh!!!!!!!1
+schismtracker_SOURCES = \
+	auto/default-font.c		\
+	auto/helptext.c			\
+	schism/auto/schismico_hires.c \
+	schism/auto/schismico.c \
+	schism/clippy.c			\
+	schism/config.c			\
+	schism/dialog.c			\
+	schism/events.c  		\
+	schism/fakemem.c		\
+	schism/fonts.c          \
+	schism/itf.c			\
+	schism/keyboard.c		\
+	schism/main.c			\
+	schism/menu.c			\
 	schism/page.c			\
 	schism/page_about.c		\
 	schism/page_blank.c		\
@@ -718,49 +764,21 @@ schismtracker_SOURCES = \
 	schism/page_waterfall.c		\
 	schism/palettes.c		\
 	schism/pattern-view.c		\
-	schism/sample-edit.c		\
-	schism/slurp.c			\
 	schism/status.c			\
-	schism/str.c             \
-	schism/timer.c          \
 	schism/tracker-host.c		\
-	schism/util.c			\
-	schism/version.c		\
 	schism/vgamem.c        \
 	schism/video.c			\
 	schism/widget-keyhandler.c	\
 	schism/widget.c			\
 	schism/xpmdata.c		\
-	sys/posix/osdefs.c \
-	$(files_macosx)			\
-	$(files_alsa)			\
-	$(files_oss)			\
-	$(files_win32)			\
-	$(files_x11)			\
-	$(files_stdlib)			\
-	$(files_mmap)			\
-	$(files_wii)			\
+	$(ui_macosx)			\
+	$(ui_win32)			\
+	$(ui_x11)			\
 	$(files_windres)		\
-	$(files_flac)			\
-	$(files_jack)			\
-	$(files_opl)			\
-	$(files_mediafoundation)	\
-	$(files_gstreamer)		\
-	$(files_wiiu)			\
-	$(files_sdl3)			\
-	$(files_sdl2)			\
-	$(files_sdl12)			\
-	$(files_macos)			\
-	$(files_os2)			\
-	$(files_xbox)			\
-	$(files_avformat)		\
-	$(files_asio)			\
-	$(files_mt)				\
-	$(files_zlib)			\
-	$(files_bzip2)			\
-	$(files_lzma)			\
-	$(files_zstd)			\
-	$(files_altivec)
+	$(ui_sdl3)			\
+	$(ui_sdl2)			\
+	$(ui_sdl12)			\
+	$(ui_macos)
 
 # have version.o rely on all files
 schism/version.$(OBJEXT): $(filter-out schism/version.$(OBJEXT),$(schismtrackertest_OBJECTS)) $(HEADERS)
@@ -773,12 +791,18 @@ component_cflags = $(cflags_alsa) $(cflags_oss) \
 	$(cflags_xbox) $(UTF8PROC_CFLAGS) $(cflags_avformat) \
 	$(cflags_asio) $(cflags_zlib) $(cflags_bzip2) \
 	$(cflags_lzma) $(cflags_zstd)
+
+# -mwindows only matters to the linker, and schismplay is a console program
+libschismengine_a_CPPFLAGS = -I$(srcdir)/include -I. $(cppflags_wii) $(cppflags_wiiu)
+libschismengine_a_CFLAGS = $(AM_CFLAGS) $(filter-out -mwindows,$(component_cflags))
+libschismengine_a_OBJCFLAGS = $(AM_OBJCFLAGS) $(filter-out -mwindows,$(component_cflags))
+
 schismtracker_CPPFLAGS = -I$(srcdir)/include -I. $(cppflags_wii) $(cppflags_wiiu)
 schismtracker_CFLAGS = $(AM_CFLAGS) $(component_cflags)
 schismtracker_OBJCFLAGS = $(AM_OBJCFLAGS) $(component_cflags)
 
-schismtracker_DEPENDENCIES = $(files_windres)
-schismtracker_LDADD = $(LIBM) $(libs_sdl3) \
+schismtracker_DEPENDENCIES = $(files_windres) libschismengine.a
+schismtracker_LDADD = libschismengine.a $(LIBM) $(libs_sdl3) \
 	$(libs_x11) $(libs_wii) $(libs_wiiu) \
 	$(libs_jack) $(libs_macosx) $(lib_asound) \
 	$(lib_win32) $(libs_network) $(libs_flac) \
@@ -836,198 +860,15 @@ schismtrackertest_LDADD = $(filter-out $(mains),$(schismtracker_OBJECTS)) $(schi
 schismtrackertest_LDFLAGS = $(schismtracker_LDFLAGS)
 
 # ---------------------------------------------------------------------------
-# schismplay: the player, the loaders and the audio backends behind a small
-# command-line front end, with none of the UI (pages, widgets, video, fonts,
-# keyboard handling, dialogs, help text). It registers its own engine
-# callbacks (include/engine-host.h).
+# schismplay: the engine behind a small command-line front end, with none of
+# the UI (pages, widgets, video, fonts, keyboard handling, dialogs, help
+# text). It registers its own engine callbacks (include/engine-host.h).
 
 if BUILD_SCHISMPLAY
 bin_PROGRAMS += schismplay
 endif
 
-if USE_SDL3
-sys/sdl3/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismplay-dmoz.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismplay-init.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-sys/sdl3/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL3_CFLAGS)
-play_sdl3 = sys/sdl3/audio.c sys/sdl3/dmoz.c sys/sdl3/init.c sys/sdl3/timer.c
-endif
-
-if USE_SDL2
-sys/sdl2/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismplay-dmoz.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismplay-init.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-sys/sdl2/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL2_CFLAGS)
-play_sdl2 = sys/sdl2/audio.c sys/sdl2/dmoz.c sys/sdl2/init.c sys/sdl2/timer.c
-endif
-
-if USE_SDL12
-sys/sdl12/schismplay-audio.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismplay-init.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismplay-timer.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-sys/sdl12/schismplay-mt.$(OBJEXT): CFLAGS += $(SDL12_CFLAGS)
-play_sdl12 = sys/sdl12/audio.c sys/sdl12/init.c sys/sdl12/timer.c
-endif
-
-if USE_MACOSX
-play_macosx = \
-	sys/macosx/midi-macosx.c	\
-	sys/macosx/osdefs.m	\
-	sys/macosx/dmoz.m	\
-	sys/macosx/audio.c	\
-	fmt/macosxca.c
-endif
-
-if USE_WIN32
-sys/win32/schismplay-audio-dsound.$(OBJEXT): CFLAGS += $(DSOUND_CFLAGS)
-play_win32 = \
-	sys/win32/filetype.c	\
-	sys/win32/midi-win32mm.c	\
-	sys/win32/osdefs.c	\
-	sys/win32/slurp-win32.c	\
-	sys/win32/dmoz.c	\
-	sys/win32/timer.c	\
-	sys/win32/audio-waveout.c	\
-	sys/win32/audio-dsound.c
-if USE_THREADS
-play_win32 += sys/win32/mt.c
-endif
-if USE_MEDIAFOUNDATION
-fmt/schismplay-win32mf.$(OBJEXT): CFLAGS += $(MEDIAFOUNDATION_CFLAGS)
-endif
-endif
-
-if USE_MACOS
-play_macos = \
-	sys/macos/audio-sndmgr.c	\
-	sys/macos/osdefs.c	\
-	sys/macos/dirent/macos-dirent.c	\
-	sys/macos/dmoz.c	\
-	sys/macos/midi-midimgr.c	\
-	sys/asio/audio-asio.c	\
-	sys/asio/audio-asio-mac.c
-endif
-
-if USE_GSTREAMER
-fmt/schismplay-gstreamer.$(OBJEXT): CFLAGS += $(GSTREAMER_CFLAGS)
-endif
-
-if SCHISM_ALTIVEC
-schism/schismplay-util-altivec.$(OBJEXT): CFLAGS += -maltivec
-endif
-
-schismplay_SOURCES = \
-	fmt/669.c	\
-	fmt/aiff.c	\
-	fmt/ams.c	\
-	fmt/au.c	\
-	fmt/brr.c	\
-	fmt/compression.c	\
-	fmt/d00.c	\
-	fmt/dsm.c	\
-	fmt/edl.c	\
-	fmt/f2r.c	\
-	fmt/far.c	\
-	fmt/generic.c	\
-	fmt/imf.c	\
-	fmt/iff.c	\
-	fmt/it.c	\
-	fmt/iti.c	\
-	fmt/its.c	\
-	fmt/liq.c	\
-	fmt/mdl.c	\
-	fmt/med.c	\
-	fmt/mf.c	\
-	fmt/mid.c	\
-	fmt/mmcmp.c	\
-	fmt/mo3.c	\
-	fmt/mod.c	\
-	fmt/mt2.c	\
-	fmt/mtm.c	\
-	fmt/mus.c	\
-	fmt/ntk.c	\
-	fmt/okt.c	\
-	fmt/pat.c	\
-	fmt/psm.c	\
-	fmt/raw.c	\
-	fmt/s3i.c	\
-	fmt/s3m.c	\
-	fmt/sbi.c	\
-	fmt/sf2.c	\
-	fmt/sfx.c	\
-	fmt/stm.c	\
-	fmt/stx.c	\
-	fmt/ult.c	\
-	fmt/w64.c	\
-	fmt/wav.c	\
-	fmt/xi.c	\
-	fmt/xm.c	\
-	player/csndfile.c	\
-	player/effects.c	\
-	player/equalizer.c	\
-	player/filters.c	\
-	player/fmpatches.c	\
-	player/mixer.c	\
-	player/mixutil.c	\
-	player/snd_fm.c	\
-	player/snd_gm.c	\
-	player/sndmix.c	\
-	player/tables.c	\
-	schism/atomic.c	\
-	schism/audio_loadsave.c	\
-	schism/audio_playback.c	\
-	schism/charset.c	\
-	schism/charset_stdlib.c	\
-	schism/charset_unicode.c	\
-	schism/config-parser.c	\
-	schism/cpu.c	\
-	schism/disko.c	\
-	schism/dmoz.c	\
-	schism/engine-host.c	\
-	schism/ieee-float.c	\
-	schism/loadso.c	\
-	schism/mem.c	\
-	schism/midi-core.c	\
-	schism/midi-ip.c	\
-	schism/mplink.c	\
-	schism/mt.c	\
-	schism/sample-edit.c	\
-	schism/schismplay.c	\
-	schism/slurp.c	\
-	schism/str.c	\
-	schism/timer.c	\
-	schism/util.c	\
-	schism/version.c	\
-	sys/posix/osdefs.c	\
-	$(play_macosx)	\
-	$(files_alsa)	\
-	$(files_oss)	\
-	$(play_win32)	\
-	$(files_stdlib)	\
-	$(files_mmap)	\
-	$(files_wii)	\
-	$(files_flac)	\
-	$(files_jack)	\
-	$(files_opl)	\
-	$(files_mediafoundation)	\
-	$(files_gstreamer)	\
-	$(files_wiiu)	\
-	$(play_sdl3)	\
-	$(play_sdl2)	\
-	$(play_sdl12)	\
-	$(play_macos)	\
-	$(files_os2)	\
-	$(files_xbox)	\
-	$(files_avformat)	\
-	$(files_asio)	\
-	$(files_mt)	\
-	$(files_zlib)	\
-	$(files_bzip2)	\
-	$(files_lzma)	\
-	$(files_zstd)	\
-	$(files_altivec)
+schismplay_SOURCES = schism/schismplay.c
 
 # a console program on Windows, so no -mwindows
 schismplay_CPPFLAGS = $(schismtracker_CPPFLAGS)
@@ -1035,7 +876,7 @@ schismplay_CFLAGS = $(AM_CFLAGS) $(filter-out -mwindows,$(component_cflags))
 schismplay_OBJCFLAGS = $(AM_OBJCFLAGS) $(filter-out -mwindows,$(component_cflags))
 
 # same as schismtracker minus X11, which is only used by the UI
-schismplay_LDADD = $(LIBM) $(libs_sdl3) \
+schismplay_LDADD = libschismengine.a $(LIBM) $(libs_sdl3) \
 	$(libs_wii) $(libs_wiiu) \
 	$(libs_jack) $(libs_macosx) $(lib_asound) \
 	$(lib_win32) $(libs_network) $(libs_flac) \

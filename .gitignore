@@ -8,6 +8,7 @@
 /Makefile
 /Makefile.in
 /aclocal.m4
+/ar-lib
 /auto/
 /autom4te.cache/
 /build-config.h
@@ -29,6 +30,7 @@
 /configure
 /depcomp
 /install-sh
+/libschismengine.a
 /missing
 /schismtracker
 /schismtrackertest

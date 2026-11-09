@@ -272,6 +272,8 @@ if test "x$ac_cv_prog_cc_c11" = "xno" && test "x$ac_cv_prog_cc_c99" = "xno"; the
 	AC_MSG_WARN([*** Failed to find a proper C99/C11 compiler])
 fi
 AM_PROG_CC_C_O
+AM_PROG_AR
+AC_PROG_RANLIB
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
