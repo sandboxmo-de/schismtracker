@@ -266,7 +266,7 @@ static void windowed_fir_init(void)
 /* ------------------------------------------------------------------------ */
 
 #define LOOP(BITS, x, y) \
-	printf("static int" #BITS "_t %s[%" PRId32 "] = {\n", #x, (int32_t)y); \
+	printf("static const int" #BITS "_t %s[%" PRId32 "] = {\n", #x, (int32_t)y); \
 	\
 	for (int i = 0; i < y; i++) { \
 		if (i && !(i % 64)) \

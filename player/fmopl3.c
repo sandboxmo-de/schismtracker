@@ -448,13 +448,13 @@ static const uint8_t mul_tab[16]= {
 *   TL_RES_LEN - sinus resolution (X axis)
 */
 #define TL_TAB_LEN (13*2*TL_RES_LEN)
-static int32_t tl_tab[TL_TAB_LEN];
 
 #define ENV_QUIET       (TL_TAB_LEN>>4)
 
 /* sin waveform table in 'decibel' scale */
 /* there are eight waveforms on OPL3 chips */
-static uint32_t sin_tab[SIN_LEN * 8];
+/* tl_tab and sin_tab; scripts/gen-opl-tables.c makes them */
+#include "player/fmopl3_tables.h"
 
 
 /* LFO Amplitude Modulation table (verified on real YM3812)
@@ -1105,158 +1105,8 @@ static inline void chan_calc_rhythm( OPL3 *chip, OPL3_CH *CH, uint32_t noise )
 }
 
 
-/* generic table initialize */
-static int init_tables(void)
+static int OPLOpenTable( void )
 {
-	int32_t i,x;
-	int32_t n;
-	double o,m;
-
-
-	for (x=0; x<TL_RES_LEN; x++)
-	{
-		m = (1<<16) / pow(2.0, (x+1) * (ENV_STEP/4.0) / 8.0);
-		m = floor(m);
-
-		/* we never reach (1<<16) here due to the (x+1) */
-		/* result fits within 16 bits at maximum */
-
-		n = (int32_t)m; /* 16 bits here */
-		n >>= 4;        /* 12 bits here */
-		if (n&1)        /* round to nearest */
-			n = (n>>1)+1;
-		else
-			n = n>>1;
-						/* 11 bits here (rounded) */
-		n <<= 1;        /* 12 bits here (as in real chip) */
-		tl_tab[ x*2 + 0 ] = n;
-		tl_tab[ x*2 + 1 ] = ~tl_tab[ x*2 + 0 ]; /* this *is* different from OPL2 (verified on real YMF262) */
-
-		for (i=1; i<13; i++)
-		{
-			tl_tab[ x*2+0 + i*2*TL_RES_LEN ] =  tl_tab[ x*2+0 ]>>i;
-			tl_tab[ x*2+1 + i*2*TL_RES_LEN ] = ~tl_tab[ x*2+0 + i*2*TL_RES_LEN ];  /* this *is* different from OPL2 (verified on real YMF262) */
-		}
-	#if 0
-			logerror("tl %04i", x*2);
-			for (i=0; i<13; i++)
-				logerror(", [%02i] %5i", i*2, tl_tab[ x*2 +0 + i*2*TL_RES_LEN ] ); /* positive */
-			logerror("\n");
-
-			logerror("tl %04i", x*2);
-			for (i=0; i<13; i++)
-				logerror(", [%02i] %5i", i*2, tl_tab[ x*2 +1 + i*2*TL_RES_LEN ] ); /* negative */
-			logerror("\n");
-	#endif
-	}
-
-	for (i=0; i<SIN_LEN; i++)
-	{
-		/* non-standard sinus */
-		m = sin( ((i*2)+1) * M_PI / SIN_LEN ); /* checked against the real chip */
-
-		/* we never reach zero here due to ((i*2)+1) */
-
-		if (m>0.0)
-			o = 8*log(1.0/m)/log(2.0);  /* convert to 'decibels' */
-		else
-			o = 8*log(-1.0/m)/log(2.0); /* convert to 'decibels' */
-
-		o = o / (ENV_STEP/4);
-
-		n = (int32_t)(2.0*o);
-		if (n&1)                        /* round to nearest */
-			n = (n>>1)+1;
-		else
-			n = n>>1;
-
-		sin_tab[ i ] = n*2 + (m>=0.0? 0: 1 );
-
-		/*logerror("YMF262.C: sin [%4i (hex=%03x)]= %4i (tl_tab value=%5i)\n", i, i, sin_tab[i], tl_tab[sin_tab[i]] );*/
-	}
-
-	for (i=0; i<SIN_LEN; i++)
-	{
-		/* these 'pictures' represent _two_ cycles */
-		/* waveform 1:  __      __     */
-		/*             /  \____/  \____*/
-		/* output only first half of the sinus waveform (positive one) */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[1*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[1*SIN_LEN+i] = sin_tab[i];
-
-		/* waveform 2:  __  __  __  __ */
-		/*             /  \/  \/  \/  \*/
-		/* abs(sin) */
-
-		sin_tab[2*SIN_LEN+i] = sin_tab[i & (SIN_MASK>>1) ];
-
-		/* waveform 3:  _   _   _   _  */
-		/*             / |_/ |_/ |_/ |_*/
-		/* abs(output only first quarter of the sinus waveform) */
-
-		if (i & (1<<(SIN_BITS-2)) )
-			sin_tab[3*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[3*SIN_LEN+i] = sin_tab[i & (SIN_MASK>>2)];
-
-		/* waveform 4:                 */
-		/*             /\  ____/\  ____*/
-		/*               \/      \/    */
-		/* output whole sinus waveform in half the cycle(step=2) and output 0 on the other half of cycle */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[4*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[4*SIN_LEN+i] = sin_tab[i*2];
-
-		/* waveform 5:                 */
-		/*             /\/\____/\/\____*/
-		/*                             */
-		/* output abs(whole sinus) waveform in half the cycle(step=2) and output 0 on the other half of cycle */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[5*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[5*SIN_LEN+i] = sin_tab[(i*2) & (SIN_MASK>>1) ];
-
-		/* waveform 6: ____    ____    */
-		/*                             */
-		/*                 ____    ____*/
-		/* output maximum in half the cycle and output minimum on the other half of cycle */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[6*SIN_LEN+i] = 1;   /* negative */
-		else
-			sin_tab[6*SIN_LEN+i] = 0;   /* positive */
-
-		/* waveform 7:                 */
-		/*             |\____  |\____  */
-		/*                   \|      \|*/
-		/* output sawtooth waveform    */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			x = ((SIN_LEN-1)-i)*16 + 1; /* negative: from 8177 to 1 */
-		else
-			x = i*16;   /*positive: from 0 to 8176 */
-
-		if (x > TL_TAB_LEN)
-			x = TL_TAB_LEN; /* clip to the allowed range */
-
-		sin_tab[7*SIN_LEN+i] = x;
-
-		//logerror("YMF262.C: sin1[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[1*SIN_LEN+i], tl_tab[sin_tab[1*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin2[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[2*SIN_LEN+i], tl_tab[sin_tab[2*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin3[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[3*SIN_LEN+i], tl_tab[sin_tab[3*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin4[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[4*SIN_LEN+i], tl_tab[sin_tab[4*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin5[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[5*SIN_LEN+i], tl_tab[sin_tab[5*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin6[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[6*SIN_LEN+i], tl_tab[sin_tab[6*SIN_LEN+i]] );
-		//logerror("YMF262.C: sin7[%4i]= %4i (tl_tab value=%5i)\n", i, sin_tab[7*SIN_LEN+i], tl_tab[sin_tab[7*SIN_LEN+i]] );
-	}
-	/*logerror("YMF262.C: ENV_QUIET= %08x (dec*8=%i)\n", ENV_QUIET, ENV_QUIET*8 );*/
-
 #ifdef SAVE_SAMPLE
 	sample[0]=fopen("sampsum.pcm","wb");
 #endif
@@ -2211,7 +2061,7 @@ static int OPL3_LockTable(void)
 
 	/* first time */
 
-	if( !init_tables() )
+	if( !OPLOpenTable() )
 	{
 		num_lock--;
 		return -1;

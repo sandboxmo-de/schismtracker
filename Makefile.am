@@ -80,7 +80,9 @@ scripts = \
 	scripts/bin2h.sh		\
 	scripts/build-font.sh		\
 	scripts/check-engine-boundary.sh	\
+	scripts/check-tables.sh		\
 	scripts/mem-stats.py		\
+	scripts/gen-opl-tables.c	\
 	scripts/genhelp.pl		\
 	scripts/half2itf.py		\
 	scripts/itcfg.py		\
@@ -159,6 +161,8 @@ noinst_HEADERS = \
 	include/widget.h        \
 	include/player/cmixer.h		\
 	include/player/fmopl.h			\
+	include/player/fmopl2_tables.h		\
+	include/player/fmopl3_tables.h		\
 	include/player/precomp_lut.h		\
 	include/player/snd_fm.h		\
 	include/player/snd_gm.h		\
@@ -958,6 +962,12 @@ check-engine-boundary: libschismengine.a $(schismtracker_OBJECTS)
 	LIBS="$(filter-out libschismengine.a,$(schismplay_LDADD)) $(LIBS)" \
 	$(SHELL) $(srcdir)/scripts/check-engine-boundary.sh libschismengine.a $(schismtracker_OBJECTS)
 
-check-local: check-engine-boundary
+# Fail if a generated lookup table in include/player doesn't match what its
+# generator makes. The generators run on the build machine, so they're built
+# with CC_FOR_BUILD if it's set and cc if not. See scripts/check-tables.sh.
+check-tables:
+	@CC="$(CC_FOR_BUILD)" $(SHELL) $(srcdir)/scripts/check-tables.sh $(srcdir)
 
-.PHONY: check-engine-boundary
+check-local: check-engine-boundary check-tables
+
+.PHONY: check-engine-boundary check-tables

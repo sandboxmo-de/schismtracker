@@ -456,13 +456,13 @@ static const uint8_t mul_tab[16]= {
 *   TL_RES_LEN - sinus resolution (X axis)
 */
 #define TL_TAB_LEN (12*2*TL_RES_LEN)
-static int32_t tl_tab[TL_TAB_LEN];
 
 #define ENV_QUIET       (TL_TAB_LEN>>4)
 
 /* sin waveform table in 'decibel' scale */
 /* four waveforms on OPL2 type chips */
-static uint32_t sin_tab[SIN_LEN * 4];
+/* tl_tab and sin_tab; scripts/gen-opl-tables.c makes them */
+#include "player/fmopl2_tables.h"
 
 
 /* LFO Amplitude Modulation table (verified on real YM3812)
@@ -1080,112 +1080,6 @@ static inline void OPL_CALC_RH( FM_OPL *OPL, OPL_CH *CH, uint32_t noise )
 }
 
 
-/* generic table initialize */
-static int init_tables(void)
-{
-	int32_t i,x;
-	int32_t n;
-	double o,m;
-
-
-	for (x=0; x<TL_RES_LEN; x++)
-	{
-		m = (1<<16) / pow(2.0, (x+1) * (ENV_STEP/4.0) / 8.0);
-		m = floor(m);
-
-		/* we never reach (1<<16) here due to the (x+1) */
-		/* result fits within 16 bits at maximum */
-
-		n = (int32_t)m; /* 16 bits here */
-		n >>= 4;        /* 12 bits here */
-		if (n&1)        /* round to nearest */
-			n = (n>>1)+1;
-		else
-			n = n>>1;
-						/* 11 bits here (rounded) */
-		n <<= 1;        /* 12 bits here (as in real chip) */
-		tl_tab[ x*2 + 0 ] = n;
-		tl_tab[ x*2 + 1 ] = -tl_tab[ x*2 + 0 ];
-
-		for (i=1; i<12; i++)
-		{
-			tl_tab[ x*2+0 + i*2*TL_RES_LEN ] =  tl_tab[ x*2+0 ]>>i;
-			tl_tab[ x*2+1 + i*2*TL_RES_LEN ] = -tl_tab[ x*2+0 + i*2*TL_RES_LEN ];
-		}
-	#if 0
-			logerror("tl %04i", x*2);
-			for (i=0; i<12; i++)
-				logerror(", [%02i] %5i", i*2, tl_tab[ x*2 /*+1*/ + i*2*TL_RES_LEN ] );
-			logerror("\n");
-	#endif
-	}
-	/*logerror("FMOPL.C: TL_TAB_LEN = %i elements (%i bytes)\n",TL_TAB_LEN, (int)sizeof(tl_tab));*/
-
-
-	for (i=0; i<SIN_LEN; i++)
-	{
-		/* non-standard sinus */
-		m = sin( ((i*2)+1) * M_PI / SIN_LEN ); /* checked against the real chip */
-
-		/* we never reach zero here due to ((i*2)+1) */
-
-		if (m>0.0)
-			o = 8*log(1.0/m)/log(2.0);  /* convert to 'decibels' */
-		else
-			o = 8*log(-1.0/m)/log(2.0); /* convert to 'decibels' */
-
-		o = o / (ENV_STEP/4);
-
-		n = (int32_t)(2.0*o);
-		if (n&1)                        /* round to nearest */
-			n = (n>>1)+1;
-		else
-			n = n>>1;
-
-		sin_tab[ i ] = n*2 + (m>=0.0? 0: 1 );
-
-		/*logerror("FMOPL.C: sin [%4i (hex=%03x)]= %4i (tl_tab value=%5i)\n", i, i,
-			sin_tab[i], tl_tab[sin_tab[i]] );*/
-	}
-
-	for (i=0; i<SIN_LEN; i++)
-	{
-		/* waveform 1:  __      __     */
-		/*             /  \____/  \____*/
-		/* output only first half of the sinus waveform (positive one) */
-
-		if (i & (1<<(SIN_BITS-1)) )
-			sin_tab[1*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[1*SIN_LEN+i] = sin_tab[i];
-
-		/* waveform 2:  __  __  __  __ */
-		/*             /  \/  \/  \/  \*/
-		/* abs(sin) */
-
-		sin_tab[2*SIN_LEN+i] = sin_tab[i & (SIN_MASK>>1) ];
-
-		/* waveform 3:  _   _   _   _  */
-		/*             / |_/ |_/ |_/ |_*/
-		/* abs(output only first quarter of the sinus waveform) */
-
-		if (i & (1<<(SIN_BITS-2)) )
-			sin_tab[3*SIN_LEN+i] = TL_TAB_LEN;
-		else
-			sin_tab[3*SIN_LEN+i] = sin_tab[i & (SIN_MASK>>2)];
-
-		/*logerror("FMOPL.C: sin1[%4i]= %4i (tl_tab value=%5i)\n", i,
-			sin_tab[1*SIN_LEN+i], tl_tab[sin_tab[1*SIN_LEN+i]] );
-		logerror("FMOPL.C: sin2[%4i]= %4i (tl_tab value=%5i)\n", i,
-			sin_tab[2*SIN_LEN+i], tl_tab[sin_tab[2*SIN_LEN+i]] );
-		logerror("FMOPL.C: sin3[%4i]= %4i (tl_tab value=%5i)\n", i,
-			sin_tab[3*SIN_LEN+i], tl_tab[sin_tab[3*SIN_LEN+i]] );*/
-	}
-	/*logerror("FMOPL.C: ENV_QUIET= %08x (dec*8=%i)\n", ENV_QUIET, ENV_QUIET*8 );*/
-
-
-	return 1;
-}
 
 static void OPLCloseTable( void )
 {
@@ -1658,17 +1552,6 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 static int OPL_LockTable(void)
 {
 	num_lock++;
-	if(num_lock>1) return 0;
-
-	/* first time */
-
-	/* allocate total level table (128kb space) */
-	if( !init_tables() )
-	{
-		num_lock--;
-		return -1;
-	}
-
 	return 0;
 }
 
