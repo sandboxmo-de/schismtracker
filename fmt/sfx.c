@@ -26,9 +26,9 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------------------------------------------- */
 
@@ -60,7 +60,7 @@ int fmt_sfx_read_info(dmoz_file_t *file, slurp_t *fp)
 			&& !memcmp(tag, sfxfmts[n].tag, 4)) {
 			file->description = sfxfmts[n].id;
 			/*file->extension = str_dup("sfx");*/
-			file->title = str_dup(""); // whatever
+			file->title = engine_strdup("", ENGINE_MEM_ENGINE); // whatever
 			file->type = TYPE_MODULE_MOD;
 			return 1;
 		}
@@ -162,6 +162,8 @@ int fmt_sfx_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	} else {
 		for (pat = 0; pat < npat; pat++) {
 			note = song->patterns[pat] = csf_allocate_pattern(64);
+			if (!note)
+				return LOAD_FILE_ERROR;
 			song->pattern_size[pat] = song->pattern_alloc_size[pat] = 64;
 			for (n = 0; n < 64; n++, note = note + MAX_CHANNELS - 4) {
 				for (chan = 0; chan < 4; chan++, note++) {

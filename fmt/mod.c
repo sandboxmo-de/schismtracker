@@ -25,13 +25,13 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
 
 #include "version.h"
 #include "disko.h"
 #include "log.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -166,7 +166,7 @@ int fmt_mod_read_info(dmoz_file_t *file, slurp_t *fp)
 
 			file->description = valid_tags[i][1];
 			/*file->extension = str_dup("mod");*/
-			file->title = strn_dup(title, sizeof(title));
+			file->title = engine_strndup(title, sizeof(title), ENGINE_MEM_ENGINE);
 			file->type = TYPE_MODULE_MOD;
 			return 1;
 		}
@@ -211,7 +211,7 @@ int fmt_mod_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "SoundTracker";
 	/*file->extension = str_dup("mod");*/
-	file->title = strn_dup(title, sizeof(title));
+	file->title = engine_strndup(title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;
 
 	return 1;
@@ -436,6 +436,8 @@ static int fmt_mod_load_song(song_t *song, slurp_t *fp, uint32_t lflags, int for
 	if (startrekker) {
 		for (pat = 0; pat <= npat; pat++) {
 			note = song->patterns[pat] = csf_allocate_pattern(64);
+			if (!note)
+				return LOAD_FILE_ERROR;
 			song->pattern_size[pat] = song->pattern_alloc_size[pat] = 64;
 			for (n = 0; n < 64; n++, note += 60) {
 				for (chan = 0; chan < 4; chan++, note++) {
@@ -460,6 +462,8 @@ static int fmt_mod_load_song(song_t *song, slurp_t *fp, uint32_t lflags, int for
 	} else {
 		for (pat = 0; pat <= npat; pat++) {
 			note = song->patterns[pat] = csf_allocate_pattern(64);
+			if (!note)
+				return LOAD_FILE_ERROR;
 			song->pattern_size[pat] = song->pattern_alloc_size[pat] = 64;
 			for (n = 0; n < 64; n++, note += 64 - nchan) {
 				for (chan = 0; chan < nchan; chan++, note++) {

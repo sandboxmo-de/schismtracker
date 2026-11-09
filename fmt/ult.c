@@ -27,9 +27,9 @@
 #include "fmt.h"
 #include "it.h" /* for get_effect_char */
 #include "log.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 #include <math.h> /* for pow */
 
@@ -50,7 +50,7 @@ int fmt_ult_read_info(dmoz_file_t *file, slurp_t *fp)
 	file->description = "UltraTracker Module";
 	file->type = TYPE_MODULE_S3M;
 	/*file->extension = str_dup("ult");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	return 1;
 }
 
@@ -390,6 +390,8 @@ int fmt_ult_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	for (pat = 0; pat < npat; pat++) {
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = 64;
 		song->patterns[pat] = csf_allocate_pattern(64);
+		if (!song->patterns[pat])
+			return LOAD_FILE_ERROR;
 	}
 	for (chn = 0; chn < nchn; chn++) {
 		song_note_t evnote;

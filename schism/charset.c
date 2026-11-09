@@ -27,8 +27,8 @@
 #include "charset.h"
 #include "util.h"
 #include "disko.h"
-#include "mem.h"
 #include "log.h"
+#include "engine-alloc.h"
 #ifdef SCHISM_WIN32
 # include "osdefs.h"
 # include <windows.h>
@@ -1185,7 +1185,7 @@ struct charset_iconv_v2 *charset_iconv_v2_open(charset_t inset, charset_t outset
 	if (inset == outset)
 		return NULL; /* Don't do this */
 
-	x = calloc(1, sizeof(*x));
+	x = engine_calloc(1, sizeof(*x), ENGINE_MEM_SCRATCH);
 	if (!x)
 		return NULL;
 
@@ -1201,7 +1201,7 @@ struct charset_iconv_v2 *charset_iconv_v2_open(charset_t inset, charset_t outset
 
 		/* stuff */
 		if (!charset_iconv_get_system_encoding_(&hfsenc)) {
-			free(x);
+			engine_free(x, ENGINE_MEM_SCRATCH);
 			return NULL;
 		}
 
@@ -1217,7 +1217,7 @@ struct charset_iconv_v2 *charset_iconv_v2_open(charset_t inset, charset_t outset
 
 		err = TECCreateConverter(&x->tec, inenc, outenc);
 		if (err != noErr) {
-			free(x);
+			engine_free(x, ENGINE_MEM_SCRATCH);
 			return NULL;
 		}
 #elif defined(SCHISM_OS2)
@@ -1603,7 +1603,7 @@ void charset_iconv_v2_close(struct charset_iconv_v2 *x)
 #endif
 	}
 #endif
-	free(x);
+	engine_free(x, ENGINE_MEM_SCRATCH);
 }
 
 /* ------------------------------------------------------------------------ */

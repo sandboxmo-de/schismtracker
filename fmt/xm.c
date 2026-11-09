@@ -25,13 +25,13 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "it.h" // needed for get_effect_char (purely informational)
 #include "log.h"
 
 #include "player/sndfile.h"
 #include "player/tables.h"
+#include "engine-alloc.h"
 
 // gloriously stolen from xmp
 struct xm_file_header {
@@ -109,7 +109,7 @@ int fmt_xm_read_info(dmoz_file_t *file, slurp_t *fp)
 	file->description = "Fast Tracker 2 Module";
 	file->type = TYPE_MODULE_XM;
 	/*file->extension = str_dup("xm");*/
-	file->title = strn_dup((const char *)hdr.name, sizeof(hdr.name));
+	file->title = engine_strndup((const char *)hdr.name, sizeof(hdr.name), ENGINE_MEM_ENGINE);
 	return 1;
 }
 
@@ -341,6 +341,8 @@ static void load_xm_patterns(song_t *song, struct xm_file_header *hdr, slurp_t *
 		}
 
 		note = song->patterns[pat] = csf_allocate_pattern(rows);
+		if (!note)
+			return; /* the load fails on the allocation failure */
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = rows;
 
 		if (!bytes)
@@ -619,6 +621,10 @@ static int load_xm_instruments(song_t *song, struct xm_file_header *hdr, slurp_t
 			break;
 		}
 		song->instruments[ni] = ins = csf_allocate_instrument();
+		if (!ins) {
+			slurp_unlimit(fp);
+			break;
+		}
 
 		SCHISM_STATIC_ASSERT(sizeof(ins->name) > 22, "space assumption");
 		slurp_read(fp, ins->name, 22);

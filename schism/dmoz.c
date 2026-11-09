@@ -37,6 +37,7 @@
 #include "loadso.h"
 #include "mem.h"
 #include "str.h"
+#include "engine-alloc.h"
 #include "engine-host.h"
 
 #include "backend/dmoz.h"
@@ -1552,15 +1553,17 @@ static void free_file(dmoz_file_t *file)
 {
 	if (!file)
 		return;
+	/* title, artist and smp_filename come from the format loaders, which
+	 * allocate them from the engine */
 	if (file->smp_filename != file->base && file->smp_filename != file->title) {
-		free(file->smp_filename);
+		engine_free(file->smp_filename, ENGINE_MEM_ENGINE);
 	}
 	free(file->path);
 	free(file->base);
 	if (file->type & TYPE_EXT_DATA_MASK) {
 		if (file->artist)
-			free(file->artist);
-		free(file->title);
+			engine_free(file->artist, ENGINE_MEM_ENGINE);
+		engine_free(file->title, ENGINE_MEM_ENGINE);
 		/* if (file->sample) {
 			if (file->sample->data)
 				csf_free_sample(file->sample->data);
@@ -1694,7 +1697,7 @@ dmoz_file_t *dmoz_add_file(dmoz_filelist_t *flist, char *path, char *base, struc
 		file->type = TYPE_DIRECTORY;
 		/* have to fill everything in for directories */
 		file->description = DESCR_DIRECTORY;
-		file->title = str_dup(TITLE_DIRECTORY);
+		file->title = engine_strdup(TITLE_DIRECTORY, ENGINE_MEM_ENGINE);
 	} else if (S_ISREG(st->st_mode)) {
 		file->type = TYPE_FILE_MASK; /* really ought to have a separate TYPE_UNCHECKED_FILE... */
 	} else {
@@ -2287,7 +2290,7 @@ static int file_info_get(dmoz_file_t *file)
 			if (file->artist)
 				str_trim(file->artist);
 			if (file->title == NULL)
-				file->title = str_dup(""); /* or the basename? */
+				file->title = engine_strdup("", ENGINE_MEM_ENGINE); /* or the basename? */
 			str_trim(file->title);
 			break;
 		}
@@ -2329,7 +2332,7 @@ int dmoz_filter_ext_data(dmoz_file_t *file)
 		break;
 	}
 	file->type = TYPE_UNKNOWN;
-	file->title = str_dup("");
+	file->title = engine_strdup("", ENGINE_MEM_ENGINE);
 	return 0;
 }
 

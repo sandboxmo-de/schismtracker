@@ -23,7 +23,7 @@
 
 #include "headers.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -50,8 +50,8 @@ int fmt_liq_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Liquid Tracker";
 	/*file->extension = str_dup("liq");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
-	file->artist = strn_dup((const char *)artist, sizeof(artist));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
+	file->artist = engine_strndup((const char *)artist, sizeof(artist), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_S3M;
 
 	return 1;

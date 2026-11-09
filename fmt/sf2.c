@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "it.h"
 #include "song.h"
@@ -193,9 +193,11 @@ int fmt_sf2_read_info(dmoz_file_t *file, slurp_t *fp)
 	file->type = TYPE_INST_OTHER;
 
 	if (cs[SF2_CHUNK_INAM].id) {
-		file->title = mem_alloc(cs[SF2_CHUNK_INAM].size + 1);
-		iff_chunk_read(&cs[SF2_CHUNK_INAM], fp, file->title, cs[SF2_CHUNK_INAM].size);
-		file->title[cs[SF2_CHUNK_INAM].size] = '\0';
+		file->title = engine_alloc(cs[SF2_CHUNK_INAM].size + 1, ENGINE_MEM_ENGINE);
+		if (file->title) {
+			iff_chunk_read(&cs[SF2_CHUNK_INAM], fp, file->title, cs[SF2_CHUNK_INAM].size);
+			file->title[cs[SF2_CHUNK_INAM].size] = '\0';
+		}
 	}
 
 	file->sampsize = cs[SF2_CHUNK_shdr].size / 46;
@@ -221,6 +223,8 @@ int fmt_sf2_load_instrument(slurp_t *fp, int slot)
 	/* nsmp = MIN(nsmp, MAX_SAMPLES); -- some samples may be ignored */
 
 	g = instrument_loader_init(&ii, slot);
+	if (!g)
+		return 0;
 	iff_chunk_read(&cs[SF2_CHUNK_INAM], fp, g->name, sizeof(g->name));
 	g->name[15] = '\0';
 

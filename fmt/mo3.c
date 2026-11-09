@@ -72,7 +72,7 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "log.h"
 #include "str.h"
 
@@ -218,7 +218,7 @@ static uint8_t *mo3_unpack(struct mo3_reader *r, uint32_t size, uint32_t *got)
 	int32_t str_len = 0, str_offset = 0;
 
 	*got = 0;
-	dst = malloc(size ? size : 1);
+	dst = engine_alloc(size ? size : 1, ENGINE_MEM_SCRATCH);
 	if (!dst)
 		return NULL;
 	if (!size)
@@ -746,14 +746,16 @@ int fmt_mo3_read_info(dmoz_file_t *file, slurp_t *fp)
 	if (length <= 8)
 		return 0;
 	length = MIN(length - 8, 4 + 65536 * 9 / 8 + 16);
-	buf = mem_alloc(length);
+	buf = engine_alloc(length, ENGINE_MEM_SCRATCH);
+	if (!buf)
+		return 0;
 	length = slurp_read(fp, buf, length);
 	mo3r_init(&r, buf, length);
 	if (hdr[3] >= 5)
 		mo3r_u32(&r);
 
 	music = mo3_unpack(&r, MIN(music_size, 65536), &got);
-	free(buf);
+	engine_free(buf, ENGINE_MEM_SCRATCH);
 	if (!music)
 		return 0;
 
@@ -761,14 +763,14 @@ int fmt_mo3_read_info(dmoz_file_t *file, slurp_t *fp)
 	mo3r_string(&m, title, sizeof(title));
 	mo3r_string(&m, NULL, 0);
 	if (!mo3_read_file_header(&m, &fh)) {
-		free(music);
+		engine_free(music, ENGINE_MEM_SCRATCH);
 		return 0;
 	}
-	free(music);
+	engine_free(music, ENGINE_MEM_SCRATCH);
 
 	type = mo3_get_type(fh.flags);
 	file->description = descriptions[type];
-	file->title = str_dup(title);
+	file->title = engine_strdup(title, ENGINE_MEM_ENGINE);
 	file->type = types[type];
 	return 1;
 }
@@ -1268,13 +1270,15 @@ static int mo3_load_patterns(song_t *song, struct mo3_reader *music, const struc
 	track_chunk = mo3r_chunk(music, (size_t)fh->num_patterns * fh->num_channels * 2);
 	patlen_chunk = mo3r_chunk(music, (size_t)fh->num_patterns * 2);
 
-	tracks = mem_calloc(fh->num_tracks ? fh->num_tracks : 1, sizeof(*tracks));
+	tracks = engine_calloc(fh->num_tracks ? fh->num_tracks : 1, sizeof(*tracks), ENGINE_MEM_SCRATCH);
+	if (!tracks)
+		return 0;
 	for (n = 0; n < fh->num_tracks; n++) {
 		uint32_t len = mo3r_u32(music);
 		/* a track can't really be bigger than this (65535 rows, 15 events
 		 * a row, plus some slack) */
 		if (len >= 0x200000) {
-			free(tracks);
+			engine_free(tracks, ENGINE_MEM_SCRATCH);
 			return 0;
 		}
 		tracks[n] = mo3r_chunk(music, len);
@@ -1299,7 +1303,8 @@ static int mo3_load_patterns(song_t *song, struct mo3_reader *music, const struc
 
 		if (pat < MAX_PATTERNS) {
 			pdata = song->patterns[pat] = csf_allocate_pattern(rows);
-			song->pattern_size[pat] = song->pattern_alloc_size[pat] = rows;
+			if (pdata)
+				song->pattern_size[pat] = song->pattern_alloc_size[pat] = rows;
 		} else {
 			lost_patterns++;
 		}
@@ -1348,7 +1353,7 @@ static int mo3_load_patterns(song_t *song, struct mo3_reader *music, const struc
 		}
 	}
 
-	free(tracks);
+	engine_free(tracks, ENGINE_MEM_SCRATCH);
 
 	if (lost_patterns)
 		log_appendf(4, " Warning: Too many patterns in song (%" PRIu32 " skipped)", lost_patterns);
@@ -1598,7 +1603,11 @@ static int mo3_decode_external(const uint8_t *data, size_t length, int16_t **pcm
 		*channels = (tmp.flags & CHN_STEREO) ? 2 : 1;
 		*frames = tmp.length;
 		n = tmp.length * *channels;
-		*pcm = mem_alloc(n * sizeof(int16_t));
+		*pcm = engine_alloc(n * sizeof(int16_t), ENGINE_MEM_SCRATCH);
+		if (!*pcm) {
+			csf_free_sample(tmp.data);
+			return 0;
+		}
 		if (tmp.flags & CHN_16BIT) {
 			memcpy(*pcm, tmp.data, n * 2);
 		} else {
@@ -1708,7 +1717,7 @@ static int mo3_load_mpeg(song_sample_t *smp, const struct mo3_sample *ms, const 
 	smp->data = csf_allocate_sample(frames * channels * 2);
 	if (smp->data)
 		memcpy(smp->data, pcm + delay_frames * channels, frames * channels * 2);
-	free(pcm);
+	engine_free(pcm, ENGINE_MEM_SCRATCH);
 	return smp->data != NULL;
 }
 
@@ -1793,7 +1802,9 @@ static uint8_t *mo3_ogg_merge(const uint8_t *head, size_t head_len, const uint8_
 			data_serials[num_data++] = s;
 	}
 
-	buf = mem_alloc(head_len + data_len + 1);
+	buf = engine_alloc(head_len + data_len + 1, ENGINE_MEM_SCRATCH);
+	if (!buf)
+		return NULL;
 	pos = 0;
 	while (mo3_ogg_next_page(head, head_len, &pos, &start, &size)) {
 		uint32_t s = mo3_ogg_serial(head + start), new_serial, crc;
@@ -1882,12 +1893,15 @@ static int mo3_load_vorbis(song_sample_t *smp, const uint8_t *data, size_t lengt
 	if (head) {
 		stream = mo3_ogg_merge(head, head_len, data, length, &length);
 	} else {
-		stream = mem_alloc(length + 1);
-		memcpy(stream, data, length);
+		stream = engine_alloc(length + 1, ENGINE_MEM_SCRATCH);
+		if (stream)
+			memcpy(stream, data, length);
 	}
+	if (!stream)
+		return 0;
 	mo3_ogg_extend_last_granule(stream, length);
 	ok = mo3_decode_external(stream, length, &pcm, &frames, &channels, decoder);
-	free(stream);
+	engine_free(stream, ENGINE_MEM_SCRATCH);
 	if (!ok)
 		return 0;
 
@@ -1897,12 +1911,12 @@ static int mo3_load_vorbis(song_sample_t *smp, const uint8_t *data, size_t lengt
 	want_channels = (smp->flags & CHN_STEREO) ? 2 : 1;
 	smp->data = csf_allocate_sample(smp->length * want_channels * ((smp->flags & CHN_16BIT) ? 2 : 1));
 	if (!smp->data) {
-		free(pcm);
+		engine_free(pcm, ENGINE_MEM_SCRATCH);
 		return 0;
 	}
 	if (channels == want_channels)
 		mo3_store_pcm(smp, pcm, MIN(frames, smp->length), channels);
-	free(pcm);
+	engine_free(pcm, ENGINE_MEM_SCRATCH);
 	return 1;
 }
 
@@ -1957,10 +1971,12 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	version = hdr[3];
 
 	file_length = slurp_length(fp);
-	file_data = mem_alloc(file_length + 1);
+	file_data = engine_alloc(file_length + 1, ENGINE_MEM_SCRATCH);
+	if (!file_data)
+		return LOAD_FILE_ERROR;
 	slurp_rewind(fp);
 	if (slurp_read(fp, file_data, file_length) != file_length) {
-		free(file_data);
+		engine_free(file_data, ENGINE_MEM_SCRATCH);
 		return LOAD_FILE_ERROR;
 	}
 
@@ -2106,8 +2122,11 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 
 	/* instruments; their headers are there even in sample mode */
 	num_ins = fh.num_instruments;
-	if (type == MO3_TYPE_XM)
-		xm_vibrato = mem_calloc(num_ins ? num_ins : 1, sizeof(*xm_vibrato));
+	if (type == MO3_TYPE_XM) {
+		xm_vibrato = engine_calloc(num_ins ? num_ins : 1, sizeof(*xm_vibrato), ENGINE_MEM_SCRATCH);
+		if (!xm_vibrato)
+			goto fail;
+	}
 	for (n = 1; n <= num_ins; n++) {
 		struct mo3_instrument mi;
 		char name[64], filename[64];
@@ -2130,6 +2149,8 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		}
 
 		ins = song->instruments[n] = csf_allocate_instrument();
+		if (!ins)
+			goto fail;
 		strncpy(ins->name, name, sizeof(ins->name) - 1);
 		strncpy(ins->filename, filename, sizeof(ins->filename) - 1);
 		mo3_convert_instrument(&mi, ins, type);
@@ -2141,7 +2162,9 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	/* sample headers */
 	num_smp = fh.num_samples;
 	frequency_is_hertz = (version >= 5 || !(fh.flags & MO3_LINEAR_SLIDES));
-	samples = mem_calloc(num_smp ? num_smp : 1, sizeof(*samples));
+	samples = engine_calloc(num_smp ? num_smp : 1, sizeof(*samples), ENGINE_MEM_SCRATCH);
+	if (!samples)
+		goto fail;
 	for (n = 1; n <= num_smp; n++) {
 		struct mo3_sample *ms = samples + n - 1;
 		char name[64], filename[64];
@@ -2325,8 +2348,10 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			if (n < MAX_SAMPLES && ms->length) {
 				song_sample_t *smp = song->samples + n;
 				slurp_t sfp;
-				uint8_t *tmp = mem_calloc(want ? want : 1, 1);
+				uint8_t *tmp = engine_calloc(want ? want : 1, 1, ENGINE_MEM_SCRATCH);
 
+				if (!tmp)
+					goto fail;
 				memcpy(tmp, src.data + src.pos, have);
 				if (slurp_memstream(&sfp, tmp, want) >= 0) {
 					csf_read_sample(smp, SF_LE | SF_PCMS
@@ -2334,7 +2359,7 @@ int fmt_mo3_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 						| ((ms->flags & MO3_SMP_STEREO) ? SF_SS : SF_M), &sfp);
 					unslurp(&sfp);
 				}
-				free(tmp);
+				engine_free(tmp, ENGINE_MEM_SCRATCH);
 			}
 			src.pos += have;
 		} else if (ms->compressed_size > 0) {
@@ -2468,9 +2493,9 @@ done:
 		log_appendf(4, " Warning: VBlank timing is not supported");
 
 fail:
-	free(samples);
-	free(xm_vibrato);
-	free(music);
-	free(file_data);
+	engine_free(samples, ENGINE_MEM_SCRATCH);
+	engine_free(xm_vibrato, ENGINE_MEM_SCRATCH);
+	engine_free(music, ENGINE_MEM_SCRATCH);
+	engine_free(file_data, ENGINE_MEM_SCRATCH);
 	return ret;
 }

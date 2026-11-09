@@ -23,6 +23,7 @@
 
 #include "headers.h"
 
+#include "engine-alloc.h"
 #include "engine-host.h"
 #include "log.h"
 
@@ -155,17 +156,27 @@ void engine_flag_toggle(int mask)
 /* ------------------------------------------------------------------------ */
 /* log and status line (declared in log.h) */
 
+/* Format into SCRATCH memory. If that fails, fall back to a buffer on the
+ * stack and pass on as much of the line as fits. */
+static void vformat(char **ptr, char *buf, size_t bufsz, const char *format, va_list ap)
+{
+	va_list ap2;
+
+	va_copy(ap2, ap);
+	if (engine_vasprintf(ptr, ENGINE_MEM_SCRATCH, format, ap2) < 0) {
+		*ptr = NULL;
+		vsnprintf(buf, bufsz, format, ap);
+	}
+	va_end(ap2);
+}
+
 static void vlog(int color, int flags, const char *format, va_list ap)
 {
-	char *ptr;
+	char buf[256], *ptr;
 
-	if (vasprintf(&ptr, format, ap) == -1 || !ptr) {
-		perror("asprintf");
-		exit(255);
-	}
-
-	engine_hooks.log(color, flags, ptr);
-	free(ptr);
+	vformat(&ptr, buf, sizeof(buf), format, ap);
+	engine_hooks.log(color, flags, ptr ? ptr : buf);
+	engine_free(ptr, ENGINE_MEM_SCRATCH);
 }
 
 void log_appendf(int color, const char *format, ...)
@@ -210,16 +221,15 @@ void log_perror(const char *prefix)
 
 void status_text_flash(const char *format, ...)
 {
-	char *ptr;
+	char buf[256], *ptr;
 	va_list ap;
 
 	va_start(ap, format);
-	if (vasprintf(&ptr, format, ap) == -1)
-		abort();
+	vformat(&ptr, buf, sizeof(buf), format, ap);
 	va_end(ap);
 
-	engine_hooks.status_text(ptr);
-	free(ptr);
+	engine_hooks.status_text(ptr ? ptr : buf);
+	engine_free(ptr, ENGINE_MEM_SCRATCH);
 }
 
 /* ------------------------------------------------------------------------ */

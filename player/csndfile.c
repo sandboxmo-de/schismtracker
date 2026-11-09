@@ -32,7 +32,7 @@
 #include "util.h"
 #include "ieee-float.h"
 #include "fmt.h" // for it_decompress8 / it_decompress16
-#include "mem.h"
+#include "engine-alloc.h"
 #include "player/cmixer.h"
 
 /* ------------------------------------------------------------------------ */
@@ -152,9 +152,14 @@ static void _csf_reset(song_t *csf)
 //////////////////////////////////////////////////////////
 // song_t
 
+/* The song structure is a fixed-size block, so it's ENGINE memory; what
+ * hangs off it (patterns, samples, instruments, history) is SONG. */
 song_t *csf_allocate(void)
 {
-	song_t *csf = mem_calloc(1, sizeof(song_t));
+	song_t *csf = engine_calloc(1, sizeof(song_t), ENGINE_MEM_ENGINE);
+	if (!csf)
+		return NULL;
+	engine_song_begin();
 	_csf_reset(csf);
 	return csf;
 }
@@ -163,8 +168,18 @@ void csf_free(song_t *csf)
 {
 	if (csf) {
 		csf_destroy(csf);
-		free(csf);
+		engine_song_end();
+		engine_free(csf, ENGINE_MEM_ENGINE);
 	}
+}
+
+void csf_reinit(song_t *csf)
+{
+	csf_destroy(csf);
+	engine_song_end();
+	memset(csf, 0, sizeof(*csf));
+	engine_song_begin();
+	_csf_reset(csf);
 }
 
 
@@ -198,14 +213,15 @@ void csf_init_instrument(song_instrument_t *ins, int samp)
 
 song_instrument_t *csf_allocate_instrument(void)
 {
-	song_instrument_t *ins = mem_alloc(sizeof(song_instrument_t));
-	csf_init_instrument(ins, 0);
+	song_instrument_t *ins = engine_alloc(sizeof(song_instrument_t), ENGINE_MEM_SONG);
+	if (ins)
+		csf_init_instrument(ins, 0);
 	return ins;
 }
 
 void csf_free_instrument(song_instrument_t *i)
 {
-	free(i);
+	engine_free(i, ENGINE_MEM_SONG);
 }
 
 
@@ -238,12 +254,12 @@ void csf_destroy(song_t *csf)
 
 song_note_t *csf_allocate_pattern(uint32_t rows)
 {
-	return mem_calloc(rows * MAX_CHANNELS, sizeof(song_note_t));
+	return engine_calloc(rows * MAX_CHANNELS, sizeof(song_note_t), ENGINE_MEM_SONG);
 }
 
 void csf_free_pattern(void *pat)
 {
-	free(pat);
+	engine_free(pat, ENGINE_MEM_SONG);
 }
 
 #define CSF_ALLOCATE_PREPEND ((MAX_SAMPLING_POINT_SIZE) * (MAX_INTERPOLATION_LOOKAHEAD_BUFFER_SIZE))
@@ -251,13 +267,19 @@ void csf_free_pattern(void *pat)
 
 signed char *csf_allocate_sample(uint32_t nbytes)
 {
-	return (signed char*)mem_calloc(1, nbytes + CSF_ALLOCATE_PREPEND + CSF_ALLOCATE_APPEND) + CSF_ALLOCATE_PREPEND;
+	signed char *p;
+
+	if (nbytes > UINT32_MAX - CSF_ALLOCATE_PREPEND - CSF_ALLOCATE_APPEND)
+		return NULL;
+	p = engine_calloc(1, (size_t)nbytes + CSF_ALLOCATE_PREPEND + CSF_ALLOCATE_APPEND, ENGINE_MEM_SONG);
+
+	return p ? p + CSF_ALLOCATE_PREPEND : NULL;
 }
 
 void csf_free_sample(void *p)
 {
 	if (p)
-		free((signed char*)p - CSF_ALLOCATE_PREPEND);
+		engine_free((signed char*)p - CSF_ALLOCATE_PREPEND, ENGINE_MEM_SONG);
 }
 
 #undef CSF_ALLOCATE_PREPEND
@@ -265,7 +287,7 @@ void csf_free_sample(void *p)
 
 void csf_forget_history(song_t *csf)
 {
-	free(csf->history);
+	engine_free(csf->history, ENGINE_MEM_SONG);
 	csf->history = NULL;
 	csf->histlen = 0;
 	csf->editstart.runtime = timer_ticks();
@@ -1910,6 +1932,8 @@ void csf_insert_restart_pos(song_t *csf, uint32_t restart_order)
 			return; // no more patterns? sux
 		//log_appendf(2, "Copying pattern %d to %d for restart position", pat, newpat);
 		csf->patterns[newpat] = csf_allocate_pattern(csf->pattern_size[pat]);
+		if (!csf->patterns[newpat])
+			return;
 		csf->pattern_size[newpat] = csf->pattern_alloc_size[newpat] = csf->pattern_size[pat];
 		memcpy(csf->patterns[newpat], csf->patterns[pat],
 			sizeof(song_note_t) * MAX_CHANNELS * csf->pattern_size[pat]);
@@ -1971,7 +1995,9 @@ uint32_t csf_get_length(song_t *csf)
 #ifdef USE_THREADS
 	song_t *csfcopy;
 
-	csfcopy = mem_alloc(sizeof(*csfcopy));
+	csfcopy = engine_alloc(sizeof(*csfcopy), ENGINE_MEM_SCRATCH);
+	if (!csfcopy)
+		return 0;
 #else
 	/* allocate it as a global. */
 	static song_t csfcopier;
@@ -2013,7 +2039,7 @@ uint32_t csf_get_length(song_t *csf)
 	total = (((((uint64_t)total << 1) / csfcopy->mix_frequency) + 1) >> 1);
 
 #ifdef USE_THREADS
-	free(csfcopy);
+	engine_free(csfcopy, ENGINE_MEM_SCRATCH);
 #endif
 
 	return total;

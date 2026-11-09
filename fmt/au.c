@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 enum {
 	AU_ULAW = 1,                    /* µ-law */
@@ -131,9 +131,13 @@ int fmt_au_read_info(dmoz_file_t *file, slurp_t *fp)
 
 		slurp_seek(fp, 24, SEEK_SET);
 
-		char *title = mem_alloc(extlen + 1);
-		if (slurp_read(fp, title, extlen) != extlen)
+		char *title = engine_alloc(extlen + 1, ENGINE_MEM_ENGINE);
+		if (!title)
 			return 0;
+		if (slurp_read(fp, title, extlen) != extlen) {
+			engine_free(title, ENGINE_MEM_ENGINE);
+			return 0;
+		}
 		title[extlen] = '\0';
 
 		file->title = title;

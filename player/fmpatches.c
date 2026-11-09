@@ -173,7 +173,7 @@ void adlib_patch_apply(song_sample_t *smp, int32_t patchnum)
 		csf_free_sample(smp->data);
 		smp->data = NULL;
 	}
-	smp->length = 1;
 	smp->data = csf_allocate_sample(1);
+	smp->length = smp->data ? 1 : 0;
 }
 

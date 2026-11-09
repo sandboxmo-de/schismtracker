@@ -117,6 +117,7 @@ noinst_HEADERS = \
 	include/config.h        \
 	include/cpu.h			\
 	include/disko.h			\
+	include/engine-alloc.h		\
 	include/engine-host.h		\
 	include/dialog.h        \
 	include/dmoz.h			\
@@ -682,10 +683,12 @@ libschismengine_a_SOURCES = \
 	schism/cpu.c			\
 	schism/disko.c			\
 	schism/dmoz.c			\
+	schism/engine-alloc.c		\
 	schism/engine-host.c		\
 	schism/ieee-float.c     \
 	schism/loadso.c         \
 	schism/mem.c           \
+	schism/mem-libc.c		\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
 	schism/mplink.c			\
@@ -765,6 +768,7 @@ schismtracker_SOURCES = \
 	schism/page_waterfall.c		\
 	schism/palettes.c		\
 	schism/pattern-view.c		\
+	schism/song-library.c		\
 	schism/status.c			\
 	schism/tracker-host.c		\
 	schism/vgamem.c        \

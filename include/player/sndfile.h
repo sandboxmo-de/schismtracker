@@ -955,6 +955,9 @@ uint32_t calc_halftone(uint32_t hz, int32_t rel);
 // sndfile
 song_t *csf_allocate(void);
 void csf_free(song_t *csf);
+/* free everything in csf and make it a fresh song, as csf_free() followed by
+ * csf_allocate() would, but in place */
+void csf_reinit(song_t *csf);
 
 void csf_destroy(song_t *csf); /* erase everything -- equiv. to new song */
 int csf_destroy_sample(song_t *csf, uint32_t smpnum);

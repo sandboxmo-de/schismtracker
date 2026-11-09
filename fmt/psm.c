@@ -27,10 +27,10 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
 #include "str.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* There are four(!) different variations of the PSM format, all
  * incompatible with one another. In order, from oldest to newest(-ish):
@@ -93,7 +93,7 @@ int fmt_psm_read_info(dmoz_file_t *file, slurp_t *fp)
 
 				iff_chunk_read(&c, fp, title, sizeof(title));
 
-				file->title = strn_dup((const char *)title, sizeof(title));
+				file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 				break;
 			}
 		}
@@ -393,6 +393,8 @@ static int psm_read_pattern(iff_chunk_t *c, slurp_t *fp, song_t *song, int *sina
 	rows = bswapLE16(rows);
 
 	song->patterns[index] = csf_allocate_pattern(rows);
+	if (!song->patterns[index])
+		return 0;
 	song->pattern_size[index] = rows;
 
 	for (i = 0; i < rows; i++) {
@@ -950,7 +952,7 @@ int fmt_psm16_read_info(dmoz_file_t *file, slurp_t *fp)
 
 		/* only put in a title if there's actually any data there */
 		if (*title)
-			file->title = str_dup(title);
+			file->title = engine_strdup(title, ENGINE_MEM_ENGINE);
 	}
 
 	file->description = "Epic MegaGames MASI";
@@ -1195,6 +1197,8 @@ int fmt_psm16_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			nchans = slurp_getc(fp);
 
 			song->patterns[i] = csf_allocate_pattern(nrows);
+			if (!song->patterns[i])
+				return LOAD_FILE_ERROR;
 			song->pattern_size[i] = nrows;
 
 			while (slurp_tell(fp) <= start + size && row < nrows) {

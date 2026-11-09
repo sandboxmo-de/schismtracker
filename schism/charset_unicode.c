@@ -23,6 +23,8 @@
 
 #include "charset.h"
 
+#include "engine-alloc.h"
+
 #include <utf8proc.h>
 
 static inline void *charset_map_to_utf8(const void *in, charset_t inset, utf8proc_option_t option)
@@ -38,13 +40,26 @@ static inline void *charset_map_to_utf8(const void *in, charset_t inset, utf8pro
 		utf8 = alloc_ptr;
 	}
 
-	uint8_t *mapped;
+	/* This is what utf8proc_map() does, with the buffer coming from the
+	 * engine instead of malloc(). */
+	utf8proc_int32_t *buffer = NULL;
+	utf8proc_ssize_t len = utf8proc_decompose(utf8, 0, NULL, 0, option);
 
-	int success = (utf8proc_map(utf8, 0, &mapped, option) >= 0);
+	if (len >= 0)
+		buffer = engine_alloc((size_t)len * sizeof(utf8proc_int32_t) + 1, ENGINE_MEM_SCRATCH);
+	if (buffer) {
+		len = utf8proc_decompose(utf8, 0, buffer, len, option);
+		if (len >= 0)
+			len = utf8proc_reencode(buffer, len, option);
+		if (len < 0) {
+			engine_free(buffer, ENGINE_MEM_SCRATCH);
+			buffer = NULL;
+		}
+	}
 
-	free(alloc_ptr);
+	engine_free(alloc_ptr, ENGINE_MEM_SCRATCH);
 
-	return success ? mapped : NULL;
+	return buffer;
 }
 
 static inline void *charset_map_to_set(const void *in, charset_t inset, charset_t outset, utf8proc_option_t option)
@@ -61,7 +76,7 @@ static inline void *charset_map_to_set(const void *in, charset_t inset, charset_
 
 	int success = (charset_iconv(mapped_utf8, &mapped, CHARSET_UTF8, outset, SIZE_MAX) == CHARSET_ERROR_SUCCESS);
 
-	free(mapped_utf8);
+	engine_free(mapped_utf8, ENGINE_MEM_SCRATCH);
 
 	return (success ? mapped : NULL);
 }

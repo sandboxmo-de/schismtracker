@@ -27,7 +27,7 @@
 #include "fmt.h"
 #include "util.h"
 #include "osdefs.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -343,8 +343,8 @@ static int slurp_memory_receive_(slurp_t *t, int (*callback)(const void *, size_
 
 static void slurp_memory_closure_free_(slurp_t *t)
 {
-	/* data ptr is const but it was malloc'd */
-	free((void *)t->internal.memory.data);
+	/* data ptr is const but it was allocated, as SCRATCH */
+	engine_free((void *)t->internal.memory.data, ENGINE_MEM_SCRATCH);
 }
 
 /* Initializes a slurp structure on an existing memory stream.
@@ -675,7 +675,7 @@ static void slurp_nonseek_closure(slurp_t *fp)
 
 	ns->closure(ns->opaque);
 	disko_memclose(&ns->ds, 0);
-	free(ns);
+	engine_free(ns, ENGINE_MEM_SCRATCH);
 }
 
 static uint64_t slurp_nonseek_length(slurp_t *fp)
@@ -692,14 +692,19 @@ int slurp_init_nonseek(slurp_t *fp,
 	void (*closure)(void *opaque),
 	void *opaque)
 {
-	struct slurp_nonseek *ns = mem_calloc(1, sizeof(*ns));
+	struct slurp_nonseek *ns = engine_calloc(1, sizeof(*ns), ENGINE_MEM_SCRATCH);
+
+	if (!ns)
+		return -1;
 
 	ns->opaque = opaque;
 	ns->read = read_func;
 	ns->closure = closure;
 
-	if (disko_memopen(&ns->ds) < 0)
+	if (disko_memopen(&ns->ds) < 0) {
+		engine_free(ns, ENGINE_MEM_SCRATCH);
 		return -1;
+	}
 
 	/* initialize with bogus values */
 	slurp_memstream(fp, NULL, 0);
@@ -859,7 +864,7 @@ int slurp_receive(slurp_t *t, int (*callback)(const void *, size_t, void *), siz
 	if (t->receive) {
 		return t->receive(t, callback, count, userdata);
 	} else {
-		unsigned char *buf = mem_alloc(count);
+		unsigned char *buf = engine_alloc(count, ENGINE_MEM_SCRATCH);
 		int r;
 
 		if (!buf)
@@ -869,7 +874,7 @@ int slurp_receive(slurp_t *t, int (*callback)(const void *, size_t, void *), siz
 
 		r = callback(buf, count, userdata);
 
-		free(buf);
+		engine_free(buf, ENGINE_MEM_SCRATCH);
 
 		return r;
 	}
@@ -1033,7 +1038,7 @@ static void slurp_decompress_closure(void *opaque)
 
 	zl->vtbl.end(zl->opaque);
 	unslurp(&zl->fp);
-	free(zl);
+	engine_free(zl, ENGINE_MEM_SCRATCH);
 }
 
 int slurp_decompress(slurp_t *fp, const struct slurp_decompress_vtable *vtbl)
@@ -1043,14 +1048,16 @@ int slurp_decompress(slurp_t *fp, const struct slurp_decompress_vtable *vtbl)
 
 	inbufsz = vtbl->inbufsz ? vtbl->inbufsz() : DEF_CHUNK_SIZE;
 
-	zl = mem_calloc(1, sizeof(*zl) + inbufsz);
+	zl = engine_calloc(1, sizeof(*zl) + inbufsz, ENGINE_MEM_SCRATCH);
+	if (!zl)
+		return -1;
 	zl->bufsz = inbufsz;
 
 	memcpy(&zl->vtbl, vtbl, sizeof(struct slurp_decompress_vtable));
 
 	zl->opaque = zl->vtbl.start();
 	if (!zl->opaque) {
-		free(zl);
+		engine_free(zl, ENGINE_MEM_SCRATCH);
 		return -1;
 	}
 
@@ -1295,7 +1302,7 @@ static void slurp_buffered_closure(slurp_t *t)
 {
 	unslurp(t->internal.buffered.fp);
 	/* also frees the buffer */
-	free(t->internal.buffered.fp);
+	engine_free(t->internal.buffered.fp, ENGINE_MEM_SCRATCH);
 }
 
 /* wraps a slurp_t in a buffer */
@@ -1309,7 +1316,7 @@ static void slurp_buffer(slurp_t *t, size_t bufsz)
 	bufsz = SLURP_BUFFER_OVERRIDE;
 #endif
 
-	a = malloc(sizeof(*a) + bufsz);
+	a = engine_alloc(sizeof(*a) + bufsz, ENGINE_MEM_SCRATCH);
 	if (!a)
 		return;
 

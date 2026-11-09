@@ -30,7 +30,7 @@
 #include "slurp.h"
 #include "version.h"
 #include "osdefs.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "str.h"
 
 #include "fmt.h"
@@ -212,39 +212,55 @@ static void message_convert_newlines(song_t *song) {
 	}
 }
 
-song_t *song_create_load(const char *file)
+/* Mixer settings a newly loaded song takes over from the current one. The
+ * MIDI configuration is static rather than on the stack because it's a few
+ * kilobytes. */
+struct load_settings {
+	uint32_t mix_flags, mix_frequency, mix_bits, mix_channels;
+	int row_highlight_major, row_highlight_minor;
+};
+
+static midi_config_t load_midi_cfg;
+
+static void load_settings_save(struct load_settings *ls, song_t *from)
 {
-	slurp_t s;
+	ls->mix_flags = from->mix_flags;
+	ls->mix_frequency = from->mix_frequency;
+	ls->mix_bits = from->mix_bits_per_sample;
+	ls->mix_channels = from->mix_channels;
+	ls->row_highlight_major = from->row_highlight_major;
+	ls->row_highlight_minor = from->row_highlight_minor;
+	memcpy(&load_midi_cfg, &from->midi_config, sizeof(load_midi_cfg));
+}
+
+static void load_settings_apply(const struct load_settings *ls, song_t *to)
+{
+	to->mix_flags = ls->mix_flags;
+	csf_set_wave_config(to, ls->mix_frequency, ls->mix_bits, ls->mix_channels);
+
+	// loaders might override these
+	to->row_highlight_major = ls->row_highlight_major;
+	to->row_highlight_minor = ls->row_highlight_minor;
+	memcpy(&to->midi_config, &load_midi_cfg, sizeof(load_midi_cfg));
+}
+
+/* Run the loaders on s until one takes it. song must be fresh from
+ * csf_allocate() or csf_reinit(). Returns 0, or an errno value or
+ * -LOAD_xxx for fmt_strerror(). Any allocation that failed while the
+ * loaders ran fails the load, even if the loader didn't notice. */
+static int load_song_slurp(song_t *song, slurp_t *s)
+{
+	unsigned long fails = engine_alloc_failures();
 	fmt_load_song_func *func;
-	int ok = 0, err = 0;
+	int err = -LOAD_UNSUPPORTED;
 
-	if (slurp(&s, file, NULL, 0) < 0)
-		return NULL;
-
-	song_t *newsong = csf_allocate();
-
-	if (current_song) {
-		newsong->mix_flags = current_song->mix_flags;
-		csf_set_wave_config(newsong,
-			current_song->mix_frequency,
-			current_song->mix_bits_per_sample,
-			current_song->mix_channels);
-
-		// loaders might override these
-		newsong->row_highlight_major = current_song->row_highlight_major;
-		newsong->row_highlight_minor = current_song->row_highlight_minor;
-		csf_copy_midi_cfg(newsong, current_song);
-	}
-
-	for (func = load_song_funcs; *func && !ok; func++) {
-		slurp_rewind(&s);
-		switch ((*func)(newsong, &s, 0)) {
+	for (func = load_song_funcs; *func; func++) {
+		slurp_rewind(s);
+		switch ((*func)(song, s, 0)) {
 		case LOAD_SUCCESS:
 			err = 0;
-			ok = 1;
 			break;
 		case LOAD_UNSUPPORTED:
-			err = -LOAD_UNSUPPORTED;
 			continue;
 		case LOAD_FORMAT_ERROR:
 			err = -LOAD_FORMAT_ERROR;
@@ -253,15 +269,55 @@ song_t *song_create_load(const char *file)
 			err = errno;
 			break;
 		}
-		if (err) {
-			csf_free(newsong);
-			unslurp(&s);
-			errno = err;
-			return NULL;
-		}
+		break;
 	}
 
+	if (engine_alloc_failures() != fails)
+		err = ENOMEM;
+
+	return err;
+}
+
+static void load_song_finish(song_t *song)
+{
+	song->stop_at_order = song->stop_at_row = -1;
+	message_convert_newlines(song);
+	engine_hooks.message_reset();
+}
+
+song_t *song_create_load(const char *file)
+{
+	struct load_settings ls;
+	slurp_t s;
+	song_t *newsong;
+	int err;
+
+	engine_scratch_begin();
+
+	if (slurp(&s, file, NULL, 0) < 0) {
+		err = errno;
+		engine_scratch_end();
+		errno = err;
+		return NULL;
+	}
+
+	newsong = csf_allocate();
+	if (!newsong) {
+		unslurp(&s);
+		engine_scratch_end();
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	if (current_song) {
+		load_settings_save(&ls, current_song);
+		load_settings_apply(&ls, newsong);
+	}
+
+	err = load_song_slurp(newsong, &s);
+
 	unslurp(&s);
+	engine_scratch_end();
 
 	if (err) {
 		// awwww, nerts!
@@ -270,11 +326,59 @@ song_t *song_create_load(const char *file)
 		return NULL;
 	}
 
-	newsong->stop_at_order = newsong->stop_at_row = -1;
-	message_convert_newlines(newsong);
-	engine_hooks.message_reset();
+	load_song_finish(newsong);
 
 	return newsong;
+}
+
+/* With ENGINE_ALLOC_ONE_SONG the current song is emptied and the file is
+ * loaded into it, so the two never take up memory at the same time. The
+ * audio lock is held throughout, since the mixer runs on current_song even
+ * when it's stopped. If the load fails the song is left empty. */
+static int song_load_in_place(const char *file)
+{
+	struct load_settings ls;
+	slurp_t s;
+	int err;
+
+	engine_scratch_begin();
+
+	if (slurp(&s, file, NULL, 0) < 0) {
+		err = errno;
+		engine_scratch_end();
+		errno = err;
+		return 0;
+	}
+
+	song_lock_audio();
+	song_stop_unlocked(0);
+
+	load_settings_save(&ls, current_song);
+	csf_reinit(current_song);
+	load_settings_apply(&ls, current_song);
+
+	err = load_song_slurp(current_song, &s);
+
+	unslurp(&s);
+	engine_scratch_end();
+
+	if (err) {
+		csf_reinit(current_song);
+		load_settings_apply(&ls, current_song);
+		song_set_filename(NULL);
+		max_channels_used = 0;
+		song_init_modplug();
+		song_unlock_audio();
+		engine_hooks.song_changed();
+		errno = err;
+		return 0;
+	}
+
+	load_song_finish(current_song);
+
+	song_unlock_audio();
+
+	return 1;
 }
 
 int song_load_unchecked(const char *file)
@@ -295,17 +399,27 @@ int song_load_unchecked(const char *file)
 	log_appendf_timestamp(2, "Loading %s", base);
 	log_underline();
 
-	newsong = song_create_load(file);
-	if (!newsong) {
-		log_appendf(4, " %s", fmt_strerror(errno));
-		return 0;
+	if (engine_allocator_flags() & ENGINE_ALLOC_ONE_SONG) {
+		if (!song_load_in_place(file)) {
+			log_appendf(4, " %s", fmt_strerror(errno));
+			return 0;
+		}
+		newsong = NULL;
+	} else {
+		newsong = song_create_load(file);
+		if (!newsong) {
+			log_appendf(4, " %s", fmt_strerror(errno));
+			return 0;
+		}
 	}
 
 	song_set_filename(file);
 
 	song_lock_audio();
-	csf_free(current_song);
-	current_song = newsong;
+	if (newsong) {
+		csf_free(current_song);
+		current_song = newsong;
+	}
 	current_song->repeat_count = 0;
 	max_channels_used = 0;
 	_fix_names(current_song);
@@ -427,15 +541,16 @@ static const struct save_format *get_save_format(const struct save_format *forma
 
 static char *mangle_filename(const char *in, const char *mid, const char *ext)
 {
-	// will always return a valid pointer
 	const char *iext = dmoz_path_get_extension(in);
 
 	const size_t baselen = iext - in;
 	const size_t midlen = (mid) ? strlen(mid) : 0;
 	const size_t extlen = (*iext) ? strlen(iext) : ((ext) ? strlen(ext) : 0);
 
-	char *ret = mem_alloc(baselen + midlen + extlen + 1); /* room for terminating \0 */
+	char *ret = engine_alloc(baselen + midlen + extlen + 1, ENGINE_MEM_SCRATCH); /* room for terminating \0 */
 
+	if (!ret)
+		return NULL;
 	memcpy(ret, in, baselen);
 	if (mid)
 		memcpy(ret + baselen, mid, midlen);
@@ -460,6 +575,8 @@ int song_export(const char *filename, const char *type)
 
 	mid = (format->f.export.multi && strcasestr(filename, "%c") == NULL) ? ".%c" : NULL;
 	mangle = mangle_filename(filename, mid, format->ext);
+	if (!mangle)
+		return SAVE_INTERNAL_ERROR;
 
 	log_nl();
 	log_nl();
@@ -468,7 +585,7 @@ int song_export(const char *filename, const char *type)
 
 	/* disko does the rest of the log messages itself */
 	r = disko_export_song(mangle, format);
-	free(mangle);
+	engine_free(mangle, ENGINE_MEM_SCRATCH);
 	switch (r) {
 	case DW_OK:
 		return SAVE_SUCCESS;
@@ -491,6 +608,8 @@ int song_save(const char *filename, const char *type)
 		return SAVE_INTERNAL_ERROR;
 
 	mangle = mangle_filename(filename, NULL, format->ext);
+	if (!mangle)
+		return SAVE_INTERNAL_ERROR;
 
 	log_nl();
 	log_appendf_timestamp(2, "Saving %s module", format->name);
@@ -523,7 +642,7 @@ such as "abc|def.it". This dialog is presented both when saving from F10 and Ctr
 
 	if (disko_open(&fp, mangle) < 0) {
 		log_perror(mangle);
-		free(mangle);
+		engine_free(mangle, ENGINE_MEM_SCRATCH);
 		return SAVE_FILE_ERROR;
 	}
 
@@ -557,7 +676,7 @@ such as "abc|def.it". This dialog is presented both when saving from F10 and Ctr
 		break;
 	}
 
-	free(mangle);
+	engine_free(mangle, ENGINE_MEM_SCRATCH);
 	return ret;
 }
 
@@ -657,8 +776,12 @@ void song_copy_sample(int n, song_sample_t *src)
 			bytelength *= 2;
 
 		current_song->samples[n].data = csf_allocate_sample(bytelength);
-		memcpy(current_song->samples[n].data, src->data, bytelength);
-		csf_adjust_sample_loop(current_song->samples + n);
+		if (current_song->samples[n].data) {
+			memcpy(current_song->samples[n].data, src->data, bytelength);
+			csf_adjust_sample_loop(current_song->samples + n);
+		} else {
+			current_song->samples[n].length = 0;
+		}
 	}
 
 	song_unlock_audio();
@@ -751,8 +874,10 @@ int song_load_instrument_ex(int target, const char *file, const char *libf, int 
 	}
 
 	/* okay, load an ITI file */
+	engine_scratch_begin();
 	if (slurp(&s, file, NULL, 0) < 0) {
 		log_perror(file);
+		engine_scratch_end();
 		song_unlock_audio();
 		return 0;
 	}
@@ -765,6 +890,7 @@ int song_load_instrument_ex(int target, const char *file, const char *libf, int 
 	}
 
 	unslurp(&s);
+	engine_scratch_end();
 	song_unlock_audio();
 
 	return r;
@@ -806,8 +932,10 @@ int song_load_sample(int n, const char *file)
 
 	const char *base = dmoz_path_get_basename(file);
 
+	engine_scratch_begin();
 	if (slurp(&s, file, NULL, 0)) {
 		log_perror(base);
+		engine_scratch_end();
 		return 0;
 	}
 
@@ -828,6 +956,7 @@ int song_load_sample(int n, const char *file)
 
 	if (!load) {
 		unslurp(&s);
+		engine_scratch_end();
 		log_perror(base);
 		song_unlock_audio();
 		return 0;
@@ -849,6 +978,7 @@ int song_load_sample(int n, const char *file)
 	song_unlock_audio();
 
 	unslurp(&s);
+	engine_scratch_end();
 
 	return 1;
 }
@@ -916,166 +1046,6 @@ const char *song_get_filename(void)
 const char *song_get_basename(void)
 {
 	return song_basename;
-}
-
-// ------------------------------------------------------------------------
-// sample library browsing
-
-// FIXME: unload the module when leaving the library 'directory'
-static song_t *library = NULL;
-
-
-// TODO: stat the file?
-int dmoz_read_instrument_library(const char *path, dmoz_filelist_t *flist, SCHISM_UNUSED dmoz_dirlist_t *dlist)
-{
-	unsigned int j;
-	int x;
-
-	// why does this do this ? seems to be a no-op
-	//
-	// it's because we have a stupid "fake sample slot" that we
-	// use for the sample/instrument preview "preload", which
-	// just happens to now be hardcoded at slot 0.
-	csf_stop_sample(current_song, current_song->samples + 0);
-
-	if (library) {
-		csf_destroy(library);
-		library = NULL;
-	}
-
-	const char *base = dmoz_path_get_basename(path);
-	library = song_create_load(path);
-	if (!library) {
-		log_appendf(4, "%s: %s", base, fmt_strerror(errno));
-		return -1;
-	}
-
-	for (int n = 1; n < MAX_INSTRUMENTS; n++) {
-		if (!library->instruments[n])
-			continue;
-
-		dmoz_file_t *file = dmoz_add_file(flist,
-			str_dup(path), str_dup(base), NULL, n);
-		file->title = str_dup(library->instruments[n]->name);
-
-		int count[128] = {0};
-
-		file->sampsize = 0;
-		file->filesize = 0;
-		file->instnum = n;
-		for (j = 0; j < 128; j++) {
-			x = library->instruments[n]->sample_map[j];
-			if (!count[x]) {
-				if (x > 0 && x < MAX_INSTRUMENTS) {
-					file->filesize += library->samples[x].length;
-					file->sampsize++;
-				}
-			}
-			count[x]++;
-		}
-
-		file->type = TYPE_INST_ITI;
-		file->description = "Fishcakes";
-		// IT doesn't support this, despite it being useful.
-		// Simply "unrecognized"
-	}
-
-	return 0;
-}
-
-
-int dmoz_read_sample_library(const char *path, dmoz_filelist_t *flist, SCHISM_UNUSED dmoz_dirlist_t *dlist)
-{
-	csf_stop_sample(current_song, current_song->samples + 0);
-
-	if (library) {
-		csf_destroy(library);
-		library = NULL;
-	}
-
-	const char *base = dmoz_path_get_basename(path);
-
-	struct stat st;
-	if (os_stat(path, &st) < 0) {
-		log_perror(path);
-		return -1;
-	}
-
-	/* ask dmoz what type of file we have
-	 * FIXME use slurp and read info funcs manually */
-	dmoz_file_t info_file = {0};
-	info_file.path = str_dup(path);
-	info_file.filesize = st.st_size;
-	dmoz_fill_ext_data(&info_file);
-
-	/* free extra data we don't need */
-	if (info_file.smp_filename != info_file.base &&
-			info_file.smp_filename != info_file.title) {
-		free(info_file.smp_filename);
-	}
-
-	free(info_file.path);
-	free(info_file.base);
-
-	if (info_file.type & TYPE_EXT_DATA_MASK) {
-		if (info_file.artist)
-			free(info_file.artist);
-		free(info_file.title);
-	}
-
-	if (info_file.type & TYPE_MODULE_MASK) {
-		library = song_create_load(path);
-	} else if (info_file.type & TYPE_INST_MASK) {
-		/* temporarily set the current song to the library; song_load_instrument
-		 * is hardcoded to it */
-		song_lock_audio();
-		song_t *tmp_ptr = current_song;
-		library = current_song = csf_allocate();
-
-		int ret = song_load_instrument(1, path);
-		current_song = tmp_ptr;
-		song_unlock_audio();
-		if (!ret) {
-			log_appendf(4, "song_load_instrument: %s failed with %d", path, ret);
-			return 1;
-		}
-	} else {
-		return 0;
-	}
-
-	for (int n = 1; n < MAX_SAMPLES; n++) {
-		if (library->samples[n].length) {
-			for (int c = 0; c < 25; c++) {
-				if (library->samples[n].name[c] == 0)
-					library->samples[n].name[c] = 32;
-				library->samples[n].name[25] = 0;
-			}
-			dmoz_file_t *file = dmoz_add_file(flist, str_dup(path), str_dup(base), NULL, n);
-			file->type = TYPE_SAMPLE_EXTD;
-			file->description = "Impulse Tracker Sample"; /* FIXME: this lies for XI and PAT */
-			file->filesize = library->samples[n].length*((library->samples[n].flags & CHN_STEREO) + 1)*((library->samples[n].flags & CHN_16BIT) + 1);
-			file->smp_speed = library->samples[n].c5speed;
-			file->smp_loop_start = library->samples[n].loop_start;
-			file->smp_loop_end = library->samples[n].loop_end;
-			file->smp_sustain_start = library->samples[n].sustain_start;
-			file->smp_sustain_end = library->samples[n].sustain_end;
-			file->smp_length = library->samples[n].length;
-			file->smp_flags = library->samples[n].flags;
-			file->smp_defvol = library->samples[n].volume>>2;
-			file->smp_gblvol = library->samples[n].global_volume;
-			file->smp_vibrato_speed = library->samples[n].vib_speed;
-			file->smp_vibrato_depth = library->samples[n].vib_depth;
-			file->smp_vibrato_rate = library->samples[n].vib_rate;
-			// don't screw this up...
-			if (((unsigned char)library->samples[n].name[23]) == 0xFF) {
-				library->samples[n].name[23] = ' ';
-			}
-			file->title = str_dup(library->samples[n].name);
-			file->sample = (song_sample_t *) library->samples + n;
-		}
-	}
-
-	return 0;
 }
 
 // ------------------------------------------------------------------------

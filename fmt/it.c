@@ -28,11 +28,11 @@
 #include "fmt.h"
 #include "log.h"
 #include "version.h"
-#include "mem.h"
 #include "str.h"
 
 #include "player/sndfile.h"
 #include "midi.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -203,7 +203,7 @@ int fmt_it_read_info(dmoz_file_t *file, slurp_t *fp)
 	}
 
 	/*file->extension = str_dup("it");*/
-	file->title = strn_dup((const char *)hdr.songname, sizeof(hdr.songname));
+	file->title = engine_strndup((const char *)hdr.songname, sizeof(hdr.songname), ENGINE_MEM_ENGINE);
 	str_rtrim(file->title);
 	file->type = TYPE_MODULE_IT;
 	return 1;
@@ -502,8 +502,10 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		hist = 0;
 	}
 	if (hist) {
+		song->history = engine_calloc(hist, sizeof(*song->history), ENGINE_MEM_SONG);
+		if (!song->history)
+			return LOAD_FILE_ERROR;
 		song->histlen = hist;
-		song->history = mem_calloc(song->histlen, sizeof(*song->history));
 		for (size_t i = 0; i < song->histlen; i++) {
 			// handle the date
 			uint16_t fat_date;
@@ -561,6 +563,8 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 				continue;
 			slurp_seek(fp, para_ins[n], SEEK_SET);
 			inst = song->instruments[n + 1] = csf_allocate_instrument();
+			if (!inst)
+				return LOAD_FILE_ERROR;
 			
 			if (hdr.cmwt >= 0x0200)
 				load_it_instrument(NULL, inst, fp);
@@ -588,6 +592,8 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			rows = bswapLE16(rows);
 			slurp_seek(fp, 4, SEEK_CUR);
 			song->patterns[n] = csf_allocate_pattern(rows);
+			if (!song->patterns[n])
+				return LOAD_FILE_ERROR;
 			song->pattern_size[n] = song->pattern_alloc_size[n] = rows;
 			load_it_pattern(song->patterns[n], fp, rows, hdr.cwtv);
 			got = slurp_tell(fp) - para_pat[n] - 8;
@@ -703,8 +709,10 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		if (hdr.cwtv >= 0x0207 && !song->histlen && hdr.reserved) {
 			// Starting from version 2.07, IT stores the total edit
 			// time of a module in the "reserved" field
+			song->history = engine_calloc(1, sizeof(*song->history), ENGINE_MEM_SONG);
+			if (!song->history)
+				return LOAD_FILE_ERROR;
 			song->histlen = 1;
-			song->history = mem_calloc(1, sizeof(*song->history));
 
 			uint32_t runtime = it_decode_edit_timer(hdr.cwtv, hdr.reserved);
 			song->history[0].runtime = dos_time_to_ms(runtime);
@@ -736,7 +744,7 @@ int fmt_it_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		if (!charset_iconv((X), &tmp, CHARSET_WINDOWS1252, CHARSET_CP437, SIZE)) { \
 			strncpy((X), tmp, (SIZE) - 1); \
 			tmp[(SIZE) - 1] = 0; \
-			free(tmp); \
+			engine_free(tmp, ENGINE_MEM_SCRATCH); \
 		} \
 	} while (0)
 

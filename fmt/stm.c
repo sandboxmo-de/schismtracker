@@ -25,9 +25,9 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -64,7 +64,7 @@ int fmt_stm_read_info(dmoz_file_t *file, slurp_t *fp)
 	file->description = "Scream Tracker 2";
 	/*file->extension = str_dup("stm");*/
 	file->type = TYPE_MODULE_MOD;
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	return 1;
 }
 
@@ -265,6 +265,8 @@ int fmt_stm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	} else {
 		for (n = 0; n < npat; n++) {
 			song->patterns[n] = csf_allocate_pattern(64);
+			if (!song->patterns[n])
+				return LOAD_FILE_ERROR;
 			song->pattern_size[n] = song->pattern_alloc_size[n] = 64;
 			load_stm_pattern(song->patterns[n], fp);
 		}

@@ -23,7 +23,7 @@
 
 #include "headers.h"
 
-#include "mem.h"
+#include "engine-alloc.h"
 #include "str.h"
 #include "util.h"
 #include "bits.h"
@@ -253,16 +253,20 @@ int str_trim(char *s)
 
 /* break the string 's' with the character 'c', placing the two parts in 'first' and 'second'.
 return: 1 if the string contained the character (and thus could be split), 0 if not.
-the pointers returned in first/second should be free()'d by the caller. */
+the pointers returned in first/second are ENGINE memory, which the caller frees. */
 int str_break(const char *s, char c, char **first, char **second)
 {
 	const char *p = strchr(s, c);
 	if (!p)
 		return 0;
-	*first = mem_alloc(p - s + 1);
-	memcpy(*first, s, p - s);
-	(*first)[p - s] = 0;
-	*second = str_dup(p + 1);
+	*first = engine_strndup(s, p - s, ENGINE_MEM_ENGINE);
+	*second = engine_strdup(p + 1, ENGINE_MEM_ENGINE);
+	if (!*first || !*second) {
+		engine_free(*first, ENGINE_MEM_ENGINE);
+		engine_free(*second, ENGINE_MEM_ENGINE);
+		*first = *second = NULL;
+		return 0;
+	}
 	return 1;
 }
 
@@ -271,8 +275,11 @@ int str_break(const char *s, char c, char **first, char **second)
 char *str_escape(const char *s, int space)
 {
 	/* Each source byte needs maximally four destination chars (\777) */
-	char *dest = calloc(4 * strlen(s) + 1, sizeof(char));
+	char *dest = engine_calloc(4 * strlen(s) + 1, sizeof(char), ENGINE_MEM_ENGINE);
 	char *d = dest;
+
+	if (!dest)
+		return NULL;
 
 	if (space && *s == ' ') {
 		*d++ = '\\';
@@ -370,8 +377,11 @@ char *str_unescape(const char *s)
 {
 	const char *end;
 	int hex;
-	char *dest = mem_calloc(strlen(s) + 1, sizeof(char));
+	char *dest = engine_calloc(strlen(s) + 1, sizeof(char), ENGINE_MEM_ENGINE);
 	char *d = dest;
+
+	if (!dest)
+		return NULL;
 
 	while (*s) {
 		if (*s == '\\') {
@@ -490,7 +500,9 @@ char *str_concat(const char *s, ...)
 		len += lens[i];
 	}
 
-	out = mem_alloc(len + 1);
+	out = engine_alloc(len + 1, ENGINE_MEM_ENGINE);
+	if (!out)
+		goto done;
 
 	len = 0;
 
@@ -502,6 +514,7 @@ char *str_concat(const char *s, ...)
 
 	out[len] = '\0';
 
+done:
 	va_end(ap);
 	va_end(ap2);
 	va_end(ap3);
@@ -548,8 +561,8 @@ void str_from_pascal(const unsigned char pstr[256], char cstr[256])
 int str_realloc(char **output, const char *input, size_t len)
 {
 	if (*output)
-		free(*output);
-	*output = (len) ? strn_dup(input, len) : str_dup(input);
+		engine_free(*output, ENGINE_MEM_ENGINE);
+	*output = (len) ? engine_strndup(input, len, ENGINE_MEM_ENGINE) : engine_strdup(input, ENGINE_MEM_ENGINE);
 	if (!*output)
 		return 0;
 	return 1;

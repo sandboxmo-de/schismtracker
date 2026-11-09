@@ -27,6 +27,7 @@
 #include "log.h"
 #include "str.h"
 #include "mem.h"
+#include "engine-alloc.h"
 
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -474,7 +475,7 @@ static int avfmt_read(slurp_t *s, dmoz_file_t *file, song_sample_t *smp)
 		ent = schism_av_dict_get(meta, "title", NULL, 0/*AV_DICT_MATCH_CASE*/);
 		if (ent) {
 			if (file)
-				file->title = str_dup(ent->value);
+				file->title = engine_strdup(ent->value, ENGINE_MEM_ENGINE);
 			else if (smp) {
 				/* do sizeof - 1 to silence gcc warning.
 				 * this is later fully memset in audio_loadsave.c */
@@ -485,7 +486,7 @@ static int avfmt_read(slurp_t *s, dmoz_file_t *file, song_sample_t *smp)
 		if (file) {
 			/* only useful for files */
 			ent = schism_av_dict_get(meta, "artist", NULL, 0/*AV_DICT_MATCH_CASE*/);
-			if (ent) file->artist = str_dup(ent->value);
+			if (ent) file->artist = engine_strdup(ent->value, ENGINE_MEM_ENGINE);
 		}
 	}
 

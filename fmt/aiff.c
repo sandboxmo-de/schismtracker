@@ -28,7 +28,7 @@
 #include "ieee-float.h"
 #include "log.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -188,9 +188,11 @@ static int read_iff_(dmoz_file_t *file, song_sample_t *smp, slurp_t *fp)
 		if (!name.id) name = anno;
 		if (name.id) {
 			if (file) {
-				file->title = mem_alloc(name.size + 1);
-				iff_chunk_read(&name, fp, file->title, name.size);
-				file->title[name.size] = '\0';
+				file->title = engine_alloc(name.size + 1, ENGINE_MEM_ENGINE);
+				if (file->title) {
+					iff_chunk_read(&name, fp, file->title, name.size);
+					file->title[name.size] = '\0';
+				}
 			}
 			if (smp) {
 				iff_chunk_read(&name, fp, smp->name, sizeof(smp->name));
@@ -292,9 +294,11 @@ static int read_iff_(dmoz_file_t *file, song_sample_t *smp, slurp_t *fp)
 
 		if (name.id) {
 			if (file) {
-				file->title = mem_alloc(name.size + 1);
-				iff_chunk_read(&name, fp, file->title, name.size);
-				file->title[name.size] = '\0';
+				file->title = engine_alloc(name.size + 1, ENGINE_MEM_ENGINE);
+				if (file->title) {
+					iff_chunk_read(&name, fp, file->title, name.size);
+					file->title[name.size] = '\0';
+				}
 			}
 			if (smp) {
 				iff_chunk_read(&name, fp, smp->name, sizeof(smp->name));
@@ -752,7 +756,7 @@ int fmt_aiff_save_sample(disko_t *fp, song_sample_t *smp)
 
 int fmt_aiff_export_head(disko_t *fp, int bits, int channels, uint32_t rate, const char *title)
 {
-	struct aiff_writedata *awd = malloc(sizeof(struct aiff_writedata));
+	struct aiff_writedata *awd = engine_alloc(sizeof(struct aiff_writedata), ENGINE_MEM_SCRATCH);
 	if (!awd)
 		return DW_ERROR;
 	fp->userdata = awd;
@@ -808,7 +812,7 @@ int fmt_aiff_export_tail(disko_t *fp)
 	ul = bswapBE32(awd->numbytes + 8);
 	disko_write(fp, &ul, 4);
 
-	free(awd);
+	engine_free(awd, ENGINE_MEM_SCRATCH);
 
 	return DW_OK;
 }

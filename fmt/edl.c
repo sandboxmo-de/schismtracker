@@ -25,7 +25,7 @@
 #include "bits.h"
 #include "fmt.h"
 #include "util.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 static int edl_load_file(slurp_t *fp, slurp_t *fakefp)
 {
@@ -81,7 +81,7 @@ int fmt_edl_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 	}
 
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->description = "EdLib Tracker EDL";
 	file->type = TYPE_MODULE_S3M;
 

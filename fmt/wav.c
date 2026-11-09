@@ -29,7 +29,7 @@
 #include "player/sndfile.h"
 #include "log.h"
 #include "str.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 // Standard IFF chunks IDs
 #define IFFID_FORM UINT32_C(0x464f524d)
@@ -462,7 +462,7 @@ int fmt_wav_save_sample(disko_t *fp, song_sample_t *smp)
 
 int fmt_wav_export_head(disko_t *fp, int bits, int channels, uint32_t rate, const char *title)
 {
-	struct wav_writedata *wwd = malloc(sizeof(struct wav_writedata));
+	struct wav_writedata *wwd = engine_calloc(1, sizeof(struct wav_writedata), ENGINE_MEM_SCRATCH);
 	if (!wwd)
 		return DW_ERROR;
 	fp->userdata = wwd;
@@ -474,7 +474,7 @@ int fmt_wav_export_head(disko_t *fp, int bits, int channels, uint32_t rate, cons
 	wwd->swap = 0;
 #endif
 	if (title)
-		wwd->title = str_dup(title);
+		wwd->title = engine_strdup(title, ENGINE_MEM_SCRATCH);
 
 	return DW_OK;
 }
@@ -519,8 +519,8 @@ int fmt_wav_export_tail(disko_t *fp)
 	ul = bswapLE32(wwd->numbytes);
 	disko_write(fp, &ul, 4);
 
-	free(wwd->title);
-	free(wwd);
+	engine_free(wwd->title, ENGINE_MEM_SCRATCH);
+	engine_free(wwd, ENGINE_MEM_SCRATCH);
 
 	return DW_OK;
 }

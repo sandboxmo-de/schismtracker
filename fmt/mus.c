@@ -26,7 +26,7 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "player/sndfile.h"
 
@@ -79,7 +79,7 @@ int fmt_mus_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	file->description = "Doom Music File";
-	file->title = str_dup("");
+	file->title = engine_strdup("", ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;
 	return 1;
 }
@@ -144,6 +144,8 @@ int fmt_mus_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 	song->pattern_size[pat] = song->pattern_alloc_size[pat] = MUS_ROWS_PER_PATTERN;
 	song->patterns[pat] = csf_allocate_pattern(MUS_ROWS_PER_PATTERN);
 	note = song->patterns[pat];
+	if (!note)
+		return LOAD_FILE_ERROR;
 	song->orderlist[pat] = pat;
 
 	while (!finished && !slurp_eof(fp)) {
@@ -367,6 +369,8 @@ int fmt_mus_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 			song->pattern_size[pat] = song->pattern_alloc_size[pat] = MUS_ROWS_PER_PATTERN;
 			song->patterns[pat] = csf_allocate_pattern(MUS_ROWS_PER_PATTERN);
 			note = song->patterns[pat];
+			if (!note)
+				return LOAD_FILE_ERROR;
 			song->orderlist[pat] = pat;
 
 			note[MUS_SPEED_CHANNEL].effect = FX_SPEED;

@@ -26,10 +26,10 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
 #include "str.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -69,8 +69,8 @@ int fmt_mdl_read_info(dmoz_file_t *file, slurp_t *fp)
 				|| slurp_read(fp, &artist, sizeof(artist)) != sizeof(artist))
 				return 0;
 
-			file->title = strn_dup((const char *)title, sizeof(title));
-			file->artist = strn_dup((const char *)artist, sizeof(artist));
+			file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
+			file->artist = engine_strndup((const char *)artist, sizeof(artist), ENGINE_MEM_ENGINE);
 			file->description = "Digitrakker";
 			/*file->extension = str_dup("mdl");*/
 			file->type = TYPE_MODULE_XM;
@@ -511,6 +511,8 @@ static struct mdlpat *mdl_read_patterns(song_t *song, slurp_t *fp)
 		slurp_seek(fp, 16, SEEK_CUR); // skip the name
 
 		note = song->patterns[pat] = csf_allocate_pattern(rows);
+		if (!note)
+			break; /* the load fails on the allocation failure */
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = rows;
 		for (chn = 0; chn < nchn; chn++, note++) {
 			slurp_read(fp, &trknum, 2);
@@ -518,7 +520,9 @@ static struct mdlpat *mdl_read_patterns(song_t *song, slurp_t *fp)
 			if (!trknum)
 				continue;
 
-			patptr->next = mem_alloc(sizeof(struct mdlpat));
+			patptr->next = engine_alloc(sizeof(struct mdlpat), ENGINE_MEM_SCRATCH);
+			if (!patptr->next)
+				return pat_head.next;
 			patptr = patptr->next;
 			patptr->track = trknum;
 			patptr->rows = rows;
@@ -544,6 +548,8 @@ static struct mdlpat *mdl_read_patterns_v0(song_t *song, slurp_t *fp)
 	for (pat = 0; pat < npat; pat++) {
 
 		note = song->patterns[pat] = csf_allocate_pattern(64);
+		if (!note)
+			break;
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = 64;
 		for (chn = 0; chn < 32; chn++, note++) {
 			slurp_read(fp, &trknum, 2);
@@ -551,7 +557,9 @@ static struct mdlpat *mdl_read_patterns_v0(song_t *song, slurp_t *fp)
 			if (!trknum)
 				continue;
 
-			patptr->next = mem_alloc(sizeof(struct mdlpat));
+			patptr->next = engine_alloc(sizeof(struct mdlpat), ENGINE_MEM_SCRATCH);
+			if (!patptr->next)
+				return pat_head.next;
 			patptr = patptr->next;
 			patptr->track = trknum;
 			patptr->rows = 64;
@@ -640,7 +648,9 @@ static int mdl_read_tracks(slurp_t *fp, song_note_t *tracks[65536])
 		if (!bytesleft)
 			continue; /* ??? */
 
-		tracks[trk] = mem_calloc(256, sizeof(song_note_t));
+		tracks[trk] = engine_calloc(256, sizeof(song_note_t), ENGINE_MEM_SCRATCH);
+		if (!tracks[trk])
+			return 0;
 
 		slurp_t sub;
 		/* hm, sf2 isn't intended to be used like this...
@@ -699,6 +709,8 @@ static void mdl_read_instruments(song_t *song, slurp_t *fp)
 		if (!song->instruments[insnum])
 			song->instruments[insnum] = csf_allocate_instrument();
 		ins = song->instruments[insnum];
+		if (!ins)
+			return;
 
 		slurp_read(fp, ins->name, 25);
 		slurp_seek(fp, 7, SEEK_CUR); // throw away the rest
@@ -733,6 +745,8 @@ static void mdl_read_instruments(song_t *song, slurp_t *fp)
 				song->instruments[shdr.smpnum] = csf_allocate_instrument();
 
 			sins = song->instruments[shdr.smpnum];
+			if (!sins)
+				return;
 
 			smp = song->samples + shdr.smpnum;
 
@@ -871,7 +885,9 @@ static void mdl_read_envelopes(slurp_t *fp, struct mdlenv **envs, uint32_t flags
 			continue;
 
 		if (!envs[ehdr.envnum])
-			envs[ehdr.envnum] = mem_calloc(1, sizeof(struct mdlenv));
+			envs[ehdr.envnum] = engine_calloc(1, sizeof(struct mdlenv), ENGINE_MEM_SCRATCH);
+		if (!envs[ehdr.envnum])
+			continue;
 		env = &envs[ehdr.envnum]->data;
 
 		env->nodes = 15;
@@ -1040,7 +1056,8 @@ int fmt_mdl_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 		for (n = 1; n < MAX_SAMPLES; n++) {
 			if (song->samples[n].length) {
 				song->instruments[n] = csf_allocate_instrument();
-				strcpy(song->instruments[n]->name, song->samples[n].name);
+				if (song->instruments[n])
+					strcpy(song->instruments[n]->name, song->samples[n].name);
 			}
 		}
 	}
@@ -1110,12 +1127,12 @@ int fmt_mdl_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 		}
 		// and clean up
 		for (trk = 1; trk < 65536 && tracks[trk]; trk++)
-			free(tracks[trk]);
+			engine_free(tracks[trk], ENGINE_MEM_SCRATCH);
 	}
 	while (patptr) {
 		pat = patptr;
 		patptr = patptr->next;
-		free(pat);
+		engine_free(pat, ENGINE_MEM_SCRATCH);
 	}
 
 	// Finish fixing up the instruments
@@ -1163,15 +1180,15 @@ int fmt_mdl_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 
 	if (readflags & MDL_HAS_VOLENVS) {
 		for (n = 0; n < 64; n++)
-			free(volenvs[n]);
+			engine_free(volenvs[n], ENGINE_MEM_SCRATCH);
 	}
 	if (readflags & MDL_HAS_PANENVS) {
 		for (n = 0; n < 64; n++)
-			free(panenvs[n]);
+			engine_free(panenvs[n], ENGINE_MEM_SCRATCH);
 	}
 	if (readflags & MDL_HAS_FREQENVS) {
 		for (n = 0; n < 64; n++)
-			free(freqenvs[n]);
+			engine_free(freqenvs[n], ENGINE_MEM_SCRATCH);
 	}
 
 	if (restartpos > 0)

@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "song.h"
 #include "player/sndfile.h"
@@ -49,7 +49,7 @@ int fmt_sbi_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	file->description = "Sound Blaster Instrument";
-	file->title = strn_dup((char *)data + 4, 32);
+	file->title = engine_strndup((char *)data + 4, 32, ENGINE_MEM_ENGINE);
 	file->type = TYPE_SAMPLE_EXTD | TYPE_INST_OTHER; //huh?
 	return 1;
 }
@@ -73,6 +73,8 @@ int fmt_sbi_load_sample(slurp_t *fp, song_sample_t *smp)
 
 	/* dumb hackaround that ought to someday be removed: */
 	smp->data = csf_allocate_sample(1);
+	if (!smp->data)
+		return 0;
 	smp->length = 1;
 
 	smp->flags = CHN_ADLIB;

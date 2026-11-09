@@ -25,12 +25,12 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
 
 #include "disko.h"
 #include "log.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -59,7 +59,7 @@ int fmt_stx_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "ST Music Interface Kit";
 	/*file->extension = str_dup("stx");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;
 	return 1;
 }
@@ -245,6 +245,8 @@ int fmt_stx_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 				slurp_seek(fp, 2, SEEK_CUR);
 
 			song->patterns[n] = csf_allocate_pattern(64);
+			if (!song->patterns[n])
+				return LOAD_FILE_ERROR;
 
 			while (row < 64) {
 				int mask = slurp_getc(fp);

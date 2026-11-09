@@ -26,7 +26,7 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "player/sndfile.h"
 
@@ -45,7 +45,7 @@ int fmt_okt_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Amiga Oktalyzer";
 	/* okts don't have names? */
-	file->title = str_dup("");
+	file->title = engine_strdup("", ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;
 	return 1;
 }
@@ -196,8 +196,10 @@ static uint32_t okt_read_pbod(song_t *song, slurp_t *fp, int nchn, int pat)
 	rows = bswapBE16(rows);
 	rows = CLAMP(rows, 1, 200);
 
-	song->pattern_alloc_size[pat] = song->pattern_size[pat] = rows;
 	note = song->patterns[pat] = csf_allocate_pattern(rows);
+	if (!note)
+		return 0; /* the load fails on the allocation failure */
+	song->pattern_alloc_size[pat] = song->pattern_size[pat] = rows;
 
 	for (row = 0; row < rows; row++, note += 64 - nchn) {
 		for (chn = 0; chn < nchn; chn++, note++) {

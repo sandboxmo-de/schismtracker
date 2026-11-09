@@ -28,7 +28,7 @@
 #include "song.h"
 #include "slurp.h"
 #include "config-parser.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "str.h"
 #include "mt.h"
 #include "atomic.h"
@@ -61,7 +61,7 @@ static uint32_t samples_played = 0;
 /* this crap being extern is really dumb */
 uint32_t max_channels_used = 0;
 
-static uint32_t audio_buffer_samples_allocated = 0;
+static size_t audio_buffer_bytes_allocated = 0;
 
 /* one of 8-bit, 16-bit, or 32-bit integer, depending on audio_output_bits */
 void *audio_buffer = NULL;
@@ -190,27 +190,39 @@ uint32_t s32_to_s24(void *ptr, const int32_t *buffer, uint32_t samples)
 	return samples * 3;
 }
 
-static void audio_reallocate_buffer(uint32_t samples)
+static void audio_set_buffer_samples(uint32_t samples)
 {
 	if (samples != audio_buffer_samples)
 		engine_hooks.vis_resize(samples);
 	audio_buffer_samples = samples;
-	if (samples > audio_buffer_samples_allocated) {
-		free(audio_buffer);
-		audio_buffer = mem_calloc(samples, audio_sample_size);
-		audio_buffer_samples_allocated = samples;
-	}
 }
 
-// this gets called from the backend
-static void audio_callback(uint8_t *stream, uint32_t len)
+/* Size the mixing buffer for the device that was just opened. The audio
+ * thread never allocates; audio_callback() splits up anything bigger. */
+static int audio_reallocate_buffer(uint32_t samples)
+{
+	size_t bytes = (size_t)samples * audio_sample_size;
+
+	if (bytes > audio_buffer_bytes_allocated) {
+		void *buf = engine_calloc(samples, audio_sample_size, ENGINE_MEM_ENGINE);
+		if (!buf)
+			return 0;
+		engine_free(audio_buffer, ENGINE_MEM_ENGINE);
+		audio_buffer = buf;
+		audio_buffer_bytes_allocated = bytes;
+	}
+	audio_set_buffer_samples(samples);
+	return 1;
+}
+
+static void audio_mix(uint8_t *stream, uint32_t len)
 {
 	uint32_t wasrow = current_song->row;
 	uint32_t waspat = current_song->current_order;
 	uint32_t n;
 
 	/* len is output buffer size */
-	audio_reallocate_buffer(len / (audio_output_channels * (audio_output_bits_real / 8)));
+	audio_set_buffer_samples(len / (audio_output_channels * (audio_output_bits_real / 8)));
 
 	if (!stream || !len || !current_song) {
 		engine_hooks.vis_feed(NULL, 0, audio_output_bits, audio_output_channels);
@@ -276,14 +288,41 @@ POST_EVENT:
 	engine_hooks.post_event(&e);
 }
 
+// this gets called from the backend
+static void audio_callback(uint8_t *stream, uint32_t len)
+{
+	const uint32_t frame = audio_output_channels * (audio_output_bits_real / 8);
+	const size_t frames = audio_sample_size ? audio_buffer_bytes_allocated / audio_sample_size : 0;
+	const uint32_t max = (uint32_t)MIN(frames * frame, UINT32_MAX / 2);
+
+	if (!stream || !len || len <= max) {
+		audio_mix(stream, len);
+		return;
+	}
+	if (!max) {
+		/* no mixing buffer (it couldn't be allocated) */
+		memset(stream, 0, len);
+		return;
+	}
+
+	/* more than the buffer holds; mix it in pieces */
+	while (len > 0) {
+		uint32_t chunk = MIN(len, max);
+
+		audio_mix(stream, chunk);
+		stream += chunk;
+		len -= chunk;
+	}
+}
+
 // ------------------------------------------------------------------------------------------------------------
 // audio device list
 
 void free_audio_device_list(void) {
 	for (size_t count = 0; count < audio_device_list_size; count++)
-		free(audio_device_list[count].name);
+		engine_free(audio_device_list[count].name, ENGINE_MEM_ENGINE);
 
-	free(audio_device_list);
+	engine_free(audio_device_list, ENGINE_MEM_ENGINE);
 
 	audio_device_list = NULL;
 	audio_device_list_size = 0;
@@ -295,11 +334,18 @@ int refresh_audio_device_list(void) {
 
 	const uint32_t count = backend ? backend->device_count(0) : 0;
 
-	audio_device_list = mem_alloc(count * sizeof(*audio_device_list));
+	audio_device_list = engine_calloc(count, sizeof(*audio_device_list), ENGINE_MEM_ENGINE);
+	if (!audio_device_list)
+		return 0;
 
 	for (uint32_t i = 0; i < count; i++) {
 		audio_device_list[i].id = i;
-		audio_device_list[i].name = str_dup(backend ? backend->device_name(i) : "");
+		audio_device_list[i].name = engine_strdup(backend ? backend->device_name(i) : "", ENGINE_MEM_ENGINE);
+		if (!audio_device_list[i].name) {
+			audio_device_list_size = i;
+			free_audio_device_list();
+			return 0;
+		}
 	}
 
 	audio_device_list_size = count;
@@ -346,7 +392,9 @@ static void _audio_create_drivers_list(void)
 	for (size_t i = 0; i < ARRAY_SIZE(counts); i++)
 		alloc_size += (counts[i] = (inited_backends[i] ? inited_backends[i]->driver_count() : 0));
 
-	full_drivers.list = mem_alloc(alloc_size * sizeof(*full_drivers.list));
+	full_drivers.list = engine_calloc(alloc_size, sizeof(*full_drivers.list), ENGINE_MEM_ENGINE);
+	if (!full_drivers.list)
+		return;
 
 	for (size_t i = 0; i < ARRAY_SIZE(counts); i++) {
 		for (int j = 0; j < counts[i]; j++) {
@@ -1136,7 +1184,7 @@ void song_set_surround(int on)
 
 void audio_parse_driver_spec(const char* spec, char** driver, char** device) {
 	if (!str_break(spec, ':', driver, device)) {
-		*driver = str_dup(spec);
+		*driver = engine_strdup(spec, ENGINE_MEM_ENGINE);
 		*device = NULL;
 	}
 }
@@ -1162,9 +1210,9 @@ void cfg_load_audio(cfg_file_t *cfg)
 			/* TODO we should borrow strlcpy from BSD */
 			strncpy(cfg_audio_driver, driver, ARRAY_SIZE(cfg_audio_driver) - 1);
 			strncpy(cfg_audio_device, device, ARRAY_SIZE(cfg_audio_device) - 1);
-			free(device);
+			engine_free(device, ENGINE_MEM_ENGINE);
 		}
-		free(driver);
+		engine_free(driver, ENGINE_MEM_ENGINE);
 	}
 
 	CFG_GET_M(channel_limit, DEF_CHANNEL_LIMIT);
@@ -1347,7 +1395,7 @@ static void _cleanup_audio_device(void)
 			backend->close_device(current_audio_device);
 		current_audio_device = NULL;
 
-		free(device_name);
+		engine_free(device_name, ENGINE_MEM_ENGINE);
 		device_name = NULL;
 
 		device_id = 0;
@@ -1402,7 +1450,7 @@ static int _audio_open_device(uint32_t device, int verbose)
 
 	if (device != AUDIO_BACKEND_DEFAULT) {
 		if ((current_audio_device = backend->open_device(device, &desired, &obtained))) {
-			device_name = str_dup(backend->device_name(device));
+			device_name = engine_strdup(backend->device_name(device), ENGINE_MEM_ENGINE);
 			device_id = device;
 			goto success;
 		}
@@ -1410,7 +1458,7 @@ static int _audio_open_device(uint32_t device, int verbose)
 
 	current_audio_device = backend->open_device(AUDIO_BACKEND_DEFAULT, &desired, &obtained);
 	if (current_audio_device) {
-		device_name = str_dup("default"); // ????
+		device_name = engine_strdup("default", ENGINE_MEM_ENGINE); // ????
 		device_id = AUDIO_BACKEND_DEFAULT;
 		goto success;
 	}
@@ -1434,7 +1482,11 @@ success:
 	audio_output_bits_real = obtained.bits;
 	audio_output_fp = obtained.fp;
 	audio_sample_size = audio_output_channels * (audio_output_bits / 8);
-	audio_reallocate_buffer(obtained.samples);
+	if (!audio_reallocate_buffer(obtained.samples)) {
+		song_unlock_audio();
+		_cleanup_audio_device();
+		return 0;
+	}
 
 	csf_set_wave_config(current_song, obtained.freq,
 		audio_output_bits,
@@ -1465,7 +1517,7 @@ static int _audio_try_driver(const schism_audio_backend_t *backend_passed, const
 	if (backend->init_driver(driver))
 		return 0;
 
-	driver_name = str_dup(driver);
+	driver_name = engine_strdup(driver, ENGINE_MEM_ENGINE);
 
 	if (audio_lookup_device_name(device, &id)) {
 		// nothing
@@ -1483,7 +1535,7 @@ static int _audio_try_driver(const schism_audio_backend_t *backend_passed, const
 
 fail:
 	backend->quit_driver();
-	free(driver_name);
+	engine_free(driver_name, ENGINE_MEM_ENGINE);
 	driver_name = NULL;
 
 	backend = backend_restore;
@@ -1495,7 +1547,7 @@ static void _audio_quit(void)
 {
 	if (audio_was_init) {
 		_cleanup_audio_device();
-		free(driver_name);
+		engine_free(driver_name, ENGINE_MEM_ENGINE);
 		driver_name = NULL;
 		if (backend) backend->quit_driver();
 		audio_was_init = 0;
@@ -1718,6 +1770,7 @@ void song_init_modplug(void)
 void song_initialise(void)
 {
 	current_song = csf_allocate();
+	SCHISM_RUNTIME_ASSERT(current_song, "Failed to allocate the song.");
 
 	//song_stop(); <- song_new does this
 	song_set_linear_pitch_slides(1);
@@ -2079,18 +2132,24 @@ static schism_audio_device_t *dummy_open_device(uint32_t id,
 	if (buflen > UINT32_MAX)
 		return NULL; /* oops */
 
-	dev = mem_calloc(1, sizeof(*dev));
+	dev = engine_calloc(1, sizeof(*dev), ENGINE_MEM_ENGINE);
+	if (!dev)
+		return NULL;
 
 	dev->buflen = buflen;
-	dev->buf = mem_alloc(dev->buflen);
+	dev->buf = engine_alloc(dev->buflen, ENGINE_MEM_ENGINE);
+	if (!dev->buf) {
+		engine_free(dev, ENGINE_MEM_ENGINE);
+		return NULL;
+	}
 
 	dev->us = us;
 
 	dev->simple.vtbl = &dummy_vtbl;
 
 	if (audio_simple_init(dev, &dummy_vtbl, desired->callback, 0)) {
-		free(dev->buf);
-		free(dev);
+		engine_free(dev->buf, ENGINE_MEM_ENGINE);
+		engine_free(dev, ENGINE_MEM_ENGINE);
 		return NULL;
 	}
 
@@ -2103,8 +2162,8 @@ static schism_audio_device_t *dummy_open_device(uint32_t id,
 static void dummy_close_device(schism_audio_device_t *dev)
 {
 	audio_simple_close(&dev->simple);
-	free(dev->buf);
-	free(dev);
+	engine_free(dev->buf, ENGINE_MEM_ENGINE);
+	engine_free(dev, ENGINE_MEM_ENGINE);
 }
 
 static schism_audio_backend_t schism_audio_backend_dummy = {

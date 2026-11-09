@@ -23,7 +23,7 @@
 
 #include "headers.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #define MMD0_ID "MMD0"
 
@@ -104,7 +104,7 @@ int fmt_med_read_info(dmoz_file_t *file, slurp_t *fp)
 	uint32_t name_ptr = bswapBE32(exp.songname_ptr);
 	uint32_t name_len = bswapBE32(exp.songnamelen);
 
-	char *name_buffer = mem_alloc(name_len + 1);
+	char *name_buffer = engine_alloc(name_len + 1, ENGINE_MEM_ENGINE);
 
 	if (!name_buffer)
 		return 0;
@@ -114,7 +114,7 @@ int fmt_med_read_info(dmoz_file_t *file, slurp_t *fp)
 	if (!slurp_could_seek(fp, name_ptr + name_len, SEEK_SET)
 			|| slurp_seek(fp, name_ptr, SEEK_SET)
 			|| (slurp_read(fp, name_buffer, name_len) != name_len)) {
-		free(name_buffer);
+		engine_free(name_buffer, ENGINE_MEM_ENGINE);
 		return 0;
 	}
 

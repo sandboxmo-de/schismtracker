@@ -23,6 +23,7 @@
 
 #include "headers.h"
 #include "charset.h"
+#include "engine-alloc.h"
 
 #include <ctype.h>
 
@@ -139,14 +140,14 @@ struct strxcasecmp_impl_struct {
 \
 		uint32_t *cf2 = charset_case_fold_to_set(cp2, CHARSET_UCS4, CHARSET_UCS4); \
 		if (!cf2) { \
-			free(cf1); \
+			engine_free(cf1, ENGINE_MEM_SCRATCH); \
 			break; \
 		} \
 \
 	    result.diff = charset_strcmp(cf1, CHARSET_UCS4, cf2, CHARSET_UCS4); \
 \
-	    free(cf1); \
-	    free(cf2); \
+	    engine_free(cf1, ENGINE_MEM_SCRATCH); \
+	    engine_free(cf2, ENGINE_MEM_SCRATCH); \
 \
 	    if (decoder1.state == DECODER_STATE_DONE || decoder2.state == DECODER_STATE_DONE || result.diff) \
 	        break; \
@@ -407,14 +408,14 @@ int32_t charset_strcaseverscmp(const void *in1, charset_t in1set, const void *in
 
 		in2cf = charset_case_fold_to_set((uint8_t *)in2, in2set, CHARSET_UCS4);
 		if (!in2cf) {
-			free(in2cf);
+			engine_free(in1cf, ENGINE_MEM_SCRATCH);
 			goto casefoldfail;
 		}
 
 		int res = charset_strverscmp(in1cf, CHARSET_UCS4, in2cf, CHARSET_UCS4);
 
-		free(in1cf);
-		free(in2cf);
+		engine_free(in1cf, ENGINE_MEM_SCRATCH);
+		engine_free(in2cf, ENGINE_MEM_SCRATCH);
 
 		return res;
 	}
@@ -473,14 +474,14 @@ int charset_fnmatch(const void *match, charset_t match_set, const void *str, cha
 		? 0
 		: charset_fnmatch_impl(match_ucs4, str_ucs4);
 
-	free(match_ucs4);
-	free(str_ucs4);
+	engine_free(match_ucs4, ENGINE_MEM_SCRATCH);
+	engine_free(str_ucs4, ENGINE_MEM_SCRATCH);
 
 	return r;
 
 charsetfail:
-	free(match_ucs4);
-	free(str_ucs4);
+	engine_free(match_ucs4, ENGINE_MEM_SCRATCH);
+	engine_free(str_ucs4, ENGINE_MEM_SCRATCH);
 
 	/* fall back to the system implementation, if there even is one */
 

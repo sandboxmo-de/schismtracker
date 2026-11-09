@@ -25,9 +25,9 @@
 #include "bits.h"
 #include "slurp.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -116,7 +116,7 @@ int fmt_far_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Farandole Module";
 	/*file->extension = str_dup("far");*/
-	file->title = strn_dup(hdr.title, sizeof(hdr.title));
+	file->title = engine_strndup(hdr.title, sizeof(hdr.title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_S3M;
 	return 1;
 }
@@ -246,6 +246,8 @@ int fmt_far_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		if (!rows)
 			continue;
 		note = song->patterns[pat] = csf_allocate_pattern(rows);
+		if (!note)
+			return LOAD_FILE_ERROR;
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = rows;
 		breakpos = breakpos && breakpos < rows - 2 ? breakpos + 1 : -1;
 		for (row = 0; row < rows; row++, note += 48) {

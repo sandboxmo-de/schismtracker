@@ -23,7 +23,7 @@
 
 #include "headers.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -49,7 +49,7 @@ int fmt_mf_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "MoonFish";
 	/*file->extension = str_dup("mf");*/
-	file->title = strn_dup((const char *)title, title_length);
+	file->title = engine_strndup((const char *)title, title_length, ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;    /* ??? */
 	return 1;
 }

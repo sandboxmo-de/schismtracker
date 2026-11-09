@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "it.h"
 #include "song.h"
@@ -216,7 +216,7 @@ int fmt_pat_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	file->description = "Gravis Patch File";
-	file->title = strn_dup(hdr.insname, 16);
+	file->title = engine_strndup(hdr.insname, 16, ENGINE_MEM_ENGINE);
 	file->type = TYPE_INST_OTHER;
 	file->sampsize = CLAMP(hdr.smpnum, 1, 16);
 	return 1;
@@ -240,6 +240,8 @@ int fmt_pat_load_instrument(slurp_t *fp, int slot)
 		return 0;
 
 	g = instrument_loader_init(&ii, slot);
+	if (!g)
+		return 0;
 	memcpy(g->name, header.insname, 16);
 	g->name[15] = '\0';
 

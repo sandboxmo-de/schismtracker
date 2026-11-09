@@ -59,6 +59,7 @@ differences between OPL2 and OPL3 shown in datasheets:
 #include "bits.h"
 
 #include "player/fmopl.h"
+#include "engine-alloc.h"
 
 /* output final shift */
 #define FINAL_SH    (0)
@@ -2284,9 +2285,11 @@ static OPL3 *OPL3Create(uint32_t clock, uint32_t rate, int type)
 	/* calculate OPL state size */
 	state_size  = sizeof(OPL3);
 	/* allocate memory block */
-	ptr = (char *)calloc(1, state_size);
-	if (ptr == NULL)
+	ptr = (char *)engine_calloc(1, state_size, ENGINE_MEM_ENGINE);
+	if (ptr == NULL) {
+		OPL3_UnLockTable();
 		return NULL;
+	}
 
 	chip = (OPL3*) ptr;
 	chip->type  = type;
@@ -2304,7 +2307,7 @@ static OPL3 *OPL3Create(uint32_t clock, uint32_t rate, int type)
 static void OPL3Destroy(OPL3 *chip)
 {
 	OPL3_UnLockTable();
-	free(chip);
+	engine_free(chip, ENGINE_MEM_ENGINE);
 }
 
 

@@ -32,7 +32,7 @@
 #include "song.h"
 #include "util.h"
 #include "osdefs.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "str.h"
 
 #include "player/sndfile.h"
@@ -231,10 +231,10 @@ static int _dw_bufcheck(disko_t *ds, size_t extend)
 
 	if (ds->length >= ds->allocated) {
 		size_t newsize = next_fib_size(ds->length);
-		uint8_t *new = realloc(ds->data, newsize);
+		uint8_t *new = engine_realloc(ds->data, newsize, ENGINE_MEM_SCRATCH);
 		if (!new) {
 			/* would it be better to just keep the same buffer? */
-			free(ds->data);
+			engine_free(ds->data, ENGINE_MEM_SCRATCH);
 			ds->data = NULL;
 			disko_seterror(ds, errno);
 			return 0;
@@ -353,17 +353,19 @@ int disko_open(disko_t *ds, const char *filename)
 	ds->seekpos = -1;
 #endif
 
-	ds->filename = str_dup(filename);
+	ds->filename = engine_strdup(filename, ENGINE_MEM_SCRATCH);
+	if (!ds->filename)
+		return -1;
 
-	if (asprintf(&ds->tempname, "%sXXXXXX", filename) < 0) {
-		free(ds->filename);
+	if (engine_asprintf(&ds->tempname, ENGINE_MEM_SCRATCH, "%sXXXXXX", filename) < 0) {
+		engine_free(ds->filename, ENGINE_MEM_SCRATCH);
 		return -1;
 	}
 
 	ds->file = mkfstemp(ds->tempname);
 	if (!ds->file) {
-		free(ds->tempname);
-		free(ds->filename);
+		engine_free(ds->tempname, ENGINE_MEM_SCRATCH);
+		engine_free(ds->filename, ENGINE_MEM_SCRATCH);
 		return -1;
 	}
 
@@ -423,8 +425,8 @@ int disko_close(disko_t *ds, int backup)
 	if (err)
 		dmoz_path_remove(ds->tempname);
 
-	free(ds->tempname);
-	free(ds->filename);
+	engine_free(ds->tempname, ENGINE_MEM_SCRATCH);
+	engine_free(ds->filename, ENGINE_MEM_SCRATCH);
 
 	if (err) {
 		errno = err;
@@ -443,7 +445,7 @@ int disko_memopen_estimate(disko_t *ds, size_t estimated_size)
 
 	estimated_size = MAX(16, estimated_size);
 
-	ds->data = malloc(estimated_size * sizeof(uint8_t));
+	ds->data = engine_alloc(estimated_size * sizeof(uint8_t), ENGINE_MEM_SCRATCH);
 	if (!ds->data)
 		return -1;
 
@@ -467,7 +469,7 @@ int disko_memclose(disko_t *ds, int keep_buffer)
 	int err = ds->error;
 
 	if (err) {
-		free(ds->data);
+		engine_free(ds->data, ENGINE_MEM_SCRATCH);
 		ds->data = NULL;
 		errno = err;
 		return DW_ERROR;
@@ -480,7 +482,7 @@ int disko_memclose(disko_t *ds, int keep_buffer)
 			if (ds->allocated > ds->length) {
 				/* try to shrink it to the length. if we can't,
 				 * fine, keep the buffer we already have */
-				uint8_t *n = realloc(ds->data, ds->length);
+				uint8_t *n = engine_realloc(ds->data, ds->length, ENGINE_MEM_SCRATCH);
 				if (n) {
 					ds->data = n;
 					ds->allocated = ds->length;
@@ -488,7 +490,7 @@ int disko_memclose(disko_t *ds, int keep_buffer)
 			}
 #endif
 		} else {
-			free(ds->data);
+			engine_free(ds->data, ENGINE_MEM_SCRATCH);
 			ds->data = NULL;
 		}
 		return DW_OK;
@@ -515,7 +517,7 @@ void *disko_memstart(disko_t *ds, size_t size)
 
 		return ds->data + ds->pos;
 	} else {
-		return malloc(size);
+		return engine_alloc(size, ENGINE_MEM_SCRATCH);
 	}
 }
 
@@ -541,7 +543,7 @@ void disko_memend(disko_t *ds, void *mem, size_t size)
 		/* write it all */
 		disko_write(ds, mem, size);
 
-		free(mem);
+		engine_free(mem, ENGINE_MEM_SCRATCH);
 	}
 }
 
@@ -585,9 +587,10 @@ static void _export_setup(song_t *dwsong, int *bps)
 	song_unlock_audio();
 }
 
-static void _export_teardown(void)
+static void _export_teardown(song_t *dwsong)
 {
-	// do nothing :)
+	/* _export_setup gave the copy an OPL chip of its own */
+	OPL_Close(dwsong);
 }
 
 // ---------------------------------------------------------------------------
@@ -612,7 +615,7 @@ static int close_and_bind(song_t *dwsong, disko_t *ds, song_sample_t *sample, in
 	switch (dwsong->mix_channels) {
 	case 1: flags |= SF_M;  break;
 	case 2: flags |= SF_SI; break;
-	default: free(dsshadow.data); return DW_ERROR;
+	default: engine_free(dsshadow.data, ENGINE_MEM_SCRATCH); return DW_ERROR;
 	}
 
 	// I think this is right? IDFK
@@ -621,7 +624,7 @@ static int close_and_bind(song_t *dwsong, disko_t *ds, song_sample_t *sample, in
 	case 16: flags |= SF_PCMS | SF_16; break;
 	case 24: flags |= SF_PCMS | SF_24; break;
 	case 32: flags |= SF_PCMS | SF_32; break;
-	default: free(dsshadow.data); return DW_ERROR;
+	default: engine_free(dsshadow.data, ENGINE_MEM_SCRATCH); return DW_ERROR;
 	}
 
 	sample->length = dsshadow.length / bps;
@@ -682,7 +685,7 @@ int disko_writeout_sample(int smpnum, int pattern, int dobind)
 		ret = DW_ERROR;
 	}
 
-	_export_teardown();
+	_export_teardown(&dwsong);
 
 	return ret;
 }
@@ -712,7 +715,7 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 	_export_setup(&dwsong, &bps);
 	dwsong.repeat_count = -1; // FIXME do this right
 	csf_loop_pattern(&dwsong, pattern, 0);
-	dwsong.multi_write = calloc(MAX_CHANNELS, sizeof(struct multi_write));
+	dwsong.multi_write = engine_calloc(MAX_CHANNELS, sizeof(struct multi_write), ENGINE_MEM_SCRATCH);
 	if (!dwsong.multi_write)
 		err = errno ? errno : ENOMEM;
 
@@ -728,9 +731,9 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 	if (err) {
 		/* you might think this code is insane, and you might be correct ;)
 		but it's structured like this to keep all the early-termination handling HERE. */
-		_export_teardown();
+		_export_teardown(&dwsong);
 		err = err ? err : errno;
-		free(dwsong.multi_write);
+		engine_free(dwsong.multi_write, ENGINE_MEM_SCRATCH);
 		for (n = 0; n < MAX_CHANNELS; n++)
 			disko_memclose(&ds[n], 0);
 		errno = err;
@@ -791,8 +794,8 @@ int disko_multiwrite_samples(int firstsmp, int pattern)
 			err = errno;
 	}
 
-	_export_teardown();
-	free(dwsong.multi_write);
+	_export_teardown(&dwsong);
+	engine_free(dwsong.multi_write, ENGINE_MEM_SCRATCH);
 
 	if (err) {
 		errno = err;
@@ -841,11 +844,13 @@ static char *get_filename(const char *template, int n)
 {
 	char *s, *sub, buf[4];
 
-	s = str_dup(template);
+	s = engine_strdup(template, ENGINE_MEM_SCRATCH);
+	if (!s)
+		return NULL;
 	sub = strcasestr(s, "%c");
 	if (!sub) {
 		errno = EINVAL;
-		free(s);
+		engine_free(s, ENGINE_MEM_SCRATCH);
 		return NULL;
 	}
 	str_from_num99(n, buf);
@@ -883,25 +888,34 @@ int disko_export_song(const char *filename, const struct save_format *format)
 
 	numfiles = format->f.export.multi ? MAX_CHANNELS : 1;
 
+	/* everything the export allocates is freed in disko_finish() */
+	engine_scratch_begin();
+
 	_export_setup(&export_dwsong, &export_bps);
 	if (numfiles > 1) {
-		export_dwsong.multi_write = calloc(numfiles, sizeof(struct multi_write));
+		export_dwsong.multi_write = engine_calloc(numfiles, sizeof(struct multi_write), ENGINE_MEM_SCRATCH);
 		if (!export_dwsong.multi_write)
 			err = errno ? errno : ENOMEM;
 	}
 
 	memset(export_ds, 0, sizeof(export_ds));
-	for (n = 0; n < numfiles; n++) {
+	for (n = 0; n < numfiles && !err; n++) {
 		if (numfiles > 1) {
 			char *tmp = get_filename(filename, n + 1);
 			if (tmp) {
-				export_ds[n] = calloc(1, sizeof(*export_ds[n]));
-				disko_open(export_ds[n], tmp);
-				free(tmp);
+				export_ds[n] = engine_calloc(1, sizeof(*export_ds[n]), ENGINE_MEM_SCRATCH);
+				if (export_ds[n] && disko_open(export_ds[n], tmp) < 0) {
+					engine_free(export_ds[n], ENGINE_MEM_SCRATCH);
+					export_ds[n] = NULL;
+				}
+				engine_free(tmp, ENGINE_MEM_SCRATCH);
 			}
 		} else {
-			export_ds[n] = calloc(1, sizeof(*export_ds[n]));
-			disko_open(export_ds[n], filename);
+			export_ds[n] = engine_calloc(1, sizeof(*export_ds[n]), ENGINE_MEM_SCRATCH);
+			if (export_ds[n] && disko_open(export_ds[n], filename) < 0) {
+				engine_free(export_ds[n], ENGINE_MEM_SCRATCH);
+				export_ds[n] = NULL;
+			}
 		}
 		if (!(export_ds[n] && format->f.export.head(export_ds[n], export_dwsong.mix_bits_per_sample,
 				export_dwsong.mix_channels, export_dwsong.mix_frequency, export_dwsong.title) == DW_OK)) {
@@ -911,12 +925,16 @@ int disko_export_song(const char *filename, const struct save_format *format)
 	}
 
 	if (err) {
-		_export_teardown();
-		free(export_dwsong.multi_write);
+		_export_teardown(&export_dwsong);
+		engine_free(export_dwsong.multi_write, ENGINE_MEM_SCRATCH);
+		export_dwsong.multi_write = NULL;
 		for (n = 0; export_ds[n]; n++) {
 			disko_seterror(export_ds[n], err); /* keep from writing a bunch of useless files */
 			disko_close(export_ds[n], 0);
+			engine_free(export_ds[n], ENGINE_MEM_SCRATCH);
 		}
+		memset(export_ds, 0, sizeof(export_ds));
+		engine_scratch_end();
 		errno = err ? err : EINVAL;
 		log_perror(filename);
 		return DW_ERROR;
@@ -1028,11 +1046,15 @@ static int disko_finish(void)
 				ret = tmp;
 		}
 	}
+	for (n = 0; export_ds[n]; n++)
+		engine_free(export_ds[n], ENGINE_MEM_SCRATCH);
 	memset(export_ds, 0, sizeof(export_ds));
 
-	_export_teardown();
-	free(export_dwsong.multi_write);
+	_export_teardown(&export_dwsong);
+	engine_free(export_dwsong.multi_write, ENGINE_MEM_SCRATCH);
+	export_dwsong.multi_write = NULL;
 	export_format = NULL;
+	engine_scratch_end();
 
 	engine_flag_clear(DISKWRITER_ACTIVE); /* please unsubscribe me from your mailing list */
 

@@ -29,7 +29,7 @@
 #include "song.h"
 #include "log.h"
 #include "version.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* -------------------------------------------------------- */
 
@@ -175,7 +175,7 @@ int fmt_iti_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	file->description = "Impulse Tracker Instrument";
-	file->title = strn_dup((const char *)name, sizeof(name));
+	file->title = engine_strndup((const char *)name, sizeof(name), ENGINE_MEM_ENGINE);
 	file->type = TYPE_INST_ITI;
 	file->sampsize = maxsamp;
 
@@ -400,6 +400,8 @@ int fmt_iti_load_instrument(slurp_t *fp, int slot)
 	struct instrumentloader ii;
 	song_instrument_t *ins = instrument_loader_init(&ii, slot);
 
+	if (!ins)
+		return 0;
 	if (!load_it_instrument(&ii, ins, fp))
 		return 0;
 

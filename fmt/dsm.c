@@ -27,9 +27,9 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -108,7 +108,7 @@ int fmt_dsm_read_info(dmoz_file_t *file, slurp_t *fp)
 
 			iff_chunk_read(&chunk, fp, title, sizeof(title));
 
-			file->title = strn_dup((const char *)title, sizeof(title));
+			file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 			break;
 		}
 	}
@@ -392,6 +392,8 @@ int fmt_dsm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 
 			if (!(lflags & LOAD_NOPATTERNS)) {
 				song->patterns[p] = csf_allocate_pattern(64);
+				if (!song->patterns[p])
+					return LOAD_FILE_ERROR;
 
 				struct dsm_process_pattern_data data = {0};
 

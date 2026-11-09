@@ -23,7 +23,7 @@
 
 #include "headers.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -50,7 +50,7 @@ int fmt_ams_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Velvet Studio";
 	/*file->extension = str_dup("ams");*/
-	file->title = strn_dup((const char *)title, n);
+	file->title = engine_strndup((const char *)title, n, ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_XM;
 
 	return 1;

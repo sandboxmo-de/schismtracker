@@ -72,6 +72,7 @@ Revision History:
 #include "headers.h"
 
 #include "player/fmopl.h"
+#include "engine-alloc.h"
 
 #include "bits.h"
 
@@ -1806,9 +1807,11 @@ static FM_OPL *OPLCreate(uint32_t clock, uint32_t rate, int type)
 #endif
 
 	/* allocate memory block */
-	ptr = (char *)calloc(1, state_size);
-	if (ptr == NULL)
+	ptr = (char *)engine_calloc(1, state_size, ENGINE_MEM_ENGINE);
+	if (ptr == NULL) {
+		OPL_UnLockTable();
 		return NULL;
+	}
 
 	OPL  = (FM_OPL *)ptr;
 
@@ -1836,7 +1839,7 @@ static FM_OPL *OPLCreate(uint32_t clock, uint32_t rate, int type)
 static void OPLDestroy(FM_OPL *OPL)
 {
 	OPL_UnLockTable();
-	free(OPL);
+	engine_free(OPL, ENGINE_MEM_ENGINE);
 }
 
 /* Optional handlers */

@@ -13,6 +13,7 @@
 
 #include "bits.h"
 #include "fmt.h"
+#include "engine-alloc.h"
 
 typedef struct mm_header {
 	char zirconia[8]; // "ziRCONia"
@@ -173,7 +174,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 
 	size_t filesize = hdr.filesize;
 
-	uint8_t *buffer = calloc(1, (filesize + 31) & ~15);
+	uint8_t *buffer = engine_calloc(1, (filesize + 31) & ~15, ENGINE_MEM_SCRATCH);
 	if (!buffer)
 		return 0;
 
@@ -181,7 +182,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 	slurp_seek(fp, hdr.blktable, SEEK_SET);
 	if (slurp_read(fp, pblk_table, SCHISM_VLA_SIZEOF(pblk_table)) != SCHISM_VLA_SIZEOF(pblk_table)) {
 		SCHISM_VLA_FREE(pblk_table);
-		free(buffer);
+		engine_free(buffer, ENGINE_MEM_SCRATCH);
 		return 0;
 	}
 
@@ -193,7 +194,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 		mm_block_t pblk;
 		if (!read_mmcmp_block(&pblk, fp)) {
 			SCHISM_VLA_FREE(pblk_table);
-			free(buffer);
+			engine_free(buffer, ENGINE_MEM_SCRATCH);
 			return 0;
 		}
 
@@ -201,7 +202,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 		if (!read_mmcmp_subblocks(pblk.sub_blk, psubblk, fp)) {
 			SCHISM_VLA_FREE(pblk_table);
 			SCHISM_VLA_FREE(psubblk);
-			free(buffer);
+			engine_free(buffer, ENGINE_MEM_SCRATCH);
 			return 0;
 		}
 
@@ -214,7 +215,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 				if (slurp_read(fp, buffer + psubblk[i].unpk_pos, psubblk[i].unpk_size) != psubblk[i].unpk_size) {
 					SCHISM_VLA_FREE(pblk_table);
 					SCHISM_VLA_FREE(psubblk);
-					free(buffer);
+					engine_free(buffer, ENGINE_MEM_SCRATCH);
 					return 0;
 				}
 			}
@@ -233,7 +234,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 				SCHISM_VLA_FREE(pblk_table);
 				SCHISM_VLA_FREE(psubblk);
 				SCHISM_VLA_FREE(buf);
-				free(buffer);
+				engine_free(buffer, ENGINE_MEM_SCRATCH);
 				return 0;
 			}
 
@@ -308,7 +309,7 @@ int mmcmp_unpack(slurp_t *fp, uint8_t **data, size_t *length)
 				SCHISM_VLA_FREE(pblk_table);
 				SCHISM_VLA_FREE(psubblk);
 				SCHISM_VLA_FREE(buf);
-				free(buffer);
+				engine_free(buffer, ENGINE_MEM_SCRATCH);
 				return 0;
 			}
 

@@ -873,6 +873,24 @@ uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 /////////////////////////////////////////////////////////////////////////////
 // Handles navigation/effects
 
+/* the current pattern's row count, and the notes on the current row; a
+ * pattern that's missing or has no rows plays as blank_pattern */
+static inline uint32_t play_rows(song_t *csf)
+{
+	uint32_t pat = csf->current_pattern;
+
+	return (csf->patterns[pat] && csf->pattern_size[pat]) ? csf->pattern_size[pat] : 64;
+}
+
+static inline const song_note_t *play_row(song_t *csf)
+{
+	uint32_t pat = csf->current_pattern;
+
+	if (csf->patterns[pat] && csf->pattern_size[pat])
+		return csf->patterns[pat] + csf->row * MAX_CHANNELS;
+	return blank_pattern + csf->row * MAX_CHANNELS;
+}
+
 static inline SCHISM_ALWAYS_INLINE
 int32_t increment_order(song_t *csf)
 {
@@ -928,14 +946,14 @@ int32_t increment_order(song_t *csf)
 		csf->current_pattern = csf->orderlist[csf->process_order];
 	}
 
-	if (!csf->pattern_size[csf->current_pattern] || !csf->patterns[csf->current_pattern]) {
-		/* okay, this is wrong. allocate the pattern _NOW_ */
-		csf->patterns[csf->current_pattern] = csf_allocate_pattern(64);
+	/* A pattern that doesn't exist plays as 64 empty rows. This runs on the
+	 * audio thread, so it doesn't allocate one. */
+	if (!csf->patterns[csf->current_pattern]) {
 		csf->pattern_size[csf->current_pattern] = 64;
 		csf->pattern_alloc_size[csf->current_pattern] = 64;
 	}
 
-	if (csf->process_row >= csf->pattern_size[csf->current_pattern]) {
+	if (csf->process_row >= play_rows(csf)) {
 		// Cxx to row beyond end of pattern: use 0 instead
 		csf->process_row = 0;
 	}
@@ -968,7 +986,7 @@ int32_t csf_process_tick(song_t *csf)
 			csf->row_count = 0;
 
 			/* [Increase ProcessRow. Is ProcessRow > NumberOfRows?] */
-			if (++csf->process_row >= csf->pattern_size[csf->current_pattern]) {
+			if (++csf->process_row >= play_rows(csf)) {
 				/* [-- Yes --] */
 
 				if (!increment_order(csf))
@@ -990,7 +1008,7 @@ int32_t csf_process_tick(song_t *csf)
 
 		// Reset channel values
 		song_voice_t *chan = csf->voices;
-		song_note_t *m = csf->patterns[csf->current_pattern] + csf->row * MAX_CHANNELS;
+		const song_note_t *m = play_row(csf);
 
 		csf->last_global_volume = csf->current_global_volume;
 
@@ -1026,7 +1044,7 @@ int32_t csf_process_tick(song_t *csf)
 		/* [-- No --] */
 		/* [Update effects for each channel as required.] */
 
-		song_note_t *m = csf->patterns[csf->current_pattern] + csf->row * MAX_CHANNELS;
+		const song_note_t *m = play_row(csf);
 
 		if (!(csf->mix_flags & SNDMIX_CALCLENGTH)) {
 			for (uint32_t nchan=0; nchan<MAX_CHANNELS; nchan++, m++) {

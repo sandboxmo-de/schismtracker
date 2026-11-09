@@ -26,7 +26,7 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "log.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "player/sndfile.h"
 
@@ -128,12 +128,23 @@ struct event {
 
 static struct event *alloc_event(uint32_t pulse, uint8_t chan, const song_note_t *note, struct event *next)
 {
-	struct event *ev = mem_alloc(sizeof(struct event));
+	struct event *ev = engine_alloc(sizeof(struct event), ENGINE_MEM_SCRATCH);
+	if (!ev)
+		return NULL;
 	ev->pulse = pulse;
 	ev->chan = chan;
 	ev->note = *note;
 	ev->next = next;
 	return ev;
+}
+
+static void free_events(struct event *ev)
+{
+	while (ev) {
+		struct event *next = ev->next;
+		engine_free(ev, ENGINE_MEM_SCRATCH);
+		ev = next;
+	}
 }
 
 /* --------------------------------------------------------------------------------------------------------- */
@@ -166,7 +177,7 @@ int fmt_mid_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	if (fmt_mid_load_song(tmpsong, fp, LOAD_NOSAMPLES | LOAD_NOPATTERNS) == LOAD_SUCCESS) {
 		file->description = "Standard MIDI File";
-		file->title = str_dup(tmpsong->title);
+		file->title = engine_strdup(tmpsong->title, ENGINE_MEM_ENGINE);
 		file->type = TYPE_MODULE_MOD;
 		csf_free(tmpsong);
 		return 1;
@@ -213,6 +224,8 @@ int fmt_mid_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	note.note = NOTE_NONE;
 
 	event_queue = alloc_event(0, 0, &note, NULL);
+	if (!event_queue)
+		return LOAD_FILE_ERROR;
 
 	for (int trknum = 0; trknum < mthd.num_tracks; trknum++) {
 		uint32_t delta; // time since last event (read from file)
@@ -452,6 +465,10 @@ int fmt_mid_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			}
 			// and now, cur is either NULL or has a higher timestamp, so insert before it
 			new = alloc_event(pulse, cn, &note, cur);
+			if (!new) {
+				free_events(event_queue);
+				return LOAD_FILE_ERROR;
+			}
 			prev->next = new;
 			prev = prev->next;
 		}
@@ -469,11 +486,7 @@ int fmt_mid_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	cur = event_queue;
 
 	if (lflags & LOAD_NOPATTERNS) {
-		while (cur) {
-			prev = cur;
-			cur = cur->next;
-			free(prev);
-		}
+		free_events(cur);
 		return LOAD_SUCCESS;
 	}
 
@@ -507,9 +520,14 @@ int fmt_mid_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			// New pattern time!
 			if(pat >= MAX_PATTERNS) {
 				log_appendf(4, " Warning: Too many patterns, song is truncated");
+				free_events(cur);
 				return LOAD_SUCCESS;
 			}
 			pattern = song->patterns[pat] = csf_allocate_pattern(MID_ROWS_PER_PATTERN);
+			if (!pattern) {
+				free_events(cur);
+				return LOAD_FILE_ERROR;
+			}
 			song->pattern_size[pat] = song->pattern_alloc_size[pat] = MID_ROWS_PER_PATTERN;
 			song->orderlist[pat] = pat;
 			pat++;
@@ -531,7 +549,7 @@ int fmt_mid_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 
 		prev = cur;
 		cur = cur->next;
-		free(prev);
+		engine_free(prev, ENGINE_MEM_SCRATCH);
 	}
 
 	return LOAD_SUCCESS;

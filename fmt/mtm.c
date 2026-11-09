@@ -26,9 +26,9 @@
 #include "fmt.h"
 #include "song.h"
 #include "log.h"
-#include "mem.h"
 
 #include "player/tables.h"
+#include "engine-alloc.h"
 
 #include <stdint.h>
 
@@ -49,7 +49,7 @@ int fmt_mtm_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "MultiTracker Module";
 	/*file->extension = str_dup("mtm");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_MOD;
 	return 1;
 }
@@ -91,6 +91,15 @@ static void mtm_unpack_track(const uint8_t *b, song_note_t *note, int rows)
 		if (note->effect || note->param)
 			csf_import_mod_effect(note, 0);
 	}
+}
+
+static void mtm_free_tracks(song_note_t **trackdata, int ntrk)
+{
+	int n;
+
+	for (n = 0; n < ntrk; n++)
+		engine_free(trackdata[n], ENGINE_MEM_SCRATCH);
+	engine_free(trackdata, ENGINE_MEM_SCRATCH);
 }
 
 int fmt_mtm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
@@ -198,10 +207,16 @@ int fmt_mtm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	memset(song->orderlist + nord, ORDER_LAST, MAX_ORDERS - nord);
 
 	/* tracks */
-	trackdata = mem_calloc(ntrk, sizeof(song_note_t *));
+	trackdata = engine_calloc(ntrk, sizeof(song_note_t *), ENGINE_MEM_SCRATCH);
+	if (!trackdata)
+		return LOAD_FILE_ERROR;
 	for (n = 0; n < ntrk; n++) {
 		slurp_read(fp, b, 3 * rows);
-		trackdata[n] = mem_calloc(rows, sizeof(song_note_t));
+		trackdata[n] = engine_calloc(rows, sizeof(song_note_t), ENGINE_MEM_SCRATCH);
+		if (!trackdata[n]) {
+			mtm_free_tracks(trackdata, n);
+			return LOAD_FILE_ERROR;
+		}
 		mtm_unpack_track(b, trackdata[n], rows);
 	}
 
@@ -217,6 +232,10 @@ int fmt_mtm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		}
 
 		song->patterns[pat] = csf_allocate_pattern(MAX(rows, 32));
+		if (!song->patterns[pat]) {
+			mtm_free_tracks(trackdata, ntrk);
+			return LOAD_FILE_ERROR;
+		}
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = MAX(rows, 32);
 		for (chan = 0; chan < 32; chan++) {
 			slurp_read(fp, &tmp, 2);
@@ -224,9 +243,7 @@ int fmt_mtm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			if (tmp == 0) {
 				continue;
 			} else if (tmp > ntrk) {
-				for (n = 0; n < ntrk; n++)
-					free(trackdata[n]);
-				free(trackdata);
+				mtm_free_tracks(trackdata, ntrk);
 				return LOAD_FORMAT_ERROR;
 			}
 			note = song->patterns[pat] + chan;
@@ -245,9 +262,7 @@ int fmt_mtm_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	}
 
 	/* free willy */
-	for (n = 0; n < ntrk; n++)
-		free(trackdata[n]);
-	free(trackdata);
+	mtm_free_tracks(trackdata, ntrk);
 
 	read_lined_message(song->message, fp, comment_len, 40);
 

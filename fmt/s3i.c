@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "song.h"
 #include "player/sndfile.h"
@@ -132,8 +132,8 @@ static int load_s3i_sample(slurp_t *fp, song_sample_t *smp, int with_data)
 			return 0;
 
 		// dumb hackaround that ought to some day be fixed:
-		smp->length = 1;
 		smp->data = csf_allocate_sample(1);
+		smp->length = smp->data ? 1 : 0;
 	}
 
 	return 1;
@@ -147,10 +147,10 @@ int fmt_s3i_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	fmt_fill_file_from_sample(file, &smp);
 	/* generic func doesn't handle this */
-	file->smp_filename = strn_dup(smp.filename, 12);
+	file->smp_filename = engine_strndup(smp.filename, 12, ENGINE_MEM_ENGINE);
 
 	file->description = "Scream Tracker Sample";
-	file->title = strn_dup(smp.name, 25);
+	file->title = engine_strndup(smp.name, 25, ENGINE_MEM_ENGINE);
 	file->type = TYPE_SAMPLE_EXTD | TYPE_INST_OTHER;
 	return 1;
 }

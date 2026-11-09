@@ -25,7 +25,7 @@
 #include "bits.h"
 #include "fmt.h"
 #include "util.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "log.h"
 
 /*
@@ -244,7 +244,7 @@ int fmt_d00_read_info(dmoz_file_t *file, slurp_t *fp)
 	if (!d00_header_read(&hdr, fp))
 		return 0;
 
-	file->title = strn_dup((const char *)hdr.title, sizeof(hdr.title));
+	file->title = engine_strndup((const char *)hdr.title, sizeof(hdr.title), ENGINE_MEM_ENGINE);
 	file->description = "EdLib Tracker D00";
 	file->type = TYPE_MODULE_S3M;
 	return 1;
@@ -304,6 +304,8 @@ static song_note_t *d00_get_note(song_t *song, uint32_t pattern, uint32_t row,
 	if (!song->patterns[pattern]) {
 		/* allocate the pattern data, if it's not there already */
 		song->patterns[pattern] = csf_allocate_pattern(D00_PATTERN_ROWS);
+		if (!song->patterns[pattern])
+			return NULL;
 		song->pattern_size[pattern] = song->pattern_alloc_size[pattern]
 			= D00_PATTERN_ROWS;
 	}
@@ -582,6 +584,8 @@ D00_readnote: /* this goto is kind of ugly... */
 					}
 
 					sn = d00_get_note(song, pattern, row, c);
+					if (!sn)
+						return LOAD_FILE_ERROR;
 
 					if (event < 0x4000) {
 						int note = (event & 0xFF);
@@ -600,6 +604,8 @@ D00_readnote: /* this goto is kind of ugly... */
 							/* copy the last effect... */
 							for (r = 0; pattern < MAX_PATTERNS && r <= count; r++, row++, d00_fix_row(&pattern, &row)) {
 								sn = d00_get_note(song, pattern, row, c);
+								if (!sn)
+									return LOAD_FILE_ERROR;
 
 								sn->effect = mem_effect;
 								sn->param = mem_param;
@@ -870,6 +876,8 @@ D00_readnote: /* this goto is kind of ugly... */
 
 		/* dumb hackaround that ought to some day be fixed */
 		smp->data = csf_allocate_sample(1);
+		if (!smp->data)
+			return LOAD_FILE_ERROR;
 		smp->length = 1;
 
 #ifdef D00_ENABLE_BROKEN_LEVELPULS

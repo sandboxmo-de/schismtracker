@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "fmt.h"
 #include "str.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "bits.h"
 #include "log.h"
 #include "version.h"
@@ -486,7 +486,7 @@ void fmt_fill_file_from_sample(dmoz_file_t *file, const song_sample_t *smp)
 	file->smp_vibrato_rate  = smp->vib_rate;
 
 	if (!file->title && smp->name[0])
-		file->title = strn_dup(smp->name, sizeof(smp->name));
+		file->title = engine_strndup(smp->name, sizeof(smp->name), ENGINE_MEM_ENGINE);
 }
 
 int fmt_write_pcm(disko_t *fp, const uint8_t *data, size_t length, int bpf,

@@ -27,6 +27,7 @@
 #include "mem.h"
 #include "bits.h"
 #include "osdefs.h"
+#include "engine-alloc.h"
 
 #include <AudioToolbox/AudioToolbox.h>
 
@@ -204,7 +205,7 @@ static int macosxca_read(slurp_t *fp, dmoz_file_t *file, song_sample_t *smp)
 
 		/* FIXME need to fill in sample stuff */
 		file->description = ca_type_id_description(format.mFormatID);
-		file->title = strn_dup(title, sizeof(title));
+		file->title = engine_strndup(title, sizeof(title), ENGINE_MEM_ENGINE);
 		file->type = TYPE_SAMPLE_COMPR;
 
 		file->smp_speed = format.mSampleRate;

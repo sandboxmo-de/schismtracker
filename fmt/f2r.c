@@ -23,7 +23,7 @@
 
 #include "headers.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -43,7 +43,7 @@ int fmt_f2r_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Farandole 2 (linear)";
 	/*file->extension = str_dup("f2r");*/
-	file->title = strn_dup((const char *)title, 40);
+	file->title = engine_strndup((const char *)title, 40, ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_S3M;
 	return 1;
 }

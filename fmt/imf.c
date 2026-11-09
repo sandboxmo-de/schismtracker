@@ -26,9 +26,9 @@
 #include "slurp.h"
 #include "log.h"
 #include "fmt.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -46,7 +46,7 @@ int fmt_imf_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Imago Orpheus";
 	/*file->extension = str_dup("imf");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_IT;
 	return 1;
 }
@@ -448,6 +448,8 @@ static int load_imf_pattern(song_t *song, int pat, uint32_t ignore_channels, slu
 	nrows = bswapLE16(nrows);
 
 	row_data = song->patterns[pat] = csf_allocate_pattern(nrows);
+	if (!row_data)
+		return 0; /* the load fails on the allocation failure */
 	song->pattern_size[pat] = song->pattern_alloc_size[pat] = nrows;
 
 	row = 0;
@@ -649,6 +651,8 @@ int fmt_imf_load_song(song_t *song, slurp_t *fp, SCHISM_UNUSED uint32_t lflags)
 		}
 
 		ins = song->instruments[n + 1] = csf_allocate_instrument();
+		if (!ins)
+			return LOAD_FILE_ERROR;
 		strncpy(ins->name, imfins.name, 25);
 		ins->name[25] = 0;
 

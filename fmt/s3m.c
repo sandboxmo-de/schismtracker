@@ -26,12 +26,12 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "version.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
 
 #include "disko.h"
 #include "log.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -50,7 +50,7 @@ int fmt_s3m_read_info(dmoz_file_t *file, slurp_t *fp)
 
 	file->description = "Scream Tracker 3";
 	/*file->extension = str_dup("s3m");*/
-	file->title = strn_dup((const char *)title, sizeof(title));
+	file->title = engine_strndup((const char *)title, sizeof(title), ENGINE_MEM_ENGINE);
 	file->type = TYPE_MODULE_S3M;
 	return 1;
 }
@@ -129,8 +129,10 @@ static int s3m_import_edittime(song_t *song, uint16_t trkvers, uint32_t reserved
 	if (song->histlen)
 		return 0; // ?
 
+	song->history = engine_calloc(1, sizeof(*song->history), ENGINE_MEM_SONG);
+	if (!song->history)
+		return 0;
 	song->histlen = 1;
-	song->history = mem_calloc(1, sizeof(*song->history));
 
 	uint32_t runtime = it_decode_edit_timer(trkvers, reserved32);
 	song->history[0].runtime = dos_time_to_ms(runtime);
@@ -358,8 +360,8 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			slurp_seek(fp, 3, SEEK_CUR);
 			sample->flags |= CHN_ADLIB;
 			// dumb hackaround that ought to some day be fixed:
-			sample->length = 1;
 			sample->data = csf_allocate_sample(1);
+			sample->length = sample->data ? 1 : 0;
 			break;
 		}
 
@@ -412,6 +414,8 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			end = (para_pat[n] << 4) + bswapLE16(tmp) + 2;
 
 			song->patterns[n] = csf_allocate_pattern(64);
+			if (!song->patterns[n])
+				return LOAD_FILE_ERROR;
 
 			while (row < 64 && slurp_tell(fp) < end) {
 				int mask = slurp_getc(fp);

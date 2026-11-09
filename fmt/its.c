@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "player/sndfile.h"
 #include "song.h"
@@ -153,11 +153,11 @@ int fmt_its_read_info(dmoz_file_t *file, slurp_t *fp)
 	file->smp_sustain_start = its.susloopbegin;
 	file->smp_sustain_end = its.susloopend;
 
-	file->smp_filename = strn_dup((const char *)its.filename, sizeof(its.filename));
+	file->smp_filename = engine_strndup((const char *)its.filename, sizeof(its.filename), ENGINE_MEM_ENGINE);
 	file->description = "Impulse Tracker Sample";
 	file->type = TYPE_SAMPLE_EXTD;
 
-	file->title = strn_dup((const char *)its.name, sizeof(its.name));
+	file->title = engine_strndup((const char *)its.name, sizeof(its.name), ENGINE_MEM_ENGINE);
 
 	return 1;
 }
@@ -228,8 +228,8 @@ int load_its_sample(slurp_t *fp, song_sample_t *smp, uint16_t cwtv)
 		r = slurp_read(fp, smp->adlib_bytes, 12);
 		smp->flags |= CHN_ADLIB;
 		// dumb hackaround that ought to some day be fixed:
-		smp->length = 1;
 		smp->data = csf_allocate_sample(1);
+		smp->length = smp->data ? 1 : 0;
 	} else if (its.flags & 1) {
 		slurp_seek(fp, its.samplepointer, SEEK_SET);
 

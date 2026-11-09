@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "bits.h"
 #include "fmt.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 #include "it.h"
 #include "song.h"
@@ -217,7 +217,7 @@ int fmt_xi_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	file->description = "Fasttracker II Instrument";
-	file->title = strn_dup((const char *)xi.name, sizeof(xi.name));
+	file->title = engine_strndup((const char *)xi.name, sizeof(xi.name), ENGINE_MEM_ENGINE);
 	file->type = TYPE_INST_XI;
 	file->sampsize = xi.xish.nsamples;
 
@@ -241,6 +241,8 @@ int fmt_xi_load_instrument(slurp_t *fp, int slot)
 	//song_delete_instrument(slot, 0);
 
 	g = instrument_loader_init(&ii, slot);
+	if (!g)
+		return 0;
 	memcpy(g->name, xi.name, 22);
 	g->name[22] = '\0';
 

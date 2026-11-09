@@ -26,6 +26,7 @@
 #include "loadso.h"
 #include "dmoz.h"
 #include "mem.h"
+#include "engine-alloc.h"
 
 /* The GStreamer header files emit static inline function definitions that call gst_mini_object_unref. If we're
  * trying to load everything dynamically, this defeats the straightforward attempt, because the call occurs
@@ -308,7 +309,7 @@ int fmt_gstreamer_read_info(dmoz_file_t *file, slurp_t *fp)
 							file->smp_speed = sample_rate;
 							file->smp_length = duration * sample_rate / GST_SECOND;
 
-							file->title = str_dup(display_name ? display_name : file->base);
+							file->title = engine_strdup(display_name ? display_name : file->base, ENGINE_MEM_ENGINE);
 							file->description = description;
 
 							success = 1;

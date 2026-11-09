@@ -26,9 +26,9 @@
 #include "slurp.h"
 #include "fmt.h"
 #include "str.h"
-#include "mem.h"
 
 #include "player/sndfile.h"
+#include "engine-alloc.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -88,7 +88,7 @@ int fmt_669_read_info(dmoz_file_t *file, slurp_t *fp)
 		if (hdr.breaks[i] > 0x3f)
 			return 0;
 
-	file->title = strn_dup((const char*)hdr.songmessage, sizeof(hdr.songmessage));
+	file->title = engine_strndup((const char*)hdr.songmessage, sizeof(hdr.songmessage), ENGINE_MEM_ENGINE);
 	file->description = desc;
 	/*file->extension = str_dup("669");*/
 	file->type = TYPE_MODULE_S3M;
@@ -201,6 +201,8 @@ int fmt_669_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 			return LOAD_UNSUPPORTED;
 
 		song->patterns[pat] = csf_allocate_pattern(CLAMP(rows, 32, 64));
+		if (!song->patterns[pat])
+			return LOAD_FILE_ERROR;
 		song->pattern_size[pat] = song->pattern_alloc_size[pat] = CLAMP(rows, 32, 64);
 
 		for (row = 0; row < rows; row++) {

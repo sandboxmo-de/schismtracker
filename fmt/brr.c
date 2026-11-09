@@ -24,7 +24,7 @@
 #include "headers.h"
 #include "fmt.h"
 #include "bits.h"
-#include "mem.h"
+#include "engine-alloc.h"
 
 /* macros for extracting stuff from the header byte */
 #define BRR_HDR_SHIFT(x) ((x) >> 4)
@@ -120,7 +120,7 @@ int fmt_brr_read_info(dmoz_file_t *file, slurp_t *fp)
 		return 0;
 
 	/* ehhhhhhh */
-	file->title = str_dup("");
+	file->title = engine_strdup("", ENGINE_MEM_ENGINE);
 	file->description = "SNES BRR sample";
 	file->type = TYPE_SAMPLE_COMPR; /* in a bad way */
 
@@ -197,6 +197,8 @@ int fmt_brr_load_sample(slurp_t *fp, song_sample_t *smp)
 
 	smp->length = brr.blocks * 16;
 	smp->data = csf_allocate_sample(smp->length * 2);
+	if (!smp->data)
+		return 0;
 
 	if (brr.loop) {
 		smp->flags |= CHN_LOOP;

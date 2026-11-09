@@ -27,7 +27,7 @@ extraneous libraries (i.e. GLib). */
 #include "headers.h"
 #include "util.h"
 #include "osdefs.h"
-#include "mem.h"
+#include "engine-alloc.h"
 #include "cpu.h"
 #include "mt.h"
 
@@ -185,12 +185,12 @@ FILE *mkfstemp(char *template)
 int msgboxv(int style, const char *title, const char *fmt, va_list ap)
 {
 	char *s;
-	if (vasprintf(&s, fmt, ap) < 0)
+	if (engine_vasprintf(&s, ENGINE_MEM_SCRATCH, fmt, ap) < 0)
 		return -1;
 
 	os_show_message_box(title, s, style);
 
-	free(s);
+	engine_free(s, ENGINE_MEM_SCRATCH);
 
 	return 0;
 }
