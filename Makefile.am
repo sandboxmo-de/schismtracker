@@ -9,7 +9,8 @@ docs = \
 	docs/building_on_linux.md	\
 	docs/building_on_osx.md		\
 	docs/building_on_windows.md	\
-	docs/configuration.md
+	docs/configuration.md		\
+	docs/engine-ui-coupling.md
 helptexts = \
 	helptext/global-keys		\
 	helptext/copyright		\
@@ -84,7 +85,8 @@ scripts = \
 	scripts/itf2half.py		\
 	scripts/itmidicfg.py		\
 	scripts/lutgen.c		\
-	scripts/palette.py
+	scripts/palette.py		\
+	scripts/render-compare.py
 
 EXTRA_DIST = \
 	README.md include/auto/README	\
