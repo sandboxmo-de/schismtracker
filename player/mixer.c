@@ -706,9 +706,145 @@ static void fake_vu_meter(song_voice_t *channel, uint32_t smpcount, struct song_
 	channel->vu_meter = MAX(channel->vu_meter, umax);
 }
 
+/* Mixes count frames of one voice into pbuffer (interleaved stereo), using
+ * whichever interpolation the voice's flags and src_mode allow. A voice
+ * that runs out adds its leftover DC offset to *ofsr and *ofsl. With
+ * skip set, the voice only advances (the song does this past its voice
+ * limit). Returns 1 if anything was actually mixed. Shared by the song and
+ * the effects voice pool. */
+uint32_t csf_mix_voice(song_voice_t *channel, int32_t *pbuffer, uint32_t count,
+	uint32_t src_mode, int32_t *ofsr, int32_t *ofsl, int skip)
+{
+	uint32_t flags = 0;
+	uint32_t nrampsamples;
+	int32_t smpcount;
+	int32_t nsamples;
+
+	if (channel->flags & CHN_16BIT)
+		flags |= MIXNDX_16BIT;
+
+	if (channel->flags & CHN_STEREO)
+		flags |= MIXNDX_STEREO;
+
+	if (channel->flags & CHN_FILTER)
+		flags |= MIXNDX_FILTER;
+
+	if (!(channel->flags & CHN_NOIDO)) {
+		uint32_t srcflags[NUM_SRC_MODES] = {
+			[SRCMODE_NEAREST] = 0,
+			[SRCMODE_LINEAR] = MIXNDX_LINEARSRC,
+			[SRCMODE_SPLINE] = MIXNDX_SPLINESRC,
+			[SRCMODE_POLYPHASE] = MIXNDX_FIRSRC,
+		};
+
+		flags |= srcflags[src_mode];
+	}
+
+	nsamples = count;
+
+	////////////////////////////////////////////////////
+	uint32_t naddmix = 0;
+	struct mix_loop_state mls;
+	mix_loop_state_init(&mls, channel);
+	channel->vu_meter <<= 16;
+
+	do {
+		nrampsamples = nsamples;
+
+		if (channel->ramp_length > 0) {
+			if ((int32_t)nrampsamples > channel->ramp_length)
+				nrampsamples = channel->ramp_length;
+		}
+
+		smpcount = 1;
+
+		/* Figure out the number of remaining samples,
+		 * unless we're in AdLib or MIDI mode (to prevent
+		 * artificial KeyOffs)
+		 */
+		if (!(channel->flags & CHN_ADLIB)) {
+			smpcount = get_sample_count(&mls, channel, nrampsamples);
+		}
+
+		if (smpcount <= 0) {
+			// Stopping the channel
+			channel->current_sample_data = NULL;
+			channel->length = 0;
+			channel->position = csf_smp_pos(0,0);
+			channel->ramp_length = 0;
+			end_channel_ofs(channel, pbuffer, nsamples);
+			*ofsr += channel->rofs;
+			*ofsl += channel->lofs;
+			channel->rofs = channel->lofs = 0;
+			channel->flags &= ~CHN_PINGPONGFLAG;
+			break;
+		}
+
+		// Should we mix this channel ?
+
+		if (skip || (!channel->ramp_length && !(channel->left_volume | channel->right_volume))) {
+			struct song_smp_pos len = csf_smp_pos_mul_whole(channel->increment, smpcount);
+
+			/* Don't even try */
+			if (!(channel->flags & CHN_ADLIB))
+				fake_vu_meter(channel, smpcount, len);
+
+			channel->position = csf_smp_pos_add(channel->position, len);
+			channel->rofs = channel->lofs = 0;
+			pbuffer += smpcount * 2;
+		} else if (!(channel->flags & CHN_ADLIB)) {
+			// Mix the stream, unless we're in AdLib mode
+
+			// Choose function for mixing
+			mix_interface_t mix_func;
+			mix_func = channel->ramp_length
+				? mix_functions[flags | MIXNDX_RAMP]
+				: mix_functions[flags];
+
+			int32_t *pbufmax = pbuffer + (smpcount * 2);
+			channel->rofs = -*(pbufmax - 2);
+			channel->lofs = -*(pbufmax - 1);
+
+			mix_func(channel, pbuffer, pbufmax);
+			channel->rofs += *(pbufmax - 2);
+			channel->lofs += *(pbufmax - 1);
+			pbuffer = pbufmax;
+			naddmix = 1;
+		}
+
+		nsamples -= smpcount;
+
+		if (channel->ramp_length) {
+			if (channel->ramp_length <= smpcount) {
+				// Ramping is done
+				channel->ramp_length = 0;
+				channel->right_volume = channel->right_volume_new;
+				channel->left_volume = channel->left_volume_new;
+				channel->right_ramp = channel->left_ramp = 0;
+
+				if ((channel->flags & CHN_NOTEFADE)
+					&& (!(channel->fadeout_volume))) {
+					channel->length = 0;
+					channel->current_sample_data = NULL;
+				}
+			} else {
+				channel->ramp_length -= smpcount;
+			}
+		}
+	} while (nsamples > 0);
+
+	/* Restore sample pointer in case it got changed through loop wrap-around */
+	channel->current_sample_data = mls.smp_ptr;
+
+	channel->vu_meter >>= 16;
+	if (channel->vu_meter > 0xFF)
+		channel->vu_meter = 0xFF;
+
+	return naddmix;
+}
+
 uint32_t csf_create_stereo_mix(song_t *csf, uint32_t count)
 {
-	int32_t* ofsl, *ofsr;
 	unsigned int nchused, nchmixed;
 
 	if (!count)
@@ -723,42 +859,12 @@ uint32_t csf_create_stereo_mix(song_t *csf, uint32_t count)
 
 	for (uint32_t nchan = 0; nchan < csf->num_voices; nchan++) {
 		song_voice_t *const channel = &csf->voices[csf->voice_mix[nchan]];
-		uint32_t flags;
-		uint32_t nrampsamples;
-		int32_t smpcount;
-		int32_t nsamples;
 		int32_t *pbuffer;
 
 		if ((!channel->current_sample_data || !channel->ptr_sample /* HAX */)
 			&& !channel->lofs
 			&& !channel->rofs)
 			continue;
-
-		ofsr = &csf->dry_rofs_vol;
-		ofsl = &csf->dry_lofs_vol;
-		flags = 0;
-
-		if (channel->flags & CHN_16BIT)
-			flags |= MIXNDX_16BIT;
-
-		if (channel->flags & CHN_STEREO)
-			flags |= MIXNDX_STEREO;
-
-		if (channel->flags & CHN_FILTER)
-			flags |= MIXNDX_FILTER;
-
-		if (!(channel->flags & CHN_NOIDO)) {
-			uint32_t srcflags[NUM_SRC_MODES] = {
-				[SRCMODE_NEAREST] = 0,
-				[SRCMODE_LINEAR] = MIXNDX_LINEARSRC,
-				[SRCMODE_SPLINE] = MIXNDX_SPLINESRC,
-				[SRCMODE_POLYPHASE] = MIXNDX_FIRSRC,
-			};
-
-			flags |= srcflags[csf->mix_interpolation];
-		}
-
-		nsamples = count;
 
 		if (csf->multi_write) {
 			int32_t master = (csf->voice_mix[nchan] < MAX_CHANNELS)
@@ -772,106 +878,9 @@ uint32_t csf_create_stereo_mix(song_t *csf, uint32_t count)
 
 		nchused++;
 
-		////////////////////////////////////////////////////
-		uint32_t naddmix = 0;
-		struct mix_loop_state mls;
-		mix_loop_state_init(&mls, channel);
-		channel->vu_meter <<= 16;
-
-		do {
-			nrampsamples = nsamples;
-
-			if (channel->ramp_length > 0) {
-				if ((int32_t)nrampsamples > channel->ramp_length)
-					nrampsamples = channel->ramp_length;
-			}
-
-			smpcount = 1;
-
-			/* Figure out the number of remaining samples,
-			 * unless we're in AdLib or MIDI mode (to prevent
-			 * artificial KeyOffs)
-			 */
-			if (!(channel->flags & CHN_ADLIB)) {
-				smpcount = get_sample_count(&mls, channel, nrampsamples);
-			}
-
-			if (smpcount <= 0) {
-				// Stopping the channel
-				channel->current_sample_data = NULL;
-				channel->length = 0;
-				channel->position = csf_smp_pos(0,0);
-				channel->ramp_length = 0;
-				end_channel_ofs(channel, pbuffer, nsamples);
-				*ofsr += channel->rofs;
-				*ofsl += channel->lofs;
-				channel->rofs = channel->lofs = 0;
-				channel->flags &= ~CHN_PINGPONGFLAG;
-				break;
-			}
-
-			// Should we mix this channel ?
-
-			if ((nchmixed >= csf->max_voices && !(csf->mix_flags & SNDMIX_DIRECTTODISK))
-				|| (!channel->ramp_length && !(channel->left_volume | channel->right_volume))) {
-				struct song_smp_pos len = csf_smp_pos_mul_whole(channel->increment, smpcount);
-
-				/* Don't even try */
-				if (!(channel->flags & CHN_ADLIB))
-					fake_vu_meter(channel, smpcount, len);
-
-				channel->position = csf_smp_pos_add(channel->position, len);
-				channel->rofs = channel->lofs = 0;
-				pbuffer += smpcount * 2;
-			} else if (!(channel->flags & CHN_ADLIB)) {
-				// Mix the stream, unless we're in AdLib mode
-
-				// Choose function for mixing
-				mix_interface_t mix_func;
-				mix_func = channel->ramp_length
-					? mix_functions[flags | MIXNDX_RAMP]
-					: mix_functions[flags];
-
-				int32_t *pbufmax = pbuffer + (smpcount * 2);
-				channel->rofs = -*(pbufmax - 2);
-				channel->lofs = -*(pbufmax - 1);
-
-				mix_func(channel, pbuffer, pbufmax);
-				channel->rofs += *(pbufmax - 2);
-				channel->lofs += *(pbufmax - 1);
-				pbuffer = pbufmax;
-				naddmix = 1;
-			}
-
-			nsamples -= smpcount;
-
-			if (channel->ramp_length) {
-				if (channel->ramp_length <= smpcount) {
-					// Ramping is done
-					channel->ramp_length = 0;
-					channel->right_volume = channel->right_volume_new;
-					channel->left_volume = channel->left_volume_new;
-					channel->right_ramp = channel->left_ramp = 0;
-
-					if ((channel->flags & CHN_NOTEFADE)
-						&& (!(channel->fadeout_volume))) {
-						channel->length = 0;
-						channel->current_sample_data = NULL;
-					}
-				} else {
-					channel->ramp_length -= smpcount;
-				}
-			}
-		} while (nsamples > 0);
-
-		/* Restore sample pointer in case it got changed through loop wrap-around */
-		channel->current_sample_data = mls.smp_ptr;
-
-		channel->vu_meter >>= 16;
-		if (channel->vu_meter > 0xFF)
-			channel->vu_meter = 0xFF;
-
-		nchmixed += naddmix;
+		nchmixed += csf_mix_voice(channel, pbuffer, count, csf->mix_interpolation,
+			&csf->dry_rofs_vol, &csf->dry_lofs_vol,
+			nchmixed >= csf->max_voices && !(csf->mix_flags & SNDMIX_DIRECTTODISK));
 	}
 
 	GM_IncrementSongCounter(csf, count);

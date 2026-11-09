@@ -875,6 +875,9 @@ typedef struct song {
 	// sound effects bus to mix in after the song (see sfx-bus.h); whoever
 	// calls csf_read sets this, NULL for none
 	struct sfx_bus *sfx_bus;
+
+	// effects voice pool, mixed in the same place (see sfx-voices.h)
+	struct sfx_pool *sfx_pool;
 } song_t;
 
 song_note_t *csf_allocate_pattern(uint32_t rows);
@@ -931,6 +934,38 @@ uint32_t csf_read(song_t *csf, void *v_buffer, uint32_t bufsize);
 uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize);
 int32_t csf_process_tick(song_t *csf);
 int32_t csf_read_note(song_t *csf);
+
+/* What csf_voice_update needs to know besides the voice itself. The song
+ * fills one in from its own state every tick, and the effects voice pool
+ * fills in its own, so pool voices never see the song's global volume,
+ * flags or tempo. */
+struct csf_voice_env {
+	song_t *csf;            /* for MIDI, OPL and Zxx macros; NULL skips them */
+	uint32_t flags;         /* SONG_INSTRUMENTMODE, SONG_ITOLDEFFECTS, SONG_FIRSTTICK, SONG_NOSTEREO */
+	uint32_t mix_flags;     /* SNDMIX_NORAMPING, SNDMIX_NOSURROUND, SNDMIX_REVERSESTEREO */
+	int32_t global_volume;  /* 0-128 */
+	int32_t master_vol;     /* mixing volume << 2 */
+	uint32_t mix_frequency;
+	uint32_t mix_channels;
+	uint32_t mix_interpolation;
+	uint32_t freq_factor;   /* 128 is normal speed */
+	uint32_t pan_separation; /* 128 is full */
+	int32_t ramping_samples_up, ramping_samples_down;
+	uint32_t tick_length;   /* in samples */
+	int pitch_pan_in_envelope; /* apply pitch/pan separation per tick (old Schism) */
+	/* random numbers for random vibrato, 0 to RAND_MAX; NULL uses csf_random() */
+	int (*random)(void *ctx);
+	void *random_ctx;
+};
+
+enum {
+	CSF_VOICE_IDLE, /* nothing to mix */
+	CSF_VOICE_MIX,  /* playing */
+	CSF_VOICE_TAIL, /* stopped, but still has a DC offset to ramp out */
+};
+
+int csf_voice_update(const struct csf_voice_env *env, song_voice_t *chan, uint32_t cn);
+void csf_voice_key_off(song_voice_t *chan, int instrument_mode);
 
 // snd_fx
 uint32_t csf_get_length(song_t *csf); // (in seconds)

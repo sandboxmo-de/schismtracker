@@ -18,6 +18,8 @@ void interleave_front_rear(int32_t *, int32_t *, uint32_t);
 void mono_from_stereo(int32_t *, uint32_t);
 
 uint32_t csf_create_stereo_mix(song_t *csf, uint32_t count);
+uint32_t csf_mix_voice(song_voice_t *channel, int32_t *pbuffer, uint32_t count,
+	uint32_t src_mode, int32_t *ofsr, int32_t *ofsl, int skip);
 
 void setup_channel_filter(song_voice_t *pChn, int32_t reset, int32_t flt_modifier, int32_t freq);
 
