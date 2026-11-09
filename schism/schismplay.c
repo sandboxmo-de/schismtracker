@@ -1256,8 +1256,9 @@ static int render(const char *song)
 		/* one disk writer buffer ahead is enough: it's never more than
 		 * 16384 frames */
 		schedule_notes_until(render_frames, render_frames + 16384);
-		/* an idle pool would let the render finish before a later note */
-		if (next_note < sfx_nnotes && !sfx_pool_voices_playing())
+		/* Keep one note waiting while there are more to come, or the
+		 * render could finish in a gap between notes. */
+		if (next_note < sfx_nnotes && (!next_note || note_frame(sfx_notes + next_note - 1) <= render_frames))
 			schedule_notes_until(render_frames, (size_t)note_frame(sfx_notes + next_note) + 1);
 		q = disko_sync();
 		if (verbose && sfx_pool_running())
