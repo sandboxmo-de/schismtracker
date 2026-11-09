@@ -12,6 +12,7 @@
 
 #include "disko.h"
 #include "slurp.h"
+#include "engine-alloc.h"
 
 #include "tables.h"
 
@@ -884,6 +885,8 @@ song_note_t *csf_allocate_pattern(uint32_t rows);
 void csf_free_pattern(void *pat);
 signed char *csf_allocate_sample(uint32_t nbytes);
 void csf_free_sample(void *p);
+signed char *csf_allocate_sample_ex(uint32_t nbytes, enum engine_mem_class cls);
+void csf_free_sample_ex(void *p, enum engine_mem_class cls);
 song_instrument_t *csf_allocate_instrument(void);
 void csf_init_instrument(song_instrument_t *ins, int samp);
 void csf_free_instrument(song_instrument_t *p);

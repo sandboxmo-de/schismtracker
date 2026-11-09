@@ -149,6 +149,7 @@ int song_load_sample_file(const char *file, song_sample_t *smp);
 
 int song_load_instrument(int n, const char *file);
 int song_load_instrument_ex(int n, const char *file, const char *libf, int nx);
+int song_load_instrument_into(song_t *song, const char *file);
 int song_save_instrument(const char *filename, const char *type, song_instrument_t *ins, int num);
 
 /* search the orderlist for a pattern, starting at the current order.

@@ -125,6 +125,7 @@ noinst_HEADERS = \
 	include/engine-alloc.h		\
 	include/engine-host.h		\
 	include/sfx-bus.h		\
+	include/sfx-voices.h		\
 	include/dialog.h        \
 	include/dmoz.h			\
 	include/events.h		\
@@ -679,6 +680,7 @@ libschismengine_a_SOURCES = \
 	player/mixer.c			\
 	player/mixutil.c		\
 	player/sfx-bus.c		\
+	player/sfx-voices.c		\
 	player/snd_fm.c			\
 	player/snd_gm.c			\
 	player/sndmix.c			\
@@ -857,6 +859,7 @@ schismtrackertest_SOURCES = \
 	test/cases/mplink.c         \
 	test/cases/sanity.c			\
 	test/cases/sfx-bus.c		\
+	test/cases/sfx-voices.c		\
 	test/cases/slurp.c          \
 	test/cases/str.c			\
 	test/cases/util.c			\

@@ -32,6 +32,7 @@
 
 #include "util.h" /* for clamp */
 #include "sfx-bus.h"
+#include "sfx-voices.h"
 
 // Volume ramp length, in microseconds.
 // Stole these constants from OpenMPT defaults
@@ -922,9 +923,10 @@ static convert_t get_convert(song_t *csf, uint32_t *sample_size)
 	}
 }
 
-/* Fills the buffer with csf->sfx_bus's sound effects over silence, in the
- * same output format as csf_read. This is for when the song isn't playing,
- * or has ended partway through a buffer. Returns the number of frames. */
+/* Fills the buffer with the sound effects (csf->sfx_bus and csf->sfx_pool)
+ * over silence, in the same output format as csf_read. This is for when the
+ * song isn't playing, or has ended partway through a buffer. Returns the
+ * number of frames. */
 uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize)
 {
 	uint8_t *buffer = (uint8_t *)v_buffer;
@@ -942,6 +944,7 @@ uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize)
 		count = MIN(bufleft, MIXBUFFERSIZE);
 		memset(csf->mix_buffer, 0, count * channels * sizeof(int32_t));
 		sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, channels, csf->mix_frequency);
+		sfx_pool_mix(csf->sfx_pool, csf, csf->mix_buffer, count);
 		buffer += convert_func(buffer, csf->mix_buffer, count * channels, vu_min, vu_max);
 	}
 
@@ -1044,6 +1047,8 @@ uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 		// them out.
 		if (csf->sfx_bus && !csf->multi_write)
 			sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, (csf->mix_channels >= 2) ? 2 : 1, csf->mix_frequency);
+		if (csf->sfx_pool && !csf->multi_write)
+			sfx_pool_mix(csf->sfx_pool, csf, csf->mix_buffer, count);
 
 		mix_stat++;
 

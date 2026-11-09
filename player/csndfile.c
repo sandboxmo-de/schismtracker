@@ -265,21 +265,33 @@ void csf_free_pattern(void *pat)
 #define CSF_ALLOCATE_PREPEND ((MAX_SAMPLING_POINT_SIZE) * (MAX_INTERPOLATION_LOOKAHEAD_BUFFER_SIZE))
 #define CSF_ALLOCATE_APPEND ((1 + 4 + 4) * MAX_INTERPOLATION_LOOKAHEAD_BUFFER_SIZE * 4)
 
-signed char *csf_allocate_sample(uint32_t nbytes)
+/* sample data in a memory class other than SONG, for copies that outlive
+ * the song (the effects voice pool's banks) */
+signed char *csf_allocate_sample_ex(uint32_t nbytes, enum engine_mem_class cls)
 {
 	signed char *p;
 
 	if (nbytes > UINT32_MAX - CSF_ALLOCATE_PREPEND - CSF_ALLOCATE_APPEND)
 		return NULL;
-	p = engine_calloc(1, (size_t)nbytes + CSF_ALLOCATE_PREPEND + CSF_ALLOCATE_APPEND, ENGINE_MEM_SONG);
+	p = engine_calloc(1, (size_t)nbytes + CSF_ALLOCATE_PREPEND + CSF_ALLOCATE_APPEND, cls);
 
 	return p ? p + CSF_ALLOCATE_PREPEND : NULL;
 }
 
-void csf_free_sample(void *p)
+void csf_free_sample_ex(void *p, enum engine_mem_class cls)
 {
 	if (p)
-		engine_free((signed char*)p - CSF_ALLOCATE_PREPEND, ENGINE_MEM_SONG);
+		engine_free((signed char*)p - CSF_ALLOCATE_PREPEND, cls);
+}
+
+signed char *csf_allocate_sample(uint32_t nbytes)
+{
+	return csf_allocate_sample_ex(nbytes, ENGINE_MEM_SONG);
+}
+
+void csf_free_sample(void *p)
+{
+	csf_free_sample_ex(p, ENGINE_MEM_SONG);
 }
 
 #undef CSF_ALLOCATE_PREPEND
