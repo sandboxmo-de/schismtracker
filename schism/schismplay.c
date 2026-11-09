@@ -94,6 +94,7 @@ struct sfx_note_cue {
 	double at;
 	int volume, pan;
 	double duration; /* note-off after this long; 0 for none */
+	int index_in_args;
 };
 static const char **sfx_bank_files = NULL;
 static int sfx_nbank_files = 0;
@@ -206,10 +207,19 @@ static void host_diskwrite_begin(SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED 
 	(void)rand();
 }
 
+/* how much of a render has been mixed, for starting pool notes on time */
+static size_t render_frames = 0;
+
+static void host_diskwrite_progress(size_t frames, SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED uint32_t rate)
+{
+	render_frames = frames;
+}
+
 static const struct engine_host host = {
 	.log = host_log,
 	.status_text = host_status_text,
 	.diskwrite_begin = host_diskwrite_begin,
+	.diskwrite_progress = host_diskwrite_progress,
 	.exit = host_exit,
 	.assert_fail = host_assert_fail,
 };
@@ -1075,16 +1085,37 @@ static void free_banks(void)
 	sfx_notes = NULL;
 }
 
-/* Like schedule_sfx: every note starts now with a delay in frames, so a
- * render puts it on the exact sample. */
-static void schedule_notes(void)
+static uint32_t note_frame(const struct sfx_note_cue *c)
 {
-	int i;
+	return (uint32_t)floor(c->at * opt_rate + 0.5);
+}
 
-	for (i = 0; i < sfx_nnotes; i++) {
-		struct sfx_note_cue *c = sfx_notes + i;
+/* Start the notes due before frame `until` (counted from the start of the
+ * render), each with a delay in frames from `now`, so a render puts it on
+ * the exact sample. Notes go in time order. Starting them only shortly
+ * before they're due keeps notes that are still waiting from filling the
+ * pool, so a full pool and its steal policy behave the way they would for
+ * a host starting notes as things happen. */
+static int next_note = 0;
+
+static int cmp_note_time(const void *a, const void *b)
+{
+	const struct sfx_note_cue *x = a, *y = b;
+	uint32_t fx = note_frame(x), fy = note_frame(y);
+
+	if (fx != fy)
+		return fx < fy ? -1 : 1;
+	return (x->index_in_args > y->index_in_args) - (x->index_in_args < y->index_in_args);
+}
+
+static void schedule_notes_until(size_t now, size_t until)
+{
+	for (; next_note < sfx_nnotes && note_frame(sfx_notes + next_note) < until; next_note++) {
+		struct sfx_note_cue *c = sfx_notes + next_note;
 		struct sfx_note_args args;
 		sfx_bank_t *bank;
+		int i = c->index_in_args;
+		uint32_t at = note_frame(c);
 
 		if (c->bank >= sfx_nbanks) {
 			fprintf(stderr, "schismplay: note %d: no bank %d\n", i + 1, c->bank);
@@ -1099,13 +1130,23 @@ static void schedule_notes(void)
 		args.note = c->note;
 		args.volume = c->volume;
 		args.pan = c->pan;
-		args.delay = (uint32_t)floor(c->at * opt_rate + 0.5);
+		args.delay = (at > now) ? (uint32_t)(at - now) : 0;
 		args.duration = (uint32_t)floor(c->duration * opt_rate + 0.5);
 		if (c->duration > 0 && !args.duration)
 			args.duration = 1;
 		if (sfx_note_on_ex(bank, &args) == SFX_NOTE_NONE)
 			fprintf(stderr, "schismplay: note %d didn't start\n", i + 1);
 	}
+}
+
+static void sort_notes(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_nnotes; i++)
+		sfx_notes[i].index_in_args = i;
+	qsort(sfx_notes, sfx_nnotes, sizeof(*sfx_notes), cmp_note_time);
+	next_note = 0;
 }
 
 /* --sfx-pool-stress: random calls on the pool from this thread while the
@@ -1208,9 +1249,16 @@ static int render(const char *song)
 	/* after starting the export, so the effects' delays count from its
 	 * first frame */
 	schedule_sfx();
-	schedule_notes();
+	sort_notes();
+	render_frames = 0;
 
 	do {
+		/* one disk writer buffer ahead is enough: it's never more than
+		 * 16384 frames */
+		schedule_notes_until(render_frames, render_frames + 16384);
+		/* an idle pool would let the render finish before a later note */
+		if (next_note < sfx_nnotes && !sfx_pool_voices_playing())
+			schedule_notes_until(render_frames, (size_t)note_frame(sfx_notes + next_note) + 1);
 		q = disko_sync();
 		if (verbose && sfx_pool_running())
 			pool_peak = MAX(pool_peak, sfx_pool_voices_playing());
@@ -1256,7 +1304,8 @@ static int play(void)
 	}
 
 	schedule_sfx();
-	schedule_notes();
+	sort_notes();
+	schedule_notes_until(0, SIZE_MAX);
 
 	if (opt_sfx_stress > 0)
 		for (i = 0; i < (int)ARRAY_SIZE(stress_tones); i++)
