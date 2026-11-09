@@ -164,6 +164,10 @@ uint32_t it_get_song_elapsed_dos_time(song_t *song);
 /* shared by .IT and .XM */
 int it_read_midi_config(midi_config_t *midi, slurp_t *fp);
 
+/* shared by .XM and .MO3 */
+int xm_import_note_effects(song_note_t *note);
+void xm_fix_instrument_envelopes(song_instrument_t *ins);
+
 /* s3i, called from s3m saver */
 void s3i_write_header(disko_t *fp, song_sample_t *smp, uint32_t sdata);
 

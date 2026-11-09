@@ -135,6 +135,174 @@ static inline unsigned char xm_getc(slurp_t *fp, unsigned char def)
 }
 
 
+/* Converts the effect and volume columns of an XM note into Schism's
+ * representation. The note and instrument must already be translated;
+ * volparam holds the raw XM volume column byte and effect/param the raw XM
+ * effect. Returns 1 if an effect had to be thrown out to make it fit. */
+int xm_import_note_effects(song_note_t *note)
+{
+	if (note->effect || note->param)
+		csf_import_mod_effect(note, 1);
+	if (note->instrument == 0xff)
+		note->instrument = 0;
+
+	// now that the mundane stuff is over with... NOW IT'S TIME TO HAVE SOME FUN!
+
+	// the volume column is initially imported as "normal" effects, juggled around
+	// in order to make it more IT-like, and then converted into volume-effects
+
+	/* IT puts all volume column effects into the effect column if there's not an
+	effect there already; in the case of two set-volume effects, the one in the
+	effect column takes precedence.
+	set volume with values > 64 are clipped to 64
+	pannings are imported as S8x, unless there's an effect in which case it's
+	translated to a volume-column panning value.
+	volume and panning slides with zero value (+0, -0, etc.) still translate to
+	an effect -- even though volslides don't have effect memory in FT2. */
+
+	switch (note->volparam >> 4) {
+	case 5: // 0x50 = volume 64, 51-5F = nothing
+		if (note->volparam == 0x50) {
+	case 1: case 2:
+	case 3: case 4: // Set volume Value-$10
+			note->voleffect = FX_VOLUME;
+			note->volparam -= 0x10;
+			break;
+		} // NOTE: falls through from case 5 when vol != 0x50
+		SCHISM_FALLTHROUGH;
+	case 0: // Do nothing
+		note->voleffect = FX_NONE;
+		note->volparam = 0;
+		break;
+	case 6: // Volume slide down
+		note->volparam &= 0xf;
+		if (note->volparam)
+			note->voleffect = FX_VOLUMESLIDE;
+		break;
+	case 7: // Volume slide up
+		note->volparam = (note->volparam & 0xf) << 4;
+		if (note->volparam)
+			note->voleffect = FX_VOLUMESLIDE;
+		break;
+	case 8: // Fine volume slide down
+		note->volparam &= 0xf;
+		if (note->volparam) {
+			if (note->volparam == 0xf)
+				note->volparam = 0xe; // DFF is fine slide up...
+			note->volparam |= 0xf0;
+			note->voleffect = FX_VOLUMESLIDE;
+		}
+		break;
+	case 9: // Fine volume slide up
+		note->volparam = (note->volparam & 0xf) << 4;
+		if (note->volparam) {
+			note->volparam |= 0xf;
+			note->voleffect = FX_VOLUMESLIDE;
+		}
+		break;
+	case 10: // Set vibrato speed
+		/* ARGH. this doesn't actually CAUSE vibrato - it only sets the value!
+		i don't think there's a way to handle this correctly and sanely, so
+		i'll just do what impulse tracker and mpt do...
+		(probably should write a warning saying the song might not be
+		played correctly) */
+		note->volparam = (note->volparam & 0xf) << 4;
+		note->voleffect = FX_VIBRATO;
+		break;
+	case 11: // Vibrato
+		note->volparam &= 0xf;
+		note->voleffect = FX_VIBRATO;
+		break;
+	case 12: // Set panning
+		note->voleffect = FX_SPECIAL;
+		note->volparam = 0x80 | (note->volparam & 0xf);
+		break;
+	case 13: // Panning slide left
+		// in FT2, <0 sets the panning to far left on the SECOND tick
+		// this is "close enough" (except at speed 1)
+		note->volparam &= 0xf;
+		if (note->volparam) {
+			note->volparam <<= 4;
+			note->voleffect = FX_PANNINGSLIDE;
+		} else {
+			note->volparam = 0x80;
+			note->voleffect = FX_SPECIAL;
+		}
+		break;
+	case 14: // Panning slide right
+		note->volparam &= 0xf;
+		if (note->volparam)
+			note->voleffect = FX_PANNINGSLIDE;
+		break;
+	case 15: // Tone porta
+		note->volparam = (note->volparam & 0xf) << 4;
+		note->voleffect = FX_TONEPORTAMENTO;
+		break;
+	}
+
+	if (note->effect == FX_KEYOFF && note->param == 0) {
+		// FT2 ignores notes and instruments next to a K00
+		note->note = NOTE_NONE;
+		note->instrument = 0;
+	} else if (note->note == NOTE_OFF && note->effect == FX_SPECIAL
+		   && (note->param >> 4) == 0xd) {
+		// note off with a delay ignores the note off, and also
+		// ignores set-panning (but not other effects!)
+		// (actually the other vol. column effects happen on the
+		// first tick with ft2, but this is "close enough" i think)
+		note->note = NOTE_NONE;
+		note->instrument = 0;
+		// note: haven't fixed up volumes yet
+		if (note->voleffect == FX_PANNING) {
+			note->voleffect = FX_NONE;
+			note->volparam = 0;
+			note->effect = FX_NONE;
+			note->param = 0;
+		}
+	}
+
+	if (note->effect == FX_NONE && note->voleffect != FX_NONE) {
+		// put the lotion in the basket
+		swap_effects(note);
+	} else if (note->effect == note->voleffect) {
+		// two of the same kind of effect => ignore the volume column
+		// (note that ft2 behaves VERY strangely with Mx + 3xx combined --
+		// but i'll ignore that nonsense and just go by xm.txt here because
+		// it's easier :)
+		note->voleffect = note->volparam = 0;
+	}
+	if (note->effect == FX_VOLUME) {
+		// try to move set-volume into the volume column
+		swap_effects(note);
+	}
+	// now try to rewrite the volume column, if it's not possible then see if we
+	// can do so after swapping them.
+	// this is a terrible hack -- don't write code like this, kids :)
+	int n;
+	for (n = 0; n < 4; n++) {
+		// (n >> 1) will be 0/1, indicating our desire to j... j... jam it in
+		if (convert_voleffect_of(note, n >> 1)) {
+			n = 5; // it'd be nice if c had a for...else like python
+			break;
+		}
+		// nope that didn't work, switch them around
+		swap_effects(note);
+	}
+	if (n < 5) {
+		// Need to throw one out.
+		if (effect_weight[note->voleffect] > effect_weight[note->effect]) {
+			note->effect = note->voleffect;
+			note->param = note->volparam;
+		}
+		//log_appendf(4, "Warning: pat%u row%u chn%u: lost effect %c%02X",
+		//      pat, row, chan + 1, get_effect_char(note->voleffect), note->volparam);
+		note->voleffect = note->volparam = 0;
+		return 1;
+	}
+
+	return 0;
+}
+
 static void load_xm_patterns(song_t *song, struct xm_file_header *hdr, slurp_t *fp)
 {
 	int pat, row, chan;
@@ -213,164 +381,7 @@ static void load_xm_patterns(song_t *song, struct xm_file_header *hdr, slurp_t *
 					note->note = NOTE_NONE;
 				}
 
-				if (note->effect || note->param)
-					csf_import_mod_effect(note, 1);
-				if (note->instrument == 0xff)
-					note->instrument = 0;
-
-				// now that the mundane stuff is over with... NOW IT'S TIME TO HAVE SOME FUN!
-
-				// the volume column is initially imported as "normal" effects, juggled around
-				// in order to make it more IT-like, and then converted into volume-effects
-
-				/* IT puts all volume column effects into the effect column if there's not an
-				effect there already; in the case of two set-volume effects, the one in the
-				effect column takes precedence.
-				set volume with values > 64 are clipped to 64
-				pannings are imported as S8x, unless there's an effect in which case it's
-				translated to a volume-column panning value.
-				volume and panning slides with zero value (+0, -0, etc.) still translate to
-				an effect -- even though volslides don't have effect memory in FT2. */
-
-				switch (note->volparam >> 4) {
-				case 5: // 0x50 = volume 64, 51-5F = nothing
-					if (note->volparam == 0x50) {
-				case 1: case 2:
-				case 3: case 4: // Set volume Value-$10
-						note->voleffect = FX_VOLUME;
-						note->volparam -= 0x10;
-						break;
-					} // NOTE: falls through from case 5 when vol != 0x50
-					SCHISM_FALLTHROUGH;
-				case 0: // Do nothing
-					note->voleffect = FX_NONE;
-					note->volparam = 0;
-					break;
-				case 6: // Volume slide down
-					note->volparam &= 0xf;
-					if (note->volparam)
-						note->voleffect = FX_VOLUMESLIDE;
-					break;
-				case 7: // Volume slide up
-					note->volparam = (note->volparam & 0xf) << 4;
-					if (note->volparam)
-						note->voleffect = FX_VOLUMESLIDE;
-					break;
-				case 8: // Fine volume slide down
-					note->volparam &= 0xf;
-					if (note->volparam) {
-						if (note->volparam == 0xf)
-							note->volparam = 0xe; // DFF is fine slide up...
-						note->volparam |= 0xf0;
-						note->voleffect = FX_VOLUMESLIDE;
-					}
-					break;
-				case 9: // Fine volume slide up
-					note->volparam = (note->volparam & 0xf) << 4;
-					if (note->volparam) {
-						note->volparam |= 0xf;
-						note->voleffect = FX_VOLUMESLIDE;
-					}
-					break;
-				case 10: // Set vibrato speed
-					/* ARGH. this doesn't actually CAUSE vibrato - it only sets the value!
-					i don't think there's a way to handle this correctly and sanely, so
-					i'll just do what impulse tracker and mpt do...
-					(probably should write a warning saying the song might not be
-					played correctly) */
-					note->volparam = (note->volparam & 0xf) << 4;
-					note->voleffect = FX_VIBRATO;
-					break;
-				case 11: // Vibrato
-					note->volparam &= 0xf;
-					note->voleffect = FX_VIBRATO;
-					break;
-				case 12: // Set panning
-					note->voleffect = FX_SPECIAL;
-					note->volparam = 0x80 | (note->volparam & 0xf);
-					break;
-				case 13: // Panning slide left
-					// in FT2, <0 sets the panning to far left on the SECOND tick
-					// this is "close enough" (except at speed 1)
-					note->volparam &= 0xf;
-					if (note->volparam) {
-						note->volparam <<= 4;
-						note->voleffect = FX_PANNINGSLIDE;
-					} else {
-						note->volparam = 0x80;
-						note->voleffect = FX_SPECIAL;
-					}
-					break;
-				case 14: // Panning slide right
-					note->volparam &= 0xf;
-					if (note->volparam)
-						note->voleffect = FX_PANNINGSLIDE;
-					break;
-				case 15: // Tone porta
-					note->volparam = (note->volparam & 0xf) << 4;
-					note->voleffect = FX_TONEPORTAMENTO;
-					break;
-				}
-
-				if (note->effect == FX_KEYOFF && note->param == 0) {
-					// FT2 ignores notes and instruments next to a K00
-					note->note = NOTE_NONE;
-					note->instrument = 0;
-				} else if (note->note == NOTE_OFF && note->effect == FX_SPECIAL
-					   && (note->param >> 4) == 0xd) {
-					// note off with a delay ignores the note off, and also
-					// ignores set-panning (but not other effects!)
-					// (actually the other vol. column effects happen on the
-					// first tick with ft2, but this is "close enough" i think)
-					note->note = NOTE_NONE;
-					note->instrument = 0;
-					// note: haven't fixed up volumes yet
-					if (note->voleffect == FX_PANNING) {
-						note->voleffect = FX_NONE;
-						note->volparam = 0;
-						note->effect = FX_NONE;
-						note->param = 0;
-					}
-				}
-
-				if (note->effect == FX_NONE && note->voleffect != FX_NONE) {
-					// put the lotion in the basket
-					swap_effects(note);
-				} else if (note->effect == note->voleffect) {
-					// two of the same kind of effect => ignore the volume column
-					// (note that ft2 behaves VERY strangely with Mx + 3xx combined --
-					// but i'll ignore that nonsense and just go by xm.txt here because
-					// it's easier :)
-					note->voleffect = note->volparam = 0;
-				}
-				if (note->effect == FX_VOLUME) {
-					// try to move set-volume into the volume column
-					swap_effects(note);
-				}
-				// now try to rewrite the volume column, if it's not possible then see if we
-				// can do so after swapping them.
-				// this is a terrible hack -- don't write code like this, kids :)
-				int n;
-				for (n = 0; n < 4; n++) {
-					// (n >> 1) will be 0/1, indicating our desire to j... j... jam it in
-					if (convert_voleffect_of(note, n >> 1)) {
-						n = 5; // it'd be nice if c had a for...else like python
-						break;
-					}
-					// nope that didn't work, switch them around
-					swap_effects(note);
-				}
-				if (n < 5) {
-					// Need to throw one out.
-					if (effect_weight[note->voleffect] > effect_weight[note->effect]) {
-						note->effect = note->voleffect;
-						note->param = note->volparam;
-					}
-					//log_appendf(4, "Warning: pat%u row%u chn%u: lost effect %c%02X",
-					//      pat, row, chan + 1, get_effect_char(note->voleffect), note->volparam);
-					note->voleffect = note->volparam = 0;
-					lostfx++;
-				}
+				lostfx += xm_import_note_effects(note);
 
 				/* some XM effects that schism probably won't handle decently:
 				0xy / Jxy
@@ -486,6 +497,52 @@ static void fix_xm_envelope_loop(song_envelope_t *s_env, int sustain_flag)
 	if (sustain_flag && s_env->sustain_start >= s_env->loop_end) {
 		s_env->sustain_start++;
 		s_env->sustain_end++;
+	}
+}
+
+/* Applies the fixups the XM loader does to make FT2-style volume and panning
+ * envelopes behave the same way under IT rules. */
+void xm_fix_instrument_envelopes(song_instrument_t *ins)
+{
+	if (ins->flags & ENV_VOLUME) {
+		// fix note-fade if either volume loop is disabled or both end nodes are equal
+		if (!(ins->flags & ENV_VOLLOOP) || ins->vol_env.loop_start == ins->vol_env.loop_end) {
+			ins->vol_env.loop_start = ins->vol_env.loop_end = ins->vol_env.nodes - 1;
+		} else {
+			// fix volume envelope
+			fix_xm_envelope_loop(&ins->vol_env, ins->flags & ENV_VOLSUSTAIN);
+		}
+
+		if (!(ins->flags & ENV_VOLSUSTAIN))
+			ins->vol_env.sustain_start = ins->vol_env.sustain_end = ins->vol_env.nodes - 1;
+		ins->flags |= ENV_VOLLOOP | ENV_VOLSUSTAIN;
+
+		// FT2 loops the first loop found, while IT always does the sustain loop first.
+		// There's not much we can do in this case except for just disabling the sustain
+		// loop :)
+		//
+		// TODO: investigate, see if this breaks anything else
+		if (ins->vol_env.sustain_start > ins->vol_env.loop_start)
+			ins->flags &= ~ENV_VOLSUSTAIN;
+	} else {
+		// fix note-off
+		ins->vol_env.ticks[0] = 0;
+		ins->vol_env.ticks[1] = 1;
+		ins->vol_env.values[0] = 64;
+		ins->vol_env.values[1] = 0;
+		ins->vol_env.nodes = 2;
+		ins->vol_env.sustain_start = ins->vol_env.sustain_end = 0;
+		ins->flags |= ENV_VOLUME | ENV_VOLSUSTAIN;
+	}
+
+	if ((ins->flags & ENV_PANNING) && (ins->flags & ENV_PANLOOP)) {
+		if (ins->pan_env.loop_start == ins->pan_env.loop_end) {
+			// panning is unused in XI
+			ins->flags &= ~ENV_PANLOOP;
+		} else {
+			// fix panning envelope
+			fix_xm_envelope_loop(&ins->pan_env, ins->flags & ENV_PANSUSTAIN);
+		}
 	}
 }
 
@@ -694,46 +751,7 @@ static int load_xm_instruments(song_t *song, struct xm_file_header *hdr, slurp_t
 		slurp_read(fp, &w, 2);
 		ins->fadeout = bswapLE16(w);
 
-		if (ins->flags & ENV_VOLUME) {
-			// fix note-fade if either volume loop is disabled or both end nodes are equal
-			if (!(ins->flags & ENV_VOLLOOP) || ins->vol_env.loop_start == ins->vol_env.loop_end) {
-				ins->vol_env.loop_start = ins->vol_env.loop_end = ins->vol_env.nodes - 1;
-			} else {
-				// fix volume envelope
-				fix_xm_envelope_loop(&ins->vol_env, ins->flags & ENV_VOLSUSTAIN);
-			}
-
-			if (!(ins->flags & ENV_VOLSUSTAIN))
-				ins->vol_env.sustain_start = ins->vol_env.sustain_end = ins->vol_env.nodes - 1;
-			ins->flags |= ENV_VOLLOOP | ENV_VOLSUSTAIN;
-
-			// FT2 loops the first loop found, while IT always does the sustain loop first.
-			// There's not much we can do in this case except for just disabling the sustain
-			// loop :)
-			//
-			// TODO: investigate, see if this breaks anything else
-			if (ins->vol_env.sustain_start > ins->vol_env.loop_start)
-				ins->flags &= ~ENV_VOLSUSTAIN;
-		} else {
-			// fix note-off
-			ins->vol_env.ticks[0] = 0;
-			ins->vol_env.ticks[1] = 1;
-			ins->vol_env.values[0] = 64;
-			ins->vol_env.values[1] = 0;
-			ins->vol_env.nodes = 2;
-			ins->vol_env.sustain_start = ins->vol_env.sustain_end = 0;
-			ins->flags |= ENV_VOLUME | ENV_VOLSUSTAIN;
-		}
-
-		if ((ins->flags & ENV_PANNING) && (ins->flags & ENV_PANLOOP)) {
-			if (ins->pan_env.loop_start == ins->pan_env.loop_end) {
-				// panning is unused in XI
-				ins->flags &= ~ENV_PANLOOP;
-			} else {
-				// fix panning envelope
-				fix_xm_envelope_loop(&ins->pan_env, ins->flags & ENV_PANSUSTAIN);
-			}
-		}
+		xm_fix_instrument_envelopes(ins);
 
 
 		// some other things...
