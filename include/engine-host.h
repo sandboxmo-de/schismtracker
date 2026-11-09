@@ -102,10 +102,11 @@ struct engine_host {
 	/* A MIDI note, pitch bend or controller event, translated into a key
 	 * event for the host's input handling (midi_engine_handle_event()). */
 	void (*midi_key)(struct key_event *k);
-	/* MIDI data went in or out, for a MIDI monitor. src is the input port,
-	 * or NULL for data the engine sent. Called with the MIDI record lock
-	 * held, possibly from a MIDI or timer thread. */
-	void (*midi_activity)(struct midi_port *src, const unsigned char *data, uint32_t len);
+	/* MIDI data went in or out, for a MIDI monitor. port is the input port
+	 * (which some drivers leave NULL), or NULL when outgoing is set. Called
+	 * with the MIDI record lock held, possibly from a MIDI or timer thread. */
+	void (*midi_activity)(struct midi_port *port, const unsigned char *data,
+		uint32_t len, int outgoing);
 	/* Nonzero if the host is showing a MIDI monitor. While it is, outgoing
 	 * data is passed to midi_activity, and incoming data is echoed to the
 	 * outputs. */

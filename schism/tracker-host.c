@@ -26,10 +26,57 @@
 #include "it.h"
 #include "page.h"
 #include "fakemem.h"
+#include "config.h"
+#include "timer.h"
 
 static void tracker_redraw(void)
 {
 	status.flags |= NEED_UPDATE;
+}
+
+/* the waterfall page and the FFT view in the top right corner want the
+ * mixed audio */
+static void tracker_vis_feed(const void *buf, uint32_t frames, uint32_t bits, uint32_t channels)
+{
+	if (status.current_page != PAGE_WATERFALL && status.vis_style != VIS_FFT)
+		return;
+
+	if (!buf) {
+		vis_work_8m(NULL, 0);
+		return;
+	}
+
+	switch (bits) {
+#define BITSCASE(BITS) case BITS: if (channels == 2) { vis_work_##BITS##s(buf, frames / 2); } else { vis_work_##BITS##m(buf, frames); } break;
+	BITSCASE(8)
+	BITSCASE(16)
+	BITSCASE(32)
+#undef BITSCASE
+	}
+}
+
+/* the MIDI page shows the last event that went in or out */
+static void tracker_midi_activity(struct midi_port *port, const unsigned char *data,
+	uint32_t len, int outgoing)
+{
+	status.last_midi_real_len = len;
+	status.last_midi_len = MIN(sizeof(status.last_midi_event), len);
+	memcpy(status.last_midi_event, data, status.last_midi_len);
+	status.last_midi_port = port;
+	status.last_midi_tick = timer_ticks();
+	status.flags |= MIDI_EVENT_CHANGED;
+	if (outgoing)
+		status.flags |= NEED_UPDATE;
+}
+
+static int tracker_midi_monitor_active(void)
+{
+	return (status.current_page == PAGE_MIDI);
+}
+
+static const char *tracker_config_dir(void)
+{
+	return cfg_dir_dotschism;
 }
 
 void tracker_host_register(void)
@@ -48,6 +95,15 @@ void tracker_host_register(void)
 
 		.playback_reset = pattern_editor_playback_reset,
 		.playback_stopped = pattern_editor_playback_stopped,
+		.post_event = events_push_event,
+
+		.vis_resize = vis_set_size,
+		.vis_feed = tracker_vis_feed,
+
+		.midi_key = handle_key,
+		.midi_activity = tracker_midi_activity,
+		.midi_monitor_active = tracker_midi_monitor_active,
+		.config_dir = tracker_config_dir,
 
 		.exit = schism_exit,
 #ifndef NDEBUG

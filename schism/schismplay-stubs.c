@@ -48,34 +48,6 @@ struct tracker_status status = {0};
  * called here. */
 struct page pages[PAGE_MAX] = {0};
 
-/* midi-core.c only uses this for the per-port config, which schismplay
- * never loads or saves. */
-char *cfg_dir_dotschism = NULL;
-
-void handle_key(SCHISM_UNUSED struct key_event *k) {}
-
-/* ------------------------------------------------------------------------ */
-/* Visualiser feed (page_waterfall.c). The audio callback only calls these
- * when the waterfall page or the FFT view is active, which never happens
- * here, apart from vis_set_size on buffer changes. */
-
-void vis_set_size(SCHISM_UNUSED uint32_t size) {}
-void vis_work_32s(SCHISM_UNUSED const int32_t *in, SCHISM_UNUSED size_t inlen) {}
-void vis_work_32m(SCHISM_UNUSED const int32_t *in, SCHISM_UNUSED size_t inlen) {}
-void vis_work_16s(SCHISM_UNUSED const int16_t *in, SCHISM_UNUSED size_t inlen) {}
-void vis_work_16m(SCHISM_UNUSED const int16_t *in, SCHISM_UNUSED size_t inlen) {}
-void vis_work_8s(SCHISM_UNUSED const int8_t *in, SCHISM_UNUSED size_t inlen) {}
-void vis_work_8m(SCHISM_UNUSED const int8_t *in, SCHISM_UNUSED size_t inlen) {}
-
-/* ------------------------------------------------------------------------ */
-/* Events (events.c). The audio callback posts SCHISM_EVENT_PLAYBACK so the
- * UI can redraw; schismplay polls the song position instead. */
-
-int events_push_event(SCHISM_UNUSED const schism_event_t *event)
-{
-	return 1;
-}
-
 /* ------------------------------------------------------------------------ */
 /* Dialogs and drawing (dialog.c, vgamem.c), used by disko.c for the export
  * progress box.

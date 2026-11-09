@@ -38,6 +38,7 @@
 #include "atomic.h"
 
 #include "dmoz.h"
+#include "engine-host.h"
 
 static struct atm _connected = {0};
 /* midi_mutex is locked by the main thread,
@@ -71,7 +72,7 @@ static void _cfg_load_midi_port_locked(struct midi_port *q)
 	struct cfg_section *c;
 	/*struct midi_provider *p;*/
 	cfg_file_t cfg;
-	const char *sn;
+	const char *sn, *dir;
 	char *ptr, *ss, *sp;
 	char buf[256];
 	int j;
@@ -87,7 +88,11 @@ static void _cfg_load_midi_port_locked(struct midi_port *q)
 		if (!*sp) sp = NULL;
 	}
 
-	ptr = dmoz_path_concat(cfg_dir_dotschism, "config");
+	dir = engine_hooks.config_dir();
+	if (!dir)
+		return;
+
+	ptr = dmoz_path_concat(dir, "config");
 	cfg_init(&cfg, ptr);
 
 	/* look for MIDI port sections */
@@ -944,14 +949,8 @@ void midi_send_buffer(const unsigned char *data, uint32_t len, uint32_t pos)
 	mt_mutex_lock(midi_record_mutex);
 
 	/* just for fun... */
-	if (status.current_page == PAGE_MIDI) {
-		status.last_midi_real_len = len;
-		status.last_midi_len = MIN(sizeof(status.last_midi_event), len);
-		memcpy(status.last_midi_event, data, status.last_midi_len);
-		status.last_midi_port = NULL;
-		status.last_midi_tick = timer_ticks();
-		status.flags |= NEED_UPDATE | MIDI_EVENT_CHANGED;
-	}
+	if (engine_hooks.midi_monitor_active())
+		engine_hooks.midi_activity(NULL, data, len, 1);
 
 	if (midims > 0) { // should always be true but I'm paranoid
 		pos /= midims;
@@ -1016,18 +1015,13 @@ void midi_received_cb(struct midi_port *src, const unsigned char *data, uint32_t
 
 	/* just for fun... */
 	mt_mutex_lock(midi_record_mutex);
-	status.last_midi_real_len = len;
-	status.last_midi_len = MIN(sizeof(status.last_midi_event), len);
-	memcpy(status.last_midi_event, data, status.last_midi_len);
-	status.flags |= MIDI_EVENT_CHANGED;
-	status.last_midi_port = src;
-	status.last_midi_tick = timer_ticks();
+	engine_hooks.midi_activity(src, data, len, 0);
 	mt_mutex_unlock(midi_record_mutex);
 
 	/* pass through midi events when on midi page */
-	if (status.current_page == PAGE_MIDI) {
+	if (engine_hooks.midi_monitor_active()) {
 		midi_send_now(data,len);
-		status.flags |= NEED_UPDATE;
+		engine_hooks.redraw();
 	}
 
 	cmd = ((*data) & 0xF0) >> 4;
@@ -1075,7 +1069,7 @@ void midi_event_note(enum midi_note mnstatus, int channel, int note, int velocit
 	event.midi_note.note = note;
 	event.midi_note.velocity = velocity;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_controller(int channel, int param, int value)
@@ -1088,7 +1082,7 @@ void midi_event_controller(int channel, int param, int value)
 	event.midi_controller.param = param;
 	event.midi_controller.channel = channel;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_program(int channel, int value)
@@ -1100,7 +1094,7 @@ void midi_event_program(int channel, int value)
 	event.midi_program.value = value;
 	event.midi_program.channel = channel;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_aftertouch(int channel, int value)
@@ -1112,7 +1106,7 @@ void midi_event_aftertouch(int channel, int value)
 	event.midi_aftertouch.value = value;
 	event.midi_aftertouch.channel = channel;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_pitchbend(int channel, int value)
@@ -1124,7 +1118,7 @@ void midi_event_pitchbend(int channel, int value)
 	event.midi_pitchbend.value = value;
 	event.midi_pitchbend.channel = channel;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_system(int argv, int param)
@@ -1136,7 +1130,7 @@ void midi_event_system(int argv, int param)
 	event.midi_system.argv = argv;
 	event.midi_system.param = param;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_tick(void)
@@ -1146,7 +1140,7 @@ void midi_event_tick(void)
 
 	event.type = SCHISM_EVENT_MIDI_TICK;
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 void midi_event_sysex(const unsigned char *data, uint32_t len)
@@ -1158,7 +1152,7 @@ void midi_event_sysex(const unsigned char *data, uint32_t len)
 	event.midi_sysex.len = len;
 	event.midi_sysex.packet = (unsigned char *)strn_dup((const char *)data, len);
 
-	events_push_event(&event);
+	engine_hooks.post_event(&event);
 }
 
 int midi_engine_handle_event(schism_event_t *ev)
@@ -1186,7 +1180,7 @@ int midi_engine_handle_event(schism_event_t *ev)
 		else
 			kk.midi_volume = 128;
 		kk.midi_volume = (kk.midi_volume * midi_amplification) / 100;
-		handle_key(&kk);
+		engine_hooks.midi_key(&kk);
 		return 1;
 	case SCHISM_EVENT_MIDI_PITCHBEND:
 		/* wheel */
@@ -1194,7 +1188,7 @@ int midi_engine_handle_event(schism_event_t *ev)
 		kk.midi_volume = -1;
 		kk.midi_note = -1;
 		kk.midi_bend = ev->midi_pitchbend.value;
-		handle_key(&kk);
+		engine_hooks.midi_key(&kk);
 		return 1;
 	case SCHISM_EVENT_MIDI_CONTROLLER:
 		/* controller events */

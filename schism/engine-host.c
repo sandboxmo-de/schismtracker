@@ -41,8 +41,9 @@ static void default_vis_resize(SCHISM_UNUSED uint32_t frames) {}
 static void default_vis_feed(SCHISM_UNUSED const void *buf, SCHISM_UNUSED uint32_t frames,
 	SCHISM_UNUSED uint32_t bits, SCHISM_UNUSED uint32_t channels) {}
 static void default_midi_key(SCHISM_UNUSED struct key_event *k) {}
-static void default_midi_activity(SCHISM_UNUSED struct midi_port *src,
-	SCHISM_UNUSED const unsigned char *data, SCHISM_UNUSED uint32_t len) {}
+static void default_midi_activity(SCHISM_UNUSED struct midi_port *port,
+	SCHISM_UNUSED const unsigned char *data, SCHISM_UNUSED uint32_t len,
+	SCHISM_UNUSED int outgoing) {}
 static int default_midi_monitor_active(void) { return 0; }
 static const char *default_config_dir(void) { return NULL; }
 static void default_diskwrite_begin(SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED uint32_t rate) {}

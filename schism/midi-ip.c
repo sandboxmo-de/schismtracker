@@ -27,6 +27,7 @@
 #include "util.h"
 #include "events.h"
 #include "mem.h"
+#include "engine-host.h"
 
 #include "mt.h" // mutexes
 
@@ -95,7 +96,7 @@ static void do_wake_main(void)
 		.type = SCHISM_EVENT_UPDATE_IPMIDI,
 	};
 
-	events_push_event(&e);
+	engine_hooks.post_event(&e);
 }
 
 static sock_t _get_fd(int pb, int isout)

@@ -194,7 +194,7 @@ uint32_t s32_to_s24(void *ptr, const int32_t *buffer, uint32_t samples)
 static void audio_reallocate_buffer(uint32_t samples)
 {
 	if (samples != audio_buffer_samples)
-		vis_set_size(samples);
+		engine_hooks.vis_resize(samples);
 	audio_buffer_samples = samples;
 	if (samples > audio_buffer_samples_allocated) {
 		free(audio_buffer);
@@ -214,8 +214,7 @@ static void audio_callback(uint8_t *stream, uint32_t len)
 	audio_reallocate_buffer(len / (audio_output_channels * (audio_output_bits_real / 8)));
 
 	if (!stream || !len || !current_song) {
-		if (status.current_page == PAGE_WATERFALL || status.vis_style == VIS_FFT)
-			vis_work_8m(NULL, 0);
+		engine_hooks.vis_feed(NULL, 0, audio_output_bits, audio_output_channels);
 
 		song_stop_unlocked(0);
 		goto POST_EVENT;
@@ -234,8 +233,7 @@ static void audio_callback(uint8_t *stream, uint32_t len)
 	} else {
 		n = csf_read(current_song, audio_buffer, audio_buffer_samples * audio_sample_size);
 		if (!n) {
-			if (status.current_page == PAGE_WATERFALL || status.vis_style == VIS_FFT)
-				vis_work_8m(NULL, 0);
+			engine_hooks.vis_feed(NULL, 0, audio_output_bits, audio_output_channels);
 
 			song_stop_unlocked(0);
 			goto POST_EVENT;
@@ -257,16 +255,7 @@ static void audio_callback(uint8_t *stream, uint32_t len)
 	if (audio_output_bits == 8)
 		mem_xor(audio_buffer, n * audio_sample_size, 0x80);
 
-	if (status.current_page == PAGE_WATERFALL || status.vis_style == VIS_FFT) {
-		// I don't really like this...
-		switch (audio_output_bits) {
-#define BITSCASE(BITS) case BITS: if (audio_output_channels == 2) { vis_work_##BITS##s(audio_buffer, n / 2); } else { vis_work_##BITS##m(audio_buffer, n); } break;
-		BITSCASE(8)
-		BITSCASE(16)
-		BITSCASE(32)
-#undef BITSCASE
-		}
-	}
+	engine_hooks.vis_feed(audio_buffer, n, audio_output_bits, audio_output_channels);
 
 	if (current_song->num_voices > max_channels_used)
 		max_channels_used = MIN(current_song->num_voices, current_song->max_voices);
@@ -285,7 +274,7 @@ POST_EVENT:
 		.type = SCHISM_EVENT_PLAYBACK,
 	};
 
-	events_push_event(&e);
+	engine_hooks.post_event(&e);
 }
 
 // ------------------------------------------------------------------------------------------------------------
