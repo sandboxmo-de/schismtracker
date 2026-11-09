@@ -896,6 +896,39 @@ int song_load_instrument_ex(int target, const char *file, const char *libf, int 
 	return r;
 }
 
+/* Load an instrument file into slot 1 of song, a song other than the current
+ * one (the effects voice pool builds banks this way). The instrument
+ * loaders only write into current_song, so it's swapped for the length of
+ * the load with the audio thread locked out. Returns nonzero on success. */
+int song_load_instrument_into(song_t *song, const char *file)
+{
+	slurp_t s;
+	song_t *cur;
+	int r = 0, x;
+
+	engine_scratch_begin();
+	if (slurp(&s, file, NULL, 0) < 0) {
+		engine_scratch_end();
+		return 0;
+	}
+
+	song_lock_audio();
+	cur = current_song;
+	current_song = song;
+	for (x = 0; load_instrument_funcs[x]; x++) {
+		slurp_rewind(&s);
+		r = load_instrument_funcs[x](&s, 1);
+		if (r) break;
+	}
+	current_song = cur;
+	song_unlock_audio();
+
+	unslurp(&s);
+	engine_scratch_end();
+
+	return r;
+}
+
 int song_load_instrument(int n, const char* file)
 {
 	return song_load_instrument_ex(n,file,NULL,-1);

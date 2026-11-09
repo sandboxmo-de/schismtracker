@@ -114,33 +114,16 @@ void fx_note_cut(song_t *csf, uint32_t nchan, SCHISM_UNUSED int clear_note)
 	GM_Touch(csf, nchan, 0);
 }
 
-void fx_key_off(song_t *csf, uint32_t nchan)
+/* The part of a key-off that only touches the voice: release the sustain
+ * loop and start the fade if the instrument has no volume envelope. The
+ * effects voice pool uses it for sfx_note_off. */
+void csf_voice_key_off(song_voice_t *chan, int instrument_mode)
 {
-	song_voice_t *chan = &csf->voices[nchan];
-
-	/*fprintf(stderr, "KeyOff[%d] [ch%u]: flags=0x%X\n",
-		tick_count, (unsigned)nchan, chan->flags);*/
-	if (chan->flags & CHN_ADLIB) {
-		//Do this only if really an adlib chan. Important!
-		OPL_NoteOff(csf, nchan);
-	}
-	GM_KeyOff(csf, nchan);
-
-	song_instrument_t *penv = (csf->flags & SONG_INSTRUMENTMODE) ? chan->ptr_instrument : NULL;
-
-	/*if ((chan->flags & CHN_ADLIB)
-	||  (penv && penv->midi_channel_mask))
-	{
-		// When in AdLib / MIDI mode, end the sample
-		chan->flags |= CHN_FASTVOLRAMP;
-		chan->length = 0;
-		chan->position    = 0;
-		return;
-	}*/
+	song_instrument_t *penv = instrument_mode ? chan->ptr_instrument : NULL;
 
 	chan->flags |= CHN_KEYOFF;
 	//if ((!chan->ptr_instrument) || (!(chan->flags & CHN_VOLENV)))
-	if ((csf->flags & SONG_INSTRUMENTMODE) && chan->ptr_instrument && !(chan->flags & CHN_VOLENV)) {
+	if (instrument_mode && chan->ptr_instrument && !(chan->flags & CHN_VOLENV)) {
 		chan->flags |= CHN_NOTEFADE;
 	}
 	if (!chan->length)
@@ -166,6 +149,31 @@ void fx_key_off(song_t *csf, uint32_t nchan)
 	}
 	if (penv && penv->fadeout && (penv->flags & ENV_VOLLOOP))
 		chan->flags |= CHN_NOTEFADE;
+}
+
+void fx_key_off(song_t *csf, uint32_t nchan)
+{
+	song_voice_t *chan = &csf->voices[nchan];
+
+	/*fprintf(stderr, "KeyOff[%d] [ch%u]: flags=0x%X\n",
+		tick_count, (unsigned)nchan, chan->flags);*/
+	if (chan->flags & CHN_ADLIB) {
+		//Do this only if really an adlib chan. Important!
+		OPL_NoteOff(csf, nchan);
+	}
+	GM_KeyOff(csf, nchan);
+
+	/*if ((chan->flags & CHN_ADLIB)
+	||  (penv && penv->midi_channel_mask))
+	{
+		// When in AdLib / MIDI mode, end the sample
+		chan->flags |= CHN_FASTVOLRAMP;
+		chan->length = 0;
+		chan->position    = 0;
+		return;
+	}*/
+
+	csf_voice_key_off(chan, !!(csf->flags & SONG_INSTRUMENTMODE));
 }
 
 void fx_midi_zxx(song_t *csf, song_voice_t *chan)

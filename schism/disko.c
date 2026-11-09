@@ -27,6 +27,7 @@
 #include "config.h"
 #include "disko.h"
 #include "sfx-bus.h"
+#include "sfx-voices.h"
 #include "dmoz.h"
 #include "engine-host.h"
 #include "it.h"
@@ -574,6 +575,7 @@ static void _export_setup(song_t *dwsong, int *bps)
 
 	dwsong->multi_write = NULL; /* should be null already, but to be sure... */
 	dwsong->sfx_bus = NULL; /* only song exports get the sound effects */
+	dwsong->sfx_pool = NULL;
 
 	csf_set_current_order(dwsong, 0); /* rather indirect way of resetting playback variables */
 	csf_set_wave_config(dwsong, disko_output_rate, disko_output_bits, (dwsong->flags & SONG_NOSTEREO) ? 1 : disko_output_channels);
@@ -994,17 +996,19 @@ int disko_sync(void)
 	/* Sound effects only go into single-file exports. The host can start
 	 * and stop them while this runs, hence the lock. */
 	export_dwsong.sfx_bus = export_dwsong.multi_write ? NULL : sfx_bus_get();
+	export_dwsong.sfx_pool = export_dwsong.multi_write ? NULL : sfx_pool_get();
 
-	if (export_dwsong.sfx_bus) {
+	if (export_dwsong.sfx_bus || export_dwsong.sfx_pool) {
 		song_lock_audio();
 
 		/* SONG_ENDREACHED is only still set here if the song finished
 		 * earlier and effects were still playing. */
 		frames = (export_dwsong.flags & SONG_ENDREACHED) ? 0 : csf_read(&export_dwsong, buf, sizeof(buf));
-		if (frames < sizeof(buf) / export_bps && sfx_bus_busy(export_dwsong.sfx_bus))
+		sfx_busy = sfx_bus_busy(export_dwsong.sfx_bus) || sfx_pool_busy(export_dwsong.sfx_pool);
+		if (frames < sizeof(buf) / export_bps && sfx_busy)
 			frames += csf_read_sfx(&export_dwsong, buf + frames * export_bps,
 				sizeof(buf) - frames * export_bps);
-		sfx_busy = sfx_bus_busy(export_dwsong.sfx_bus);
+		sfx_busy = sfx_bus_busy(export_dwsong.sfx_bus) || sfx_pool_busy(export_dwsong.sfx_pool);
 
 		song_unlock_audio();
 	} else {

@@ -32,6 +32,7 @@
 
 #include "util.h" /* for clamp */
 #include "sfx-bus.h"
+#include "sfx-voices.h"
 
 // Volume ramp length, in microseconds.
 // Stole these constants from OpenMPT defaults
@@ -122,7 +123,12 @@ static inline void rn_tremor(song_voice_t *chan, int32_t *vol)
 }
 
 
-static inline int32_t rn_vibrato(song_t *csf, song_voice_t *chan, int32_t frequency)
+static inline int voice_random(const struct csf_voice_env *env)
+{
+	return env->random ? env->random(env->random_ctx) : csf_random();
+}
+
+static inline int32_t rn_vibrato(const struct csf_voice_env *env, song_voice_t *chan, int32_t frequency)
 {
 	uint32_t vibpos = chan->vibrato_position & 0xFF;
 	int32_t vdelta;
@@ -140,11 +146,11 @@ static inline int32_t rn_vibrato(song_t *csf, song_voice_t *chan, int32_t freque
 		vdelta = square_table[vibpos];
 		break;
 	case VIB_RANDOM:
-		vdelta = 128 * ((double) csf_random() / RAND_MAX) - 64;
+		vdelta = 128 * ((double) voice_random(env) / RAND_MAX) - 64;
 		break;
 	}
 
-	if (csf->flags & SONG_ITOLDEFFECTS) {
+	if (env->flags & SONG_ITOLDEFFECTS) {
 		vdepth = 5;
 		vdelta = -vdelta; // yes, IT does vibrato backwards in old-effects mode. try it.
 	} else {
@@ -152,17 +158,17 @@ static inline int32_t rn_vibrato(song_t *csf, song_voice_t *chan, int32_t freque
 	}
 	vdelta = (vdelta * (int32_t)chan->vibrato_depth) >> vdepth;
 
-	frequency = csf_fx_do_freq_slide(csf->flags, frequency, vdelta, 0);
+	frequency = csf_fx_do_freq_slide(env->flags, frequency, vdelta, 0);
 
 	// handle on tick-N, or all ticks if not in old-effects mode
-	if (!(csf->flags & SONG_FIRSTTICK) || !(csf->flags & SONG_ITOLDEFFECTS)) {
+	if (!(env->flags & SONG_FIRSTTICK) || !(env->flags & SONG_ITOLDEFFECTS)) {
 		chan->vibrato_position = (vibpos + 4 * chan->vibrato_speed) & 0xFF;
 	}
 
 	return frequency;
 }
 
-static inline int32_t rn_sample_vibrato(SCHISM_UNUSED song_t *csf, song_voice_t *chan, int32_t frequency)
+static inline int32_t rn_sample_vibrato(const struct csf_voice_env *env, song_voice_t *chan, int32_t frequency)
 {
 	uint32_t vibpos = chan->autovib_position & 0xFF;
 	int32_t vdelta, adepth = 1;
@@ -202,7 +208,7 @@ static inline int32_t rn_sample_vibrato(SCHISM_UNUSED song_t *csf, song_voice_t 
 		vdelta = square_table[vibpos];
 		break;
 	case VIB_RANDOM:
-		vdelta = 128 * ((double) csf_random() / RAND_MAX) - 64;
+		vdelta = 128 * ((double) voice_random(env) / RAND_MAX) - 64;
 		break;
 	}
 	vdelta = (vdelta * adepth) >> 6;
@@ -346,7 +352,7 @@ static inline void rn_process_ins_fade(song_voice_t *chan, int32_t *nvol) {
 }
 
 
-static inline void rn_process_envelope(song_t *csf, song_voice_t *chan, int32_t *nvol)
+static inline void rn_process_envelope(const struct csf_voice_env *env, song_voice_t *chan, int32_t *nvol)
 {
 	song_instrument_t *penv = chan->ptr_instrument;
 
@@ -359,7 +365,7 @@ static inline void rn_process_envelope(song_t *csf, song_voice_t *chan, int32_t 
 	// FadeOut volume
 	rn_process_ins_fade(chan, nvol);
 
-	if (!BITARRAY_ISSET(csf->quirks, CSF_QUIRK_IT_PITCH_PAN_SEPARATION)) {
+	if (env->pitch_pan_in_envelope) {
 		// Pitch/Pan separation
 		if (penv->pitch_pan_separation && chan->final_panning && chan->note) {
 			// PPS value is 1/512, i.e. PPS=1 will adjust by 8/512 = 1/64 for each 8 semitones
@@ -406,7 +412,7 @@ static inline int32_t rn_arpeggio(song_t *csf, song_voice_t *chan, int32_t frequ
 }
 
 
-static inline void rn_pitch_filter_envelope(SCHISM_UNUSED song_t *csf, song_voice_t *chan,
+static inline void rn_pitch_filter_envelope(song_voice_t *chan,
 	int32_t *nenvpitch, int32_t *nfrequency)
 {
 	song_instrument_t *penv = chan->ptr_instrument;
@@ -515,29 +521,32 @@ static inline void rn_increment_env_pos(song_voice_t *chan)
 }
 
 
-static inline int32_t rn_update_sample(song_t *csf, song_voice_t *chan, int32_t nchan, int32_t master_vol)
+static inline void rn_update_sample(const struct csf_voice_env *env, song_voice_t *chan, int32_t nchan)
 {
+	const int32_t master_vol = env->master_vol;
+
 	// Adjusting volumes
-	if (csf->mix_channels < 2 || (csf->flags & SONG_NOSTEREO)) {
+	if (env->mix_channels < 2 || (env->flags & SONG_NOSTEREO)) {
 		chan->right_volume_new = (chan->final_volume * master_vol) >> 8;
 		chan->left_volume_new = chan->right_volume_new;
-	} else if ((chan->flags & CHN_SURROUND) && !(csf->mix_flags & SNDMIX_NOSURROUND)) {
+	} else if ((chan->flags & CHN_SURROUND) && !(env->mix_flags & SNDMIX_NOSURROUND)) {
 		chan->right_volume_new = (chan->final_volume * master_vol) >> 8;
 		chan->left_volume_new = -chan->right_volume_new;
 	} else {
 		int32_t pan = ((int32_t) chan->final_panning) - 128;
-		pan *= (int32_t) csf->pan_separation;
+		pan *= (int32_t) env->pan_separation;
 		pan /= 128;
 
-		if ((csf->flags & SONG_INSTRUMENTMODE)
+		if (env->csf
+		    && (env->flags & SONG_INSTRUMENTMODE)
 		    && chan->ptr_instrument
 		    && chan->ptr_instrument->midi_channel_mask > 0)
-			GM_Pan(csf, nchan, pan);
+			GM_Pan(env->csf, nchan, pan);
 
 		pan += 128;
 		pan = CLAMP(pan, 0, 256);
 
-		if (csf->mix_flags & SNDMIX_REVERSESTEREO)
+		if (env->mix_flags & SNDMIX_REVERSESTEREO)
 			pan = 256 - pan;
 
 		int32_t realvol = (chan->final_volume * master_vol) >> (8 - 1);
@@ -555,7 +564,7 @@ static inline int32_t rn_update_sample(song_t *csf, song_voice_t *chan, int32_t 
 
 	// Check IDO
 	chan->flags &= ~(CHN_NOIDO | CHN_HQSRC);
-	switch (csf->mix_interpolation) {
+	switch (env->mix_interpolation) {
 	case SRCMODE_NEAREST:
 		chan->flags |= CHN_NOIDO;
 		break;
@@ -581,14 +590,14 @@ static inline int32_t rn_update_sample(song_t *csf, song_voice_t *chan, int32_t 
 
 	if (chan->flags & CHN_MUTE) {
 		chan->left_volume = chan->right_volume = 0;
-	} else if (!(csf->mix_flags & SNDMIX_NORAMPING) &&
+	} else if (!(env->mix_flags & SNDMIX_NORAMPING) &&
 	    (chan->flags & CHN_VOLUMERAMP) &&
 	    (chan->right_volume != chan->right_volume_new ||
 	     chan->left_volume  != chan->left_volume_new)) {
 		// Setting up volume ramp
 		int32_t ramp_length = ((chan->right_volume_new > chan->right_volume) || (chan->left_volume_new > chan->right_volume))
-			? csf->ramping_samples_up
-			: csf->ramping_samples_down;
+			? env->ramping_samples_up
+			: env->ramping_samples_down;
 		int32_t right_delta = lshift_signed(chan->right_volume_new - chan->right_volume, VOLUMERAMPPRECISION);
 		int32_t left_delta  = lshift_signed(chan->left_volume_new  - chan->left_volume,  VOLUMERAMPPRECISION);
 
@@ -598,7 +607,7 @@ static inline int32_t rn_update_sample(song_t *csf, song_voice_t *chan, int32_t 
 				&& !(chan->flags & CHN_FASTVOLRAMP)) {
 			int32_t l = lshift_signed(INT32_C(1), VOLUMERAMPPRECISION - 1);
 
-			ramp_length = CLAMP(csf->buffer_count, ramp_length, l);
+			ramp_length = CLAMP((int32_t)env->tick_length, ramp_length, l);
 		}
 
 		chan->right_ramp = right_delta / ramp_length;
@@ -622,19 +631,11 @@ static inline int32_t rn_update_sample(song_t *csf, song_voice_t *chan, int32_t 
 	chan->right_ramp_volume = lshift_signed(chan->right_volume, VOLUMERAMPPRECISION);
 	chan->left_ramp_volume = lshift_signed(chan->left_volume, VOLUMERAMPPRECISION);
 
-	// Adding the channel in the channel list
-	csf->voice_mix[csf->num_voices++] = nchan;
-
 	// Stop NNA channel processing if the channel is effectively muted.
 	// Required for Carry Envelope quirk to stop processing envelopes of affected channels.
 	// OpenMPT test case CarryCompatGxxPortaWithIns.it
-	if (nchan >= MAX_CHANNELS && !(chan->volume && chan->global_volume && chan->instrument_volume))
+	if (env->csf && nchan >= MAX_CHANNELS && !(chan->volume && chan->global_volume && chan->instrument_volume))
 		chan->length = 0;
-
-	if (csf->num_voices >= MAX_VOICES)
-		return 0;
-
-	return 1;
 }
 
 
@@ -685,6 +686,171 @@ static inline void rn_gen_key(song_t *csf, song_voice_t *chan, int32_t chan_num,
 
 		OPL_Pan(csf, chan_num, (csf->flags & SONG_NOSTEREO) ? 128 : chan->final_panning);
 	}
+}
+
+/* One tick's worth of per-voice work: envelopes, fadeout, vibrato, filter
+ * and the volumes and increment the mixer will use. Everything song-wide
+ * comes in through env, so the effects voice pool (sfx-voices.c) runs its
+ * voices through here with its own settings. The caller adds the voice to
+ * its mix list unless this returns CSF_VOICE_IDLE, then updates old_flags
+ * and clears CHN_NEWNOTE. cn is the voice's index in the song, and only
+ * matters when env->csf is set. */
+int csf_voice_update(const struct csf_voice_env *env, song_voice_t *chan, uint32_t cn)
+{
+	// Reset channel data
+	chan->increment = csf_smp_pos(0,0);
+	chan->final_volume = 0;
+	chan->final_panning = chan->panning + chan->pan_swing;
+
+	/* Add panbrello delta */
+	if (chan->panbrello_delta)
+		chan->final_panning += rshift_signed((chan->panbrello_delta * (int32_t)chan->panbrello_depth) + 2, 3);
+
+	chan->ramp_length = 0;
+
+	// Calc Frequency
+	if (chan->frequency && chan->length) {
+		int32_t vol = chan->volume;
+
+		if (chan->flags & CHN_TREMOLO)
+			vol += chan->tremolo_delta;
+
+		vol = CLAMP(vol, 0, 256);
+
+		// Tremor
+		if (chan->n_command == FX_TREMOR)
+			rn_tremor(chan, &vol);
+
+		// Clip volume
+		vol = CLAMP(vol, 0, 0x100);
+		vol = lshift_signed(vol, 6);
+
+		// Process Envelopes
+		if ((env->flags & SONG_INSTRUMENTMODE) && chan->ptr_instrument) {
+			/* OpenMPT test cases s77.it and EnvLoops.it */
+			rn_increment_env_pos(chan);
+			rn_process_envelope(env, chan, &vol);
+		} else {
+			// No Envelope: key off => note cut
+			// 1.41-: CHN_KEYOFF|CHN_NOTEFADE
+			if (chan->flags & CHN_NOTEFADE) {
+				chan->fadeout_volume = 0;
+				vol = 0;
+			}
+		}
+
+		// vol is 14-bits
+		if (vol) {
+			// IMPORTANT: chan->final_volume is 14 bits !!!
+			// -> _muldiv( 14+7, 6+6, 18); => RealVolume: 14-bit result (21+12-19)
+			chan->final_volume = _muldiv
+				(vol * env->global_volume,
+				 chan->global_volume
+				 * CLAMP(chan->instrument_volume + chan->vol_swing, 0, 64),
+				 INT32_C(1) << 19);
+		}
+
+		chan->calc_volume = vol;
+
+		int32_t frequency = chan->frequency;
+
+		if ((chan->flags & (CHN_GLISSANDO|CHN_PORTAMENTO)) == (CHN_GLISSANDO|CHN_PORTAMENTO)) {
+			frequency = get_frequency_from_note(get_note_from_frequency(frequency, chan->c5speed), chan->c5speed);
+		}
+
+		// Arpeggio ?
+		if (env->csf && chan->n_command == FX_ARPEGGIO)
+			frequency = rn_arpeggio(env->csf, chan, frequency);
+
+		if (env->csf && cn < MAX_CHANNELS) /* don't do this for NNA voices */
+			rn_process_midi_macro(env->csf, chan);
+
+		// Pitch/Filter Envelope
+		int32_t envpitch = 0;
+
+		if ((env->flags & SONG_INSTRUMENTMODE) && chan->ptr_instrument)
+			rn_pitch_filter_envelope(chan, &envpitch, &frequency);
+
+		// Vibrato
+		if (chan->flags & CHN_VIBRATO) {
+			/* OpenMPT test case VibratoDouble.it:
+			   vibrato is applied twice if vibrato is applied in the volume and effect columns */
+			if (chan->row_voleffect == VOLFX_VIBRATODEPTH
+				&& (chan->row_effect == FX_VIBRATO || chan->row_effect == FX_VIBRATOVOL || chan->row_effect == FX_FINEVIBRATO))
+				frequency = rn_vibrato(env, chan, frequency);
+			frequency = rn_vibrato(env, chan, frequency);
+		}
+
+		// Sample Auto-Vibrato
+		if (chan->ptr_sample && chan->ptr_sample->vib_depth) {
+			frequency = rn_sample_vibrato(env, chan, frequency);
+		}
+
+		if (env->csf && !(chan->flags & CHN_NOTEFADE))
+			rn_gen_key(env->csf, chan, cn, frequency, vol);
+
+		if (chan->flags & CHN_NEWNOTE) {
+			setup_channel_filter(chan, 1, 256, env->mix_frequency);
+		}
+
+		// Filter Envelope: controls cutoff frequency
+		if (chan && chan->ptr_instrument && chan->ptr_instrument->flags & ENV_FILTER) {
+			setup_channel_filter(chan,
+				!(chan->flags & CHN_FILTER), envpitch, env->mix_frequency);
+		}
+
+		chan->sample_freq = frequency;
+
+		struct song_smp_pos ninc = csf_smp_pos_ratio(frequency, env->mix_frequency);
+
+		if (env->freq_factor != 128)
+			ninc = csf_smp_pos_muldiv(ninc, env->freq_factor, 128);
+
+		if (csf_smp_pos_equals_zero(ninc))
+			ninc = csf_smp_pos(0, 1);
+
+		chan->increment = ninc;
+	}
+
+	// This check used to be at the top of the loop but was moved here for OpenMPT test case CarryCompatGxxPortaWithIns.it
+	if ((chan->flags & CHN_NOTEFADE) &&
+	    !(chan->fadeout_volume | chan->right_volume | chan->left_volume)) {
+		chan->length = 0;
+		chan->rofs = 0;
+		chan->lofs = 0;
+	}
+
+	chan->final_panning = CLAMP(chan->final_panning, 0, 256);
+
+	// Volume ramping
+	chan->flags &= ~CHN_VOLUMERAMP;
+
+	if (chan->final_volume || chan->left_volume || chan->right_volume)
+		chan->flags |= CHN_VOLUMERAMP;
+
+	if (chan->strike)
+		chan->strike--;
+
+	// Check for too big increment
+	if (csf_smp_pos_get_whole(chan->increment) + 1 >= (int32_t)(chan->loop_end - chan->loop_start))
+		chan->flags &= ~CHN_LOOP;
+
+	chan->right_volume_new = chan->left_volume_new = 0;
+	if (!(chan->length && !csf_smp_pos_equals_zero(chan->increment)))
+		chan->current_sample_data = NULL;
+
+	if (chan->current_sample_data) {
+		rn_update_sample(env, chan, cn);
+		return CSF_VOICE_MIX;
+	}
+
+	// Note change but no sample
+	//if (chan->vu_meter > 0xFF) chan->vu_meter = 0;
+	chan->left_volume = chan->right_volume = 0;
+	chan->length = 0;
+	// Put the channel back into the mixer for end-of-sample pop reduction
+	// stolen from openmpt
+	return (chan->lofs || chan->rofs) ? CSF_VOICE_TAIL : CSF_VOICE_IDLE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -757,9 +923,10 @@ static convert_t get_convert(song_t *csf, uint32_t *sample_size)
 	}
 }
 
-/* Fills the buffer with csf->sfx_bus's sound effects over silence, in the
- * same output format as csf_read. This is for when the song isn't playing,
- * or has ended partway through a buffer. Returns the number of frames. */
+/* Fills the buffer with the sound effects (csf->sfx_bus and csf->sfx_pool)
+ * over silence, in the same output format as csf_read. This is for when the
+ * song isn't playing, or has ended partway through a buffer. Returns the
+ * number of frames. */
 uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize)
 {
 	uint8_t *buffer = (uint8_t *)v_buffer;
@@ -777,6 +944,7 @@ uint32_t csf_read_sfx(song_t *csf, void *v_buffer, uint32_t bufsize)
 		count = MIN(bufleft, MIXBUFFERSIZE);
 		memset(csf->mix_buffer, 0, count * channels * sizeof(int32_t));
 		sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, channels, csf->mix_frequency);
+		sfx_pool_mix(csf->sfx_pool, csf, csf->mix_buffer, count);
 		buffer += convert_func(buffer, csf->mix_buffer, count * channels, vu_min, vu_max);
 	}
 
@@ -879,6 +1047,8 @@ uint32_t csf_read(song_t *csf, void * v_buffer, uint32_t bufsize)
 		// them out.
 		if (csf->sfx_bus && !csf->multi_write)
 			sfx_bus_mix(csf->sfx_bus, csf->mix_buffer, count, (csf->mix_channels >= 2) ? 2 : 1, csf->mix_frequency);
+		if (csf->sfx_pool && !csf->multi_write)
+			sfx_pool_mix(csf->sfx_pool, csf, csf->mix_buffer, count);
 
 		mix_stat++;
 
@@ -1172,8 +1342,23 @@ int32_t csf_read_note(song_t *csf)
 	////////////////////////////////////////////////////////////////////////////////////
 	// Update channels data
 
-	// Master Volume + Pre-Amplification / Attenuation setup
-	uint32_t master_vol = csf->mixing_volume << 2; // yields maximum of 0x200
+	struct csf_voice_env env = {
+		.csf = csf,
+		.flags = csf->flags,
+		.mix_flags = csf->mix_flags,
+		.global_volume = csf->current_global_volume,
+		// Master Volume + Pre-Amplification / Attenuation setup
+		.master_vol = csf->mixing_volume << 2, // yields maximum of 0x200
+		.mix_frequency = csf->mix_frequency,
+		.mix_channels = csf->mix_channels,
+		.mix_interpolation = csf->mix_interpolation,
+		.freq_factor = csf->freq_factor,
+		.pan_separation = csf->pan_separation,
+		.ramping_samples_up = csf->ramping_samples_up,
+		.ramping_samples_down = csf->ramping_samples_down,
+		.tick_length = csf->buffer_count,
+		.pitch_pan_in_envelope = !BITARRAY_ISSET(csf->quirks, CSF_QUIRK_IT_PITCH_PAN_SEPARATION),
+	};
 
 	csf->num_voices = 0;
 
@@ -1189,161 +1374,13 @@ int32_t csf_read_note(song_t *csf)
 			if (!chan->length && !(chan->flags & CHN_ADLIB))
 				continue;
 
-		// Reset channel data
-		chan->increment = csf_smp_pos(0,0);
-		chan->final_volume = 0;
-		chan->final_panning = chan->panning + chan->pan_swing;
+		int r = csf_voice_update(&env, chan, cn);
 
-		/* Add panbrello delta */
-		if (chan->panbrello_delta)
-			chan->final_panning += rshift_signed((chan->panbrello_delta * (int32_t)chan->panbrello_depth) + 2, 3);
+		if (r != CSF_VOICE_IDLE)
+			csf->voice_mix[csf->num_voices++] = cn;
 
-		chan->ramp_length = 0;
-
-		// Calc Frequency
-		if (chan->frequency && chan->length) {
-			int32_t vol = chan->volume;
-
-			if (chan->flags & CHN_TREMOLO)
-				vol += chan->tremolo_delta;
-
-			vol = CLAMP(vol, 0, 256);
-
-			// Tremor
-			if (chan->n_command == FX_TREMOR)
-				rn_tremor(chan, &vol);
-
-			// Clip volume
-			vol = CLAMP(vol, 0, 0x100);
-			vol = lshift_signed(vol, 6);
-
-			// Process Envelopes
-			if ((csf->flags & SONG_INSTRUMENTMODE) && chan->ptr_instrument) {
-				/* OpenMPT test cases s77.it and EnvLoops.it */
-				rn_increment_env_pos(chan);
-				rn_process_envelope(csf, chan, &vol);
-			} else {
-				// No Envelope: key off => note cut
-				// 1.41-: CHN_KEYOFF|CHN_NOTEFADE
-				if (chan->flags & CHN_NOTEFADE) {
-					chan->fadeout_volume = 0;
-					vol = 0;
-				}
-			}
-
-			// vol is 14-bits
-			if (vol) {
-				// IMPORTANT: chan->final_volume is 14 bits !!!
-				// -> _muldiv( 14+7, 6+6, 18); => RealVolume: 14-bit result (21+12-19)
-				chan->final_volume = _muldiv
-					(vol * csf->current_global_volume,
-					 chan->global_volume
-					 * CLAMP(chan->instrument_volume + chan->vol_swing, 0, 64),
-					 INT32_C(1) << 19);
-			}
-
-			chan->calc_volume = vol;
-
-			int32_t frequency = chan->frequency;
-
-			if ((chan->flags & (CHN_GLISSANDO|CHN_PORTAMENTO)) == (CHN_GLISSANDO|CHN_PORTAMENTO)) {
-				frequency = get_frequency_from_note(get_note_from_frequency(frequency, chan->c5speed), chan->c5speed);
-			}
-
-			// Arpeggio ?
-			if (chan->n_command == FX_ARPEGGIO)
-				frequency = rn_arpeggio(csf, chan, frequency);
-
-			if (cn < MAX_CHANNELS) /* don't do this for NNA voices */
-				rn_process_midi_macro(csf, chan);
-
-			// Pitch/Filter Envelope
-			int32_t envpitch = 0;
-
-			if ((csf->flags & SONG_INSTRUMENTMODE) && chan->ptr_instrument)
-				rn_pitch_filter_envelope(csf, chan, &envpitch, &frequency);
-
-			// Vibrato
-			if (chan->flags & CHN_VIBRATO) {
-				/* OpenMPT test case VibratoDouble.it:
-				   vibrato is applied twice if vibrato is applied in the volume and effect columns */
-				if (chan->row_voleffect == VOLFX_VIBRATODEPTH
-					&& (chan->row_effect == FX_VIBRATO || chan->row_effect == FX_VIBRATOVOL || chan->row_effect == FX_FINEVIBRATO))
-					frequency = rn_vibrato(csf, chan, frequency);
-				frequency = rn_vibrato(csf, chan, frequency);
-			}
-
-			// Sample Auto-Vibrato
-			if (chan->ptr_sample && chan->ptr_sample->vib_depth) {
-				frequency = rn_sample_vibrato(csf, chan, frequency);
-			}
-
-			if (!(chan->flags & CHN_NOTEFADE))
-				rn_gen_key(csf, chan, cn, frequency, vol);
-
-			if (chan->flags & CHN_NEWNOTE) {
-				setup_channel_filter(chan, 1, 256, csf->mix_frequency);
-			}
-
-			// Filter Envelope: controls cutoff frequency
-			if (chan && chan->ptr_instrument && chan->ptr_instrument->flags & ENV_FILTER) {
-				setup_channel_filter(chan,
-					!(chan->flags & CHN_FILTER), envpitch, csf->mix_frequency);
-			}
-
-			chan->sample_freq = frequency;
-
-			struct song_smp_pos ninc = csf_smp_pos_ratio(frequency, csf->mix_frequency);
-
-			if (csf->freq_factor != 128)
-				ninc = csf_smp_pos_muldiv(ninc, csf->freq_factor, 128);
-
-			if (csf_smp_pos_equals_zero(ninc))
-				ninc = csf_smp_pos(0, 1);
-
-			chan->increment = ninc;
-		}
-
-		// This check used to be at the top of the loop but was moved here for OpenMPT test case CarryCompatGxxPortaWithIns.it
-		if ((chan->flags & CHN_NOTEFADE) &&
-		    !(chan->fadeout_volume | chan->right_volume | chan->left_volume)) {
-			chan->length = 0;
-			chan->rofs = 0;
-			chan->lofs = 0;
-		}
-
-		chan->final_panning = CLAMP(chan->final_panning, 0, 256);
-
-		// Volume ramping
-		chan->flags &= ~CHN_VOLUMERAMP;
-
-		if (chan->final_volume || chan->left_volume || chan->right_volume)
-			chan->flags |= CHN_VOLUMERAMP;
-
-		if (chan->strike)
-			chan->strike--;
-
-		// Check for too big increment
-		if (csf_smp_pos_get_whole(chan->increment) + 1 >= (int32_t)(chan->loop_end - chan->loop_start))
-			chan->flags &= ~CHN_LOOP;
-
-		chan->right_volume_new = chan->left_volume_new = 0;
-		if (!(chan->length && !csf_smp_pos_equals_zero(chan->increment)))
-			chan->current_sample_data = NULL;
-
-		if (chan->current_sample_data) {
-			if (!rn_update_sample(csf, chan, cn, master_vol))
-				break;
-		} else {
-			// Note change but no sample
-			//if (chan->vu_meter > 0xFF) chan->vu_meter = 0;
-			chan->left_volume = chan->right_volume = 0;
-			chan->length = 0;
-			// Put the channel back into the mixer for end-of-sample pop reduction
-			// stolen from openmpt
-			if (chan->lofs || chan->rofs)
-				csf->voice_mix[csf->num_voices++] = cn;
-		}
+		if (r == CSF_VOICE_MIX && csf->num_voices >= MAX_VOICES)
+			break;
 
 		chan->old_flags = chan->flags;
 		chan->flags &= ~CHN_NEWNOTE;

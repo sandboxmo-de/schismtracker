@@ -42,6 +42,7 @@
 #include "engine-alloc.h"
 #include "mem-arena.h"
 #include "sfx-bus.h"
+#include "sfx-voices.h"
 #include "mem.h"
 
 #include <signal.h>
@@ -83,6 +84,31 @@ static int opt_sfx_only = 0;
 static int opt_sfx_voices = 64;
 static float opt_sfx_volume = 1.0f;
 static double opt_sfx_stress = 0;
+
+/* the effects voice pool (--sfx-bank, --sfx-note) */
+struct sfx_note_cue {
+	int bank;
+	int index;
+	int is_sample; /* index is a sample even if the bank has instruments */
+	int note;
+	double at;
+	int volume, pan;
+	double duration; /* note-off after this long; 0 for none */
+	int index_in_args;
+};
+static const char **sfx_bank_files = NULL;
+static int sfx_nbank_files = 0;
+static int opt_sfx_bank_song = 0;
+static sfx_bank_t **sfx_banks = NULL;
+static int sfx_nbanks = 0;
+static struct sfx_note_cue *sfx_notes = NULL;
+static int sfx_nnotes = 0;
+static int opt_sfx_pool = 0; /* voices; 0 = only if banks are given */
+static int opt_sfx_steal = SFX_STEAL_NONE;
+static int opt_sfx_tick_rate = 125;
+static float opt_sfx_pool_volume = 1.0f;
+static int opt_sfx_pool_interp = -1;
+static double opt_sfx_pool_stress = 0;
 
 static int opening_audio = 0;
 static int audio_opened = 0;
@@ -181,10 +207,19 @@ static void host_diskwrite_begin(SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED 
 	(void)rand();
 }
 
+/* how much of a render has been mixed, for starting pool notes on time */
+static size_t render_frames = 0;
+
+static void host_diskwrite_progress(size_t frames, SCHISM_UNUSED size_t est_frames, SCHISM_UNUSED uint32_t rate)
+{
+	render_frames = frames;
+}
+
 static const struct engine_host host = {
 	.log = host_log,
 	.status_text = host_status_text,
 	.diskwrite_begin = host_diskwrite_begin,
+	.diskwrite_progress = host_diskwrite_progress,
 	.exit = host_exit,
 	.assert_fail = host_assert_fail,
 };
@@ -231,6 +266,23 @@ static void usage(FILE *f, const char *argv0)
 		"      --sfx-volume=V        effects master volume (default 1.0)\n"
 		"      --sfx-stress=SECONDS  start and stop effects at random while\n"
 		"                            playing, as a threading test\n"
+		"      --sfx-bank=FILE       load a module, instrument or sample file as\n"
+		"                            an effects bank (repeatable, numbered from 0)\n"
+		"      --sfx-bank-song       make the song bank 0 (files then start at 1)\n"
+		"      --sfx-note=B:I:NOTE@SECONDS[:VOL[:PAN[:DURATION]]]\n"
+		"                            play instrument I (sN for sample N) of bank B\n"
+		"                            in the effects voice pool; NOTE is C-5, C#5\n"
+		"                            or 1-120, VOL and PAN 0-64, and DURATION\n"
+		"                            seconds until the note-off (see\n"
+		"                            docs/sfx-voices.md)\n"
+		"      --sfx-pool=N          voices in the effects voice pool (default 64)\n"
+		"      --sfx-steal=none|oldest|quietest\n"
+		"                            what a note does when the pool is full\n"
+		"      --sfx-tick-rate=TEMPO the pool's tick rate as an IT tempo (125)\n"
+		"      --sfx-pool-volume=V   the pool's group volume (default 1.0)\n"
+		"      --sfx-pool-interp=MODE  the pool's interpolation (default: -i)\n"
+		"      --sfx-pool-stress=SECONDS  random note-on/off/cut/setters on the\n"
+		"                            pool while playing, as a threading test\n"
 		"  -q, --quiet               don't show the play position\n"
 		"  -v, --verbose             show loader and engine messages\n"
 		"      --version\n"
@@ -275,6 +327,15 @@ enum {
 	O_SFX_VOICES,
 	O_SFX_VOLUME,
 	O_SFX_STRESS,
+	O_SFX_BANK,
+	O_SFX_BANK_SONG,
+	O_SFX_NOTE,
+	O_SFX_POOL,
+	O_SFX_STEAL,
+	O_SFX_TICK_RATE,
+	O_SFX_POOL_VOLUME,
+	O_SFX_POOL_INTERP,
+	O_SFX_POOL_STRESS,
 };
 
 /* "123", "64K", "16M", "1G" */
@@ -358,6 +419,86 @@ static void add_sfx_cue(char *arg, int is_sample)
 	}
 }
 
+/* "C-5", "C#5", "c5" or a number 1-120 */
+static int parse_note(const char *s)
+{
+	static const char names[] = "C-C#D-D#E-F-F#G-G#A-A#B-";
+	char nm[3];
+	int i;
+
+	if (s[0] >= '0' && s[0] <= '9')
+		return parse_int(s, "note", NOTE_FIRST, NOTE_LAST);
+
+	nm[0] = (char)toupper((unsigned char)s[0]);
+	nm[1] = (s[1] == '#' || s[1] == '-') ? s[1] : '-';
+	nm[2] = '\0';
+	for (i = 0; i < 12; i++) {
+		if (names[i * 2] == nm[0] && names[i * 2 + 1] == nm[1]) {
+			const char *oct = (s[1] == '#' || s[1] == '-') ? s + 2 : s + 1;
+			int o = parse_int(oct, "note octave", 0, 9);
+			return 12 * o + i + NOTE_FIRST;
+		}
+	}
+	fprintf(stderr, "schismplay: bad note '%s'\n", s);
+	exit(2);
+}
+
+/* B:I:NOTE@SECONDS[:VOL[:PAN[:DURATION]]] */
+static void add_sfx_note(char *arg)
+{
+	struct sfx_note_cue *c;
+	char *at = strrchr(arg, '@'), *f[3], *field, *next;
+	int i;
+
+	if (!at) {
+		fprintf(stderr, "schismplay: note '%s' needs @SECONDS\n", arg);
+		exit(2);
+	}
+	*at = '\0';
+
+	f[0] = arg;
+	for (i = 1; i < 3; i++) {
+		f[i] = strchr(f[i - 1], ':');
+		if (!f[i]) {
+			fprintf(stderr, "schismplay: note needs BANK:INSTRUMENT:NOTE\n");
+			exit(2);
+		}
+		*f[i]++ = '\0';
+	}
+
+	sfx_notes = mem_realloc(sfx_notes, (sfx_nnotes + 1) * sizeof(*sfx_notes));
+	c = sfx_notes + sfx_nnotes++;
+	memset(c, 0, sizeof(*c));
+	c->volume = c->pan = SFX_DEFAULT;
+	c->bank = parse_int(f[0], "bank number", 0, 9999);
+	if (f[1][0] == 's' || f[1][0] == 'S') {
+		c->is_sample = 1;
+		c->index = parse_int(f[1] + 1, "sample number", 1, MAX_SAMPLES - 1);
+	} else {
+		c->index = parse_int(f[1], "instrument number", 1, MAX_INSTRUMENTS - 1);
+	}
+	c->note = parse_note(f[2]);
+
+	for (i = 0, field = at + 1; field && i < 4; i++, field = next) {
+		next = strchr(field, ':');
+		if (next)
+			*next++ = '\0';
+		/* an empty field keeps the default */
+		if (i > 0 && !*field)
+			continue;
+		switch (i) {
+		case 0: c->at = parse_double(field, "note time"); break;
+		case 1: c->volume = parse_int(field, "note volume", 0, 64); break;
+		case 2: c->pan = parse_int(field, "note pan", 0, 64); break;
+		case 3: c->duration = parse_double(field, "note duration"); break;
+		}
+	}
+	if (field || c->at < 0 || c->duration < 0) {
+		fprintf(stderr, "schismplay: bad note time or too many fields\n");
+		exit(2);
+	}
+}
+
 static const char *parse_options(int argc, char **argv)
 {
 	static const struct option long_options[] = {
@@ -379,6 +520,15 @@ static const char *parse_options(int argc, char **argv)
 		{"sfx-voices", 1, NULL, O_SFX_VOICES},
 		{"sfx-volume", 1, NULL, O_SFX_VOLUME},
 		{"sfx-stress", 1, NULL, O_SFX_STRESS},
+		{"sfx-bank", 1, NULL, O_SFX_BANK},
+		{"sfx-bank-song", 0, NULL, O_SFX_BANK_SONG},
+		{"sfx-note", 1, NULL, O_SFX_NOTE},
+		{"sfx-pool", 1, NULL, O_SFX_POOL},
+		{"sfx-steal", 1, NULL, O_SFX_STEAL},
+		{"sfx-tick-rate", 1, NULL, O_SFX_TICK_RATE},
+		{"sfx-pool-volume", 1, NULL, O_SFX_POOL_VOLUME},
+		{"sfx-pool-interp", 1, NULL, O_SFX_POOL_INTERP},
+		{"sfx-pool-stress", 1, NULL, O_SFX_POOL_STRESS},
 		{"quiet", 0, NULL, 'q'},
 		{"verbose", 0, NULL, 'v'},
 		{"version", 0, NULL, O_VERSION},
@@ -459,6 +609,43 @@ static const char *parse_options(int argc, char **argv)
 		case O_SFX_STRESS:
 			opt_sfx_stress = parse_double(optarg, "stress time");
 			break;
+		case O_SFX_BANK:
+			sfx_bank_files = mem_realloc(sfx_bank_files, (sfx_nbank_files + 1) * sizeof(*sfx_bank_files));
+			sfx_bank_files[sfx_nbank_files++] = optarg;
+			break;
+		case O_SFX_BANK_SONG:
+			opt_sfx_bank_song = 1;
+			break;
+		case O_SFX_NOTE:
+			add_sfx_note(optarg);
+			break;
+		case O_SFX_POOL:
+			opt_sfx_pool = parse_int(optarg, "pool size", 1, SFX_POOL_MAX_VOICES);
+			break;
+		case O_SFX_STEAL:
+			if (!strcasecmp(optarg, "none")) {
+				opt_sfx_steal = SFX_STEAL_NONE;
+			} else if (!strcasecmp(optarg, "oldest")) {
+				opt_sfx_steal = SFX_STEAL_OLDEST;
+			} else if (!strcasecmp(optarg, "quietest")) {
+				opt_sfx_steal = SFX_STEAL_QUIETEST;
+			} else {
+				fprintf(stderr, "schismplay: bad steal policy '%s'\n", optarg);
+				exit(2);
+			}
+			break;
+		case O_SFX_TICK_RATE:
+			opt_sfx_tick_rate = parse_int(optarg, "tick rate", 1, 10000);
+			break;
+		case O_SFX_POOL_VOLUME:
+			opt_sfx_pool_volume = (float)parse_double(optarg, "pool volume");
+			break;
+		case O_SFX_POOL_INTERP:
+			opt_sfx_pool_interp = parse_interp(optarg);
+			break;
+		case O_SFX_POOL_STRESS:
+			opt_sfx_pool_stress = parse_double(optarg, "stress time");
+			break;
 		case 'q':
 			opt_quiet = 1;
 			break;
@@ -476,6 +663,10 @@ static const char *parse_options(int argc, char **argv)
 			exit(2);
 		}
 	}
+
+	/* the pool stress test needs something to play */
+	if (opt_sfx_pool_stress > 0 && !sfx_nbank_files)
+		opt_sfx_bank_song = 1;
 
 	if (opt_sfx_only && optind == argc)
 		return NULL;
@@ -817,6 +1008,205 @@ static void stress_step(sfx_voice_t *handles, int nhandles, sfx_source_t **tones
 	(*ops)++;
 }
 
+/* ------------------------------------------------------------------------ */
+/* the effects voice pool */
+
+static int pool_wanted(void)
+{
+	return opt_sfx_pool || sfx_nbank_files || opt_sfx_bank_song || sfx_nnotes || opt_sfx_pool_stress > 0;
+}
+
+static int setup_pool(void)
+{
+	if (!pool_wanted())
+		return 1;
+	if (sfx_pool_init(opt_sfx_pool ? (uint32_t)opt_sfx_pool : 64) < 0) {
+		fprintf(stderr, "schismplay: couldn't set up the effects voice pool\n");
+		return 0;
+	}
+	sfx_pool_set_steal(opt_sfx_steal);
+	sfx_pool_set_tick_rate(opt_sfx_tick_rate);
+	sfx_pool_set_volume(opt_sfx_pool_volume);
+	sfx_pool_set_interpolation(opt_sfx_pool_interp);
+	if (opt_seeded)
+		sfx_pool_set_seed(opt_seed);
+	return 1;
+}
+
+/* Bank files are loaded before the song, so that on the arena the space
+ * their loads borrow from the SONG region comes back when the song loads.
+ * The song bank, if any, goes in slot 0 afterwards. */
+static int load_bank_files(void)
+{
+	int i, base = opt_sfx_bank_song ? 1 : 0;
+
+	sfx_nbanks = base + sfx_nbank_files;
+	if (!sfx_nbanks)
+		return 1;
+	sfx_banks = mem_calloc(sfx_nbanks, sizeof(*sfx_banks));
+	for (i = 0; i < sfx_nbank_files; i++) {
+		sfx_banks[base + i] = sfx_bank_load(sfx_bank_files[i]);
+		if (!sfx_banks[base + i]) {
+			fprintf(stderr, "schismplay: couldn't load bank %s\n", sfx_bank_files[i]);
+			return 0;
+		}
+		if (verbose)
+			fprintf(stderr, "bank %d: %d instruments, %d samples\n", base + i,
+				sfx_bank_num_instruments(sfx_banks[base + i]),
+				sfx_bank_num_samples(sfx_banks[base + i]));
+	}
+	return 1;
+}
+
+static int load_song_bank(void)
+{
+	if (!opt_sfx_bank_song)
+		return 1;
+	sfx_banks[0] = sfx_bank_from_song();
+	if (!sfx_banks[0]) {
+		fprintf(stderr, "schismplay: the song has no samples to make a bank from\n");
+		return 0;
+	}
+	return 1;
+}
+
+static void free_banks(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_nbanks; i++)
+		sfx_bank_free(sfx_banks[i]);
+	free(sfx_banks);
+	sfx_banks = NULL;
+	sfx_nbanks = 0;
+	free(sfx_bank_files);
+	sfx_bank_files = NULL;
+	free(sfx_notes);
+	sfx_notes = NULL;
+}
+
+static uint32_t note_frame(const struct sfx_note_cue *c)
+{
+	return (uint32_t)floor(c->at * opt_rate + 0.5);
+}
+
+/* Start the notes due before frame `until` (counted from the start of the
+ * render), each with a delay in frames from `now`, so a render puts it on
+ * the exact sample. Notes go in time order. Starting them only shortly
+ * before they're due keeps notes that are still waiting from filling the
+ * pool, so a full pool and its steal policy behave the way they would for
+ * a host starting notes as things happen. */
+static int next_note = 0;
+
+static int cmp_note_time(const void *a, const void *b)
+{
+	const struct sfx_note_cue *x = a, *y = b;
+	uint32_t fx = note_frame(x), fy = note_frame(y);
+
+	if (fx != fy)
+		return fx < fy ? -1 : 1;
+	return (x->index_in_args > y->index_in_args) - (x->index_in_args < y->index_in_args);
+}
+
+static void schedule_notes_until(size_t now, size_t until)
+{
+	for (; next_note < sfx_nnotes && note_frame(sfx_notes + next_note) < until; next_note++) {
+		struct sfx_note_cue *c = sfx_notes + next_note;
+		struct sfx_note_args args;
+		sfx_bank_t *bank;
+		int i = c->index_in_args;
+		uint32_t at = note_frame(c);
+
+		if (c->bank >= sfx_nbanks) {
+			fprintf(stderr, "schismplay: note %d: no bank %d\n", i + 1, c->bank);
+			continue;
+		}
+		bank = sfx_banks[c->bank];
+		sfx_note_args_init(&args);
+		if (c->is_sample || !sfx_bank_num_instruments(bank))
+			args.sample = c->index;
+		else
+			args.instrument = c->index;
+		args.note = c->note;
+		args.volume = c->volume;
+		args.pan = c->pan;
+		args.delay = (at > now) ? (uint32_t)(at - now) : 0;
+		args.duration = (uint32_t)floor(c->duration * opt_rate + 0.5);
+		if (c->duration > 0 && !args.duration)
+			args.duration = 1;
+		if (sfx_note_on_ex(bank, &args) == SFX_NOTE_NONE)
+			fprintf(stderr, "schismplay: note %d didn't start\n", i + 1);
+	}
+}
+
+static void sort_notes(void)
+{
+	int i;
+
+	for (i = 0; i < sfx_nnotes; i++)
+		sfx_notes[i].index_in_args = i;
+	qsort(sfx_notes, sfx_nnotes, sizeof(*sfx_notes), cmp_note_time);
+	next_note = 0;
+}
+
+/* --sfx-pool-stress: random calls on the pool from this thread while the
+ * audio thread mixes, with stress_rand() so the sequence of calls is the
+ * same every run. Uses the --sfx-bank banks, or the song's if none. */
+static void pool_stress_step(sfx_note_t *handles, int nhandles, unsigned long *counts)
+{
+	sfx_note_t *h = handles + stress_rand() % nhandles;
+	int k = stress_rand() % 100;
+
+	if (k < 35 && sfx_nbanks) {
+		sfx_bank_t *bank = sfx_banks[stress_rand() % sfx_nbanks];
+		struct sfx_note_args args;
+		int nins = sfx_bank_num_instruments(bank), nsmp = sfx_bank_num_samples(bank);
+
+		sfx_note_args_init(&args);
+		if (nins && (stress_rand() & 3))
+			args.instrument = 1 + stress_rand() % nins;
+		else
+			args.sample = 1 + stress_rand() % MAX(nsmp, 1);
+		args.note = 37 + stress_rand() % 48;
+		args.volume = stress_rand() % 40;
+		args.pan = stress_rand() % 65;
+		if (!(stress_rand() & 3)) {
+			args.cutoff = stress_rand() % 128;
+			args.resonance = stress_rand() % 128;
+		}
+		args.delay = (stress_rand() & 7) ? 0 : stress_rand() % 4410;
+		args.duration = (stress_rand() & 1) ? 0 : stress_rand() % 44100;
+		*h = sfx_note_on_ex(bank, &args);
+		counts[0]++;
+	} else if (k < 55) {
+		sfx_note_off(*h);
+		counts[1]++;
+	} else if (k < 65) {
+		sfx_note_cut(*h);
+		counts[2]++;
+	} else if (k < 90) {
+		switch (stress_rand() % 5) {
+		case 0: sfx_note_set_volume(*h, stress_rand() % 65); break;
+		case 1: sfx_note_set_pan(*h, stress_rand() % 65); break;
+		case 2: sfx_note_set_pitch(*h, 0.25f + stress_unit() * 3.0f); break;
+		case 3: sfx_note_set_cutoff(*h, stress_rand() % 128); break;
+		case 4: sfx_note_set_resonance(*h, stress_rand() % 128); break;
+		}
+		counts[3]++;
+	} else if (k < 97) {
+		struct sfx_note_info info;
+		(void)sfx_note_get_info(*h, &info);
+		(void)sfx_pool_voices_playing();
+		counts[4]++;
+	} else if (k < 99) {
+		sfx_pool_set_volume(0.5f + stress_unit());
+		sfx_pool_set_steal(stress_rand() % 3);
+		counts[4]++;
+	} else {
+		sfx_pool_stop_all();
+		counts[2]++;
+	}
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -846,6 +1236,7 @@ static void load_settings(void)
 
 static int render(const char *song)
 {
+	uint32_t pool_peak = 0;
 	int q;
 
 	disko_set_export_limit(opt_length > 0 ? (size_t)(opt_length * opt_rate + 0.5) : 0);
@@ -858,10 +1249,24 @@ static int render(const char *song)
 	/* after starting the export, so the effects' delays count from its
 	 * first frame */
 	schedule_sfx();
+	sort_notes();
+	render_frames = 0;
 
 	do {
+		/* one disk writer buffer ahead is enough: it's never more than
+		 * 16384 frames */
+		schedule_notes_until(render_frames, render_frames + 16384);
+		/* Keep one note waiting while there are more to come, or the
+		 * render could finish in a gap between notes. */
+		if (next_note < sfx_nnotes && (!next_note || note_frame(sfx_notes + next_note - 1) <= render_frames))
+			schedule_notes_until(render_frames, (size_t)note_frame(sfx_notes + next_note) + 1);
 		q = disko_sync();
+		if (verbose && sfx_pool_running())
+			pool_peak = MAX(pool_peak, sfx_pool_voices_playing());
 	} while (q == DW_SYNC_MORE && !interrupted);
+
+	if (verbose && sfx_pool_running())
+		fprintf(stderr, "effects pool: at most %u notes at once\n", pool_peak);
 
 	if (interrupted) {
 		fprintf(stderr, "schismplay: interrupted\n");
@@ -885,6 +1290,9 @@ static int play(void)
 	sfx_voice_t stress_handles[256] = {0};
 	sfx_source_t *stress_tones[4] = {0};
 	unsigned long stress_ops = 0;
+	sfx_note_t pool_handles[512] = {0};
+	unsigned long pool_counts[5] = {0};
+	uint32_t pool_peak = 0;
 	int i;
 
 	/* with --sfx-only the song stays stopped and the effects play over
@@ -897,6 +1305,8 @@ static int play(void)
 	}
 
 	schedule_sfx();
+	sort_notes();
+	schedule_notes_until(0, SIZE_MAX);
 
 	if (opt_sfx_stress > 0)
 		for (i = 0; i < (int)ARRAY_SIZE(stress_tones); i++)
@@ -915,6 +1325,17 @@ static int play(void)
 			for (i = 0; i < 50; i++)
 				stress_step(stress_handles, ARRAY_SIZE(stress_handles),
 					stress_tones, ARRAY_SIZE(stress_tones), &stress_ops);
+			timer_msleep(1);
+			continue;
+		}
+		if (opt_sfx_pool_stress > 0) {
+			uint32_t n;
+			if (elapsed >= opt_sfx_pool_stress)
+				break;
+			for (i = 0; i < 50; i++)
+				pool_stress_step(pool_handles, ARRAY_SIZE(pool_handles), pool_counts);
+			n = sfx_pool_voices_playing();
+			pool_peak = MAX(pool_peak, n);
 			timer_msleep(1);
 			continue;
 		}
@@ -937,7 +1358,7 @@ static int play(void)
 		}
 
 		/* once the song is over, wait for the effects to finish */
-		if (interrupted || (ended && !sfx_bus_voices_playing()))
+		if (interrupted || (ended && !sfx_bus_voices_playing() && !sfx_pool_voices_playing()))
 			break;
 		if (opt_length > 0 && (ended ? elapsed : t) >= opt_length)
 			break;
@@ -952,6 +1373,15 @@ static int play(void)
 		printf("sfx stress: %lu calls in %.1f s, song time %u s, %u voices still playing\n",
 			stress_ops, (timer_ticks() - start) / 1000.0, song_get_current_time(),
 			sfx_bus_voices_playing());
+		return interrupted ? 1 : 0;
+	}
+	if (opt_sfx_pool_stress > 0) {
+		printf("pool stress: %lu note-on, %lu note-off, %lu cut, %lu setters, %lu queries in %.1f s;"
+			" song time %u s, peak %u voices, %u still playing\n",
+			pool_counts[0], pool_counts[1], pool_counts[2], pool_counts[3], pool_counts[4],
+			(timer_ticks() - start) / 1000.0, song_get_current_time(), pool_peak,
+			sfx_pool_voices_playing());
+		sfx_pool_stop_all();
 		return interrupted ? 1 : 0;
 	}
 
@@ -1042,9 +1472,20 @@ int main(int argc, char **argv)
 	}
 	sfx_bus_set_volume(opt_sfx_volume);
 
+	if (!setup_pool() || !load_bank_files()) {
+		free_banks();
+		sfx_pool_quit();
+		sfx_bus_quit();
+		shutdown_all();
+		release_memory();
+		return 1;
+	}
+
 	if (song && !song_load_unchecked(song)) {
 		fprintf(stderr, "schismplay: couldn't load %s\n", song);
 		print_mem_stats("load");
+		free_banks();
+		sfx_pool_quit();
 		sfx_bus_quit();
 		shutdown_all();
 		print_mem_stats("exit");
@@ -1053,7 +1494,9 @@ int main(int argc, char **argv)
 	}
 	print_mem_stats("load");
 
-	if (!load_sfx_sources()) {
+	if (!load_sfx_sources() || !load_song_bank()) {
+		free_banks();
+		sfx_pool_quit();
 		sfx_bus_quit();
 		free_sfx_sources();
 		shutdown_all();
@@ -1069,6 +1512,8 @@ int main(int argc, char **argv)
 	r = opt_output ? render(song) : play();
 	print_mem_stats(opt_output ? "render" : "play");
 
+	sfx_pool_quit();
+	free_banks();
 	sfx_bus_quit();
 	free_sfx_sources();
 

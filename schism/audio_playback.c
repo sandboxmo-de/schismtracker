@@ -45,6 +45,7 @@
 #include "player/snd_fm.h"
 #include "player/snd_gm.h"
 #include "sfx-bus.h"
+#include "sfx-voices.h"
 
 // Default audio configuration
 
@@ -240,10 +241,11 @@ static void audio_mix(uint8_t *stream, uint32_t len)
 
 	/* While the disk writer runs, it gets the sound effects instead. */
 	current_song->sfx_bus = engine_flag_test(DISKWRITER_ACTIVE) ? NULL : sfx_bus_get();
+	current_song->sfx_pool = engine_flag_test(DISKWRITER_ACTIVE) ? NULL : sfx_pool_get();
 
 	if (current_song->flags & SONG_ENDREACHED) {
 		n = audio_buffer_samples;
-		if (sfx_bus_busy(current_song->sfx_bus)) {
+		if (sfx_bus_busy(current_song->sfx_bus) || sfx_pool_busy(current_song->sfx_pool)) {
 			csf_read_sfx(current_song, audio_buffer, audio_buffer_samples * audio_sample_size);
 		} else {
 			/* Fill it with silence */
@@ -252,7 +254,8 @@ static void audio_mix(uint8_t *stream, uint32_t len)
 	} else {
 		n = csf_read(current_song, audio_buffer, audio_buffer_samples * audio_sample_size);
 		samples_played += n;
-		if (n < audio_buffer_samples && sfx_bus_busy(current_song->sfx_bus)) {
+		if (n < audio_buffer_samples
+		    && (sfx_bus_busy(current_song->sfx_bus) || sfx_pool_busy(current_song->sfx_pool))) {
 			/* the song ended partway through; keep the effects going */
 			csf_read_sfx(current_song, (uint8_t *)audio_buffer + n * audio_sample_size,
 				(audio_buffer_samples - n) * audio_sample_size);
