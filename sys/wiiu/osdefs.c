@@ -34,6 +34,7 @@
 #include "devoptab.h"
 #include "log.h"
 #include "it.h"
+#include "engine-host.h"
 
 static uint32_t savecallback(SCHISM_UNUSED void *xyzzy)
 {
@@ -123,7 +124,7 @@ void wiiu_onframe(void)
 			if (inBackground) {
 				memset(&event, 0, sizeof(event));
 				event.type = SCHISM_WINDOWEVENT_SHOWN;
-				events_push_event(&event);
+				engine_hooks.post_event(&event);
 				inBackground = 0;
 			}
 			break;
@@ -133,14 +134,14 @@ void wiiu_onframe(void)
 			/* This results in fewer draws to the screen */
 			memset(&event, 0, sizeof(event));
 			event.type = SCHISM_WINDOWEVENT_HIDDEN;
-			events_push_event(&event);
+			engine_hooks.post_event(&event);
 
 			enteringBackground = 1;
 
 			break;
 		case PROCUI_STATUS_EXITING:
 			exitingProcUI = 1;
-			schism_exit(0);
+			engine_hooks.exit(0);
 			break;
 		}
 	}

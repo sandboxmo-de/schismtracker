@@ -29,6 +29,7 @@
 #include "dmoz.h"
 #include "util.h"
 #include "mem.h"
+#include "engine-host.h"
 
 #include <di/di.h>
 #include <fat.h>
@@ -139,7 +140,7 @@ static void RestartHomebrewChannel(void)
 {
 	TerminateRequested = false;
 	//SDL_Quit();
-	schism_exit(1);
+	engine_hooks.exit(1);
 }
 
 void Terminate(void)
@@ -152,7 +153,7 @@ static void ShutdownCB(void)
 {
     schism_event_t e;
    	e.type = SCHISM_QUIT;
-   	events_push_event(&e);
+   	engine_hooks.post_event(&e);
 }
 
 static void ResetCB(SCHISM_UNUSED u32 irq, SCHISM_UNUSED void *ctx)
