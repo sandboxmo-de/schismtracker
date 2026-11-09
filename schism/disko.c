@@ -815,6 +815,7 @@ static size_t est_len;
 static int prgh;
 static timer_ticks_t export_start_time;
 static int canceled = 0; /* this sucks, but so do I */
+static size_t export_frame_limit = 0; /* 0 == until the song ends */
 
 static int disko_finish(void);
 
@@ -996,6 +997,14 @@ int disko_export_song(const char *filename, const struct save_format *format)
 }
 
 
+/* Stop song exports after this many sample frames (0 means no limit). This
+ * is applied to the next export, not the running one. Multi-channel exports
+ * stop at the end of the buffer that crosses the limit. */
+void disko_set_export_limit(size_t frames)
+{
+	export_frame_limit = frames;
+}
+
 /* main calls this periodically when the .wav exporter is busy */
 int disko_sync(void)
 {
@@ -1009,6 +1018,11 @@ int disko_sync(void)
 	}
 
 	frames = csf_read(&export_dwsong, buf, sizeof(buf));
+
+	if (export_frame_limit && export_ds[0]->length + frames >= export_frame_limit) {
+		frames = export_frame_limit - export_ds[0]->length;
+		export_dwsong.flags |= SONG_ENDREACHED;
+	}
 
 	if (!export_dwsong.multi_write)
 		export_format->f.export.body(export_ds[0], buf, frames * export_bps);
