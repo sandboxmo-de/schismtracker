@@ -50,11 +50,14 @@ testresult_t test_mem_arena_split(void)
 {
 	size_t total;
 
+	/* ENGINE is capped at half on an arena this small, and SONG and
+	 * SCRATCH split the other half 4:3 */
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 0, 0, 0) == 0);
 	total = arena.r[SONG].size + arena.r[SCRATCH].size + arena.r[ENGINE_MEM_ENGINE].size;
 	ASSERT(total <= sizeof(arena_mem.bytes));
-	ASSERT(arena.r[SONG].size == 4 * arena.r[ENGINE_MEM_ENGINE].size);
-	ASSERT(arena.r[SCRATCH].size == 3 * arena.r[ENGINE_MEM_ENGINE].size);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].size == sizeof(arena_mem.bytes) / 2);
+	ASSERT(arena.r[SONG].size * 3 == arena.r[SCRATCH].size * 4);
+	ASSERT(sizeof(arena_mem.bytes) / 2 - arena.r[SONG].size - arena.r[SCRATCH].size < 7 * ENGINE_ALIGN_DEFAULT);
 
 	/* explicit sizes are kept; the one left out gets the rest */
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 32768, 16384, 0) == 0);
@@ -62,10 +65,40 @@ testresult_t test_mem_arena_split(void)
 	ASSERT(arena.r[SCRATCH].size == 16384);
 	ASSERT(arena.r[ENGINE_MEM_ENGINE].size == 16384);
 
+	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 0, 16384, 0) == 0);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].size == 24576);
+	ASSERT(arena.r[SONG].size == 24576);
+	ASSERT(arena.r[SCRATCH].size == 16384);
+
+	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 0, 0, 8192) == 0);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].size == 8192);
+	ASSERT(arena.r[SONG].size * 3 == arena.r[SCRATCH].size * 4);
+
 	/* too big */
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 65536, 16, 16) < 0);
 	/* nothing left for the engine */
 	ASSERT(mem_arena_init(&arena, arena_mem.bytes, sizeof(arena_mem.bytes), 32768, 32768, 0) < 0);
+
+	RETURN_PASS;
+}
+
+/* Big enough for ENGINE to get its default size. The arena never touches
+ * memory it hasn't handed out, so this costs nothing. */
+static union {
+	unsigned char bytes[4 * 1024 * 1024];
+	void *align_p;
+	double align_d;
+} big_mem;
+
+testresult_t test_mem_arena_split_default_engine(void)
+{
+	ASSERT(mem_arena_init(&arena, big_mem.bytes, sizeof(big_mem.bytes), 0, 0, 0) == 0);
+	ASSERT(arena.r[ENGINE_MEM_ENGINE].size == MEM_ARENA_DEFAULT_ENGINE);
+	ASSERT(arena.r[SONG].size * 3 == arena.r[SCRATCH].size * 4);
+	ASSERT(arena.r[SONG].size + arena.r[SCRATCH].size + MEM_ARENA_DEFAULT_ENGINE <= sizeof(big_mem.bytes));
+
+	/* the default has room for what the engine needs itself */
+	ASSERT(MEM_ARENA_DEFAULT_ENGINE >= song_engine_mem_minimum());
 
 	RETURN_PASS;
 }
