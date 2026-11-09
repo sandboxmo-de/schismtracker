@@ -39,6 +39,8 @@
 #include "version.h"
 #include "osdefs.h"
 #include "engine-host.h"
+#include "engine-alloc.h"
+#include "mem-arena.h"
 
 #include <signal.h>
 
@@ -56,6 +58,10 @@ static int opt_seeded = 0;
 static uint32_t opt_seed = 0;
 static int opt_loop = 0;
 static int opt_quiet = 0;
+static const char *opt_driver_spec = NULL;
+static const char *opt_arena = NULL;
+static int opt_mem_stats = 0;
+static size_t opt_mem_limit = 0;
 
 static int opening_audio = 0;
 static int audio_opened = 0;
@@ -93,6 +99,13 @@ static void shutdown_all(void)
 #ifdef USE_ZSTD
 	zstd_quit();
 #endif
+
+	/* nothing plays any more, so the song can go */
+	csf_free(current_song);
+	current_song = NULL;
+	engine_free((void *)opt_driver, ENGINE_MEM_ENGINE);
+	engine_free((void *)opt_device, ENGINE_MEM_ENGINE);
+	opt_driver = opt_device = NULL;
 
 	dmoz_quit();
 	localtime_r_quit();
@@ -178,6 +191,14 @@ static void usage(FILE *f, const char *argv0)
 		"  -d, --driver=DRIVER[:DEVICE]\n"
 		"                            audio driver for playback\n"
 		"      --loop                keep playing at the end of the song\n"
+		"      --arena=SIZE[,SONG,SCRATCH,ENGINE]\n"
+		"                            run the engine on the arena allocator over\n"
+		"                            one block of SIZE bytes (K, M or G suffix);\n"
+		"                            regions left out or 0 share the rest 4:3:1\n"
+		"      --mem-stats           print peak memory per lifetime class after\n"
+		"                            loading and after playing or rendering\n"
+		"      --mem-limit=SIZE      fail engine allocations past SIZE bytes in\n"
+		"                            use (libc allocator; for testing)\n"
 		"  -q, --quiet               don't show the play position\n"
 		"  -v, --verbose             show loader and engine messages\n"
 		"      --version\n"
@@ -213,7 +234,32 @@ static int parse_interp(const char *s)
 enum {
 	O_LOOP = 256,
 	O_VERSION,
+	O_ARENA,
+	O_MEM_STATS,
+	O_MEM_LIMIT,
 };
+
+/* "123", "64K", "16M", "1G" */
+static int parse_size(const char *s, size_t *out)
+{
+	char *end;
+	unsigned long long v;
+
+	if (!*s)
+		return 0;
+	v = strtoull(s, &end, 0);
+	switch (*end) {
+	case 'k': case 'K': v <<= 10; end++; break;
+	case 'm': case 'M': v <<= 20; end++; break;
+	case 'g': case 'G': v <<= 30; end++; break;
+	default: break;
+	}
+	if (*end || v > SIZE_MAX)
+		return 0;
+
+	*out = (size_t)v;
+	return 1;
+}
 
 static const char *parse_options(int argc, char **argv)
 {
@@ -227,6 +273,9 @@ static const char *parse_options(int argc, char **argv)
 		{"seed", 1, NULL, 's'},
 		{"driver", 1, NULL, 'd'},
 		{"loop", 0, NULL, O_LOOP},
+		{"arena", 1, NULL, O_ARENA},
+		{"mem-stats", 0, NULL, O_MEM_STATS},
+		{"mem-limit", 1, NULL, O_MEM_LIMIT},
 		{"quiet", 0, NULL, 'q'},
 		{"verbose", 0, NULL, 'v'},
 		{"version", 0, NULL, O_VERSION},
@@ -273,10 +322,23 @@ static const char *parse_options(int argc, char **argv)
 			opt_seeded = 1;
 			break;
 		case 'd':
-			audio_parse_driver_spec(optarg, (char **)&opt_driver, (char **)&opt_device);
+			/* parsed once the allocator is set up */
+			opt_driver_spec = optarg;
 			break;
 		case O_LOOP:
 			opt_loop = 1;
+			break;
+		case O_ARENA:
+			opt_arena = optarg;
+			break;
+		case O_MEM_STATS:
+			opt_mem_stats = 1;
+			break;
+		case O_MEM_LIMIT:
+			if (!parse_size(optarg, &opt_mem_limit) || !opt_mem_limit) {
+				fprintf(stderr, "schismplay: bad size '%s'\n", optarg);
+				exit(2);
+			}
 			break;
 		case 'q':
 			opt_quiet = 1;
@@ -300,8 +362,202 @@ static const char *parse_options(int argc, char **argv)
 		usage(stderr, argv[0]);
 		exit(2);
 	}
+	if (opt_arena && opt_mem_limit) {
+		fprintf(stderr, "schismplay: --mem-limit only works with the libc allocator\n");
+		exit(2);
+	}
 
 	return argv[optind];
+}
+
+/* ------------------------------------------------------------------------ */
+/* memory
+ *
+ * --arena runs the engine on the reference arena allocator, over one block
+ * that's the only memory schismplay itself takes from malloc() for it.
+ * Otherwise, with --mem-stats or --mem-limit, the libc allocator is wrapped
+ * to count what's in use. */
+
+static struct mem_arena arena;
+static void *arena_block = NULL;
+
+/* in front of each counted block; ENGINE_ALIGN_DEFAULT keeps the data after
+ * it aligned */
+struct counted_hdr {
+	size_t size;
+	size_t cls;
+};
+#define COUNTED_HDR ENGINE_ALIGN_DEFAULT
+
+static struct {
+	size_t used[ENGINE_MEM_CLASSES], peak[ENGINE_MEM_CLASSES], blocks[ENGINE_MEM_CLASSES];
+	size_t total, fails;
+} counted;
+
+static void counted_add(enum engine_mem_class cls, size_t size)
+{
+	counted.used[cls] += size;
+	counted.total += size;
+	if (counted.used[cls] > counted.peak[cls])
+		counted.peak[cls] = counted.used[cls];
+}
+
+static int counted_over_limit(size_t more)
+{
+	if (opt_mem_limit && (more > opt_mem_limit || counted.total > opt_mem_limit - more)) {
+		counted.fails++;
+		return 1;
+	}
+	return 0;
+}
+
+static void *counted_alloc(SCHISM_UNUSED void *ctx, size_t size, size_t align, enum engine_mem_class cls)
+{
+	unsigned char *p;
+	struct counted_hdr *h;
+
+	if (size > SIZE_MAX - COUNTED_HDR || counted_over_limit(size))
+		return NULL;
+
+	p = engine_allocator_libc.alloc(NULL, size + COUNTED_HDR, align, cls);
+	if (!p)
+		return NULL;
+
+	h = (struct counted_hdr *)p;
+	h->size = size;
+	h->cls = cls;
+	counted_add(cls, size);
+	counted.blocks[cls]++;
+
+	return p + COUNTED_HDR;
+}
+
+static void *counted_realloc(SCHISM_UNUSED void *ctx, void *ptr, size_t size, size_t align, enum engine_mem_class cls)
+{
+	unsigned char *p = (unsigned char *)ptr - COUNTED_HDR;
+	struct counted_hdr *h = (struct counted_hdr *)p;
+	size_t old = h->size;
+
+	if (size > SIZE_MAX - COUNTED_HDR || (size > old && counted_over_limit(size - old)))
+		return NULL;
+
+	p = engine_allocator_libc.realloc(NULL, p, size + COUNTED_HDR, align, cls);
+	if (!p)
+		return NULL;
+
+	h = (struct counted_hdr *)p;
+	h->size = size;
+	counted.used[cls] -= old;
+	counted.total -= old;
+	counted_add(cls, size);
+
+	return p + COUNTED_HDR;
+}
+
+static void counted_free(SCHISM_UNUSED void *ctx, void *ptr, enum engine_mem_class cls)
+{
+	unsigned char *p = (unsigned char *)ptr - COUNTED_HDR;
+	struct counted_hdr *h = (struct counted_hdr *)p;
+
+	if (h->cls != (size_t)cls)
+		fprintf(stderr, "schismplay: block of class %d freed as class %d\n", (int)h->cls, (int)cls);
+
+	counted.used[h->cls] -= h->size;
+	counted.total -= h->size;
+	counted.blocks[h->cls]--;
+	engine_allocator_libc.free(NULL, p, cls);
+}
+
+/* SIZE[,SONG,SCRATCH,ENGINE] */
+static void setup_arena(void)
+{
+	size_t sizes[4] = {0};
+	struct engine_allocator a;
+	const char *p = opt_arena;
+	int n;
+
+	for (n = 0; n < 4; n++) {
+		char tok[32];
+		size_t len = strcspn(p, ",");
+
+		if (len >= sizeof(tok))
+			goto bad;
+		memcpy(tok, p, len);
+		tok[len] = '\0';
+		/* an empty field is 0, a share of what's left */
+		if (len && !parse_size(tok, &sizes[n]))
+			goto bad;
+		p += len;
+		if (!*p)
+			break;
+		p++;
+	}
+	if (n == 4)
+		goto bad;
+
+	arena_block = malloc(sizes[0] ? sizes[0] : 1);
+	if (!sizes[0] || !arena_block
+		|| mem_arena_init(&arena, arena_block, sizes[0], sizes[1], sizes[2], sizes[3]) < 0) {
+		fprintf(stderr, "schismplay: can't set up a %s arena\n", opt_arena);
+		exit(2);
+	}
+
+	mem_arena_get_allocator(&arena, &a);
+	engine_allocator_register(&a);
+	return;
+
+bad:
+	fprintf(stderr, "schismplay: bad arena size '%s'\n", opt_arena);
+	exit(2);
+}
+
+static void setup_allocator(void)
+{
+	struct engine_allocator a;
+
+	if (opt_arena) {
+		setup_arena();
+	} else if (opt_mem_stats || opt_mem_limit) {
+		memset(&a, 0, sizeof(a));
+		a.alloc = counted_alloc;
+		a.realloc = counted_realloc;
+		a.free = counted_free;
+		engine_allocator_register(&a);
+	}
+}
+
+/* After shutdown_all(), which frees the song, so the "exit" numbers from
+ * --mem-stats show whatever the engine never gave back. */
+static void release_memory(void)
+{
+	if (arena_block) {
+		free(arena_block);
+		arena_block = NULL;
+	}
+}
+
+static void print_mem_stats(const char *stage)
+{
+	static const char *names[ENGINE_MEM_CLASSES] = {"engine", "song", "scratch"};
+	int c;
+
+	if (!opt_mem_stats)
+		return;
+
+	for (c = 0; c < ENGINE_MEM_CLASSES; c++) {
+		if (opt_arena) {
+			const struct mem_arena_region *r = &arena.r[c];
+			fprintf(stderr, "mem-stats %s %s peak=%" PRIuSZ " used=%" PRIuSZ " blocks=%" PRIuSZ
+				" size=%" PRIuSZ " fails=%" PRIuSZ "\n",
+				stage, names[c], r->peak, r->top, r->live, r->size, r->fails);
+		} else {
+			fprintf(stderr, "mem-stats %s %s peak=%" PRIuSZ " used=%" PRIuSZ " blocks=%" PRIuSZ "\n",
+				stage, names[c], counted.peak[c], counted.used[c], counted.blocks[c]);
+		}
+	}
+	if (opt_arena)
+		fprintf(stderr, "mem-stats %s unfreed song=%" PRIuSZ " scratch=%" PRIuSZ "\n",
+			stage, arena.song_leaks, arena.scratch_leaks);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -417,6 +673,11 @@ int main(int argc, char **argv)
 
 	song = parse_options(argc, argv);
 
+	/* before anything in the engine allocates */
+	setup_allocator();
+	if (opt_driver_spec)
+		audio_parse_driver_spec(opt_driver_spec, (char **)&opt_driver, (char **)&opt_device);
+
 	float_init();
 	cpu_init();
 	ver_init();
@@ -476,12 +737,19 @@ int main(int argc, char **argv)
 
 	if (!song_load_unchecked(song)) {
 		fprintf(stderr, "schismplay: couldn't load %s\n", song);
+		print_mem_stats("load");
 		shutdown_all();
+		print_mem_stats("exit");
+		release_memory();
 		return 1;
 	}
+	print_mem_stats("load");
 
 	r = opt_output ? render(song) : play();
+	print_mem_stats(opt_output ? "render" : "play");
 
 	shutdown_all();
+	print_mem_stats("exit");
+	release_memory();
 	return r;
 }

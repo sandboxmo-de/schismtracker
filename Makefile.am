@@ -80,6 +80,7 @@ scripts = \
 	scripts/bin2h.sh		\
 	scripts/build-font.sh		\
 	scripts/check-engine-boundary.sh	\
+	scripts/mem-stats.py		\
 	scripts/genhelp.pl		\
 	scripts/half2itf.py		\
 	scripts/itcfg.py		\
@@ -135,6 +136,7 @@ noinst_HEADERS = \
 	include/loadso.h        \
 	include/midi.h			\
 	include/mem.h           \
+	include/mem-arena.h		\
 	include/osdefs.h		\
 	include/page.h			\
 	include/palettes.h          \
@@ -688,6 +690,7 @@ libschismengine_a_SOURCES = \
 	schism/ieee-float.c     \
 	schism/loadso.c         \
 	schism/mem.c           \
+	schism/mem-arena.c		\
 	schism/mem-libc.c		\
 	schism/midi-core.c		\
 	schism/midi-ip.c		\
@@ -841,6 +844,7 @@ schismtrackertest_SOURCES = \
 	test/cases/config-parser.c  \
 	test/cases/disko.c			\
 	test/cases/iff.c            \
+	test/cases/mem-arena.c		\
 	test/cases/mplink.c         \
 	test/cases/sanity.c			\
 	test/cases/slurp.c          \

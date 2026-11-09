@@ -250,4 +250,13 @@ TEST_FUNC(test_iff_chunk_peek_ex_middle)
 TEST_FUNC(test_iff_chunk_peek_ex_end_of_file)
 TEST_FUNC(test_iff_chunk_peek_ex_truncated)
 
+TEST_FUNC(test_mem_arena_split)
+TEST_FUNC(test_mem_arena_alignment)
+TEST_FUNC(test_mem_arena_free_rolls_back)
+TEST_FUNC(test_mem_arena_realloc)
+TEST_FUNC(test_mem_arena_out_of_memory)
+TEST_FUNC(test_mem_arena_song_end)
+TEST_FUNC(test_mem_arena_scratch_nesting)
+TEST_FUNC(test_mem_arena_engine_wrappers)
+
 #undef TEST_FUNC
