@@ -269,7 +269,7 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 		} else if (c < 0x19) {
 			// A1-A9
 			song->channels[n].panning = 32;
-			adlib |= 1 << n;
+			adlib |= UINT32_C(1) << n;
 		} else {
 			// Disabled 0xff/0x7f, or broken
 			song->channels[n].panning = 32;
@@ -300,7 +300,7 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 	if (misc & S3M_CHANPAN) {
 		for (n = 0; n < 32; n++) {
 			int pan = slurp_getc(fp);
-			if ((pan & 0x20) && (!(adlib & (1 << n)) || trkvers > 0x1320))
+			if ((pan & 0x20) && (!(adlib & (UINT32_C(1) << n)) || trkvers > 0x1320))
 				song->channels[n].panning = s3m_pan_to_it(pan);
 		}
 	}
@@ -442,7 +442,7 @@ int fmt_s3m_load_song(song_t *song, slurp_t *fp, uint32_t lflags)
 						note->note = NOTE_NONE;
 						break;
 					case 254:
-						note->note = (adlib & (1 << chn)) ? NOTE_OFF : NOTE_CUT;
+						note->note = (adlib & (UINT32_C(1) << chn)) ? NOTE_OFF : NOTE_CUT;
 						break;
 					}
 				}
