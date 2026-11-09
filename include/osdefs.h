@@ -193,7 +193,11 @@ static inline void msgbox_printf_impl(const char *title, const char *text, int s
 
 // Implementations for the above, and more.
 
+/* sys/macosx/ibook-support.c; the tracker calls these around os_sysinit()
+ * and os_sysexit() */
 int macosx_ibook_fnswitch(int setting);
+void macosx_ibook_init(void);
+void macosx_ibook_quit(void);
 
 void wiiu_sysinit(int *pargc, char ***pargv); // fixup HOME envvar
 void wiiu_sysexit(void);
@@ -229,7 +233,7 @@ int posix_run_hook(const char *dir, const char *exe, const char *maybe_arg);
 
 int macosx_event(schism_event_t *event);
 void macosx_sysexit(void);
-void macosx_sysinit(int *pargc, char ***pargv); /* set up ibook helper */
+void macosx_sysinit(int *pargc, char ***pargv);
 void macosx_get_modkey(schism_keymod_t *m);
 int macosx_get_key_repeat(int *pdelay, int *prate);
 char *macosx_get_application_support_dir(void);

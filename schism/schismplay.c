@@ -19,8 +19,7 @@
 
 /* schismplay: plays a module through the audio backends, or renders it to a
  * WAV file through the same disk writer schismtracker's --diskwrite uses.
- * It has no UI; it registers its own engine callbacks below, and
- * schismplay-stubs.c covers what the engine still calls directly. */
+ * It has no UI; it registers its own engine callbacks below. */
 
 #include "headers.h"
 

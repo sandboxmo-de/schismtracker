@@ -1207,6 +1207,9 @@ void schism_exit(int x)
 	atm_quit();
 	mt_quit();
 
+#ifdef SCHISM_MACOSX
+	macosx_ibook_quit();
+#endif
 	os_sysexit();
 
 	exit(x);
@@ -1234,6 +1237,9 @@ int schism_main(int argc, char **argv)
 	BITARRAY_SET(startup_flags, SF_NETWORK);
 
 	os_sysinit(&argc, &argv);
+#ifdef SCHISM_MACOSX
+	macosx_ibook_init();
+#endif
 
 	float_init();
 

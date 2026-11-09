@@ -838,9 +838,8 @@ schismtrackertest_LDFLAGS = $(schismtracker_LDFLAGS)
 # ---------------------------------------------------------------------------
 # schismplay: the player, the loaders and the audio backends behind a small
 # command-line front end, with none of the UI (pages, widgets, video, fonts,
-# keyboard handling, dialogs, help text). schism/schismplay-stubs.c fills in
-# the few UI symbols the engine still refers to; docs/engine-ui-coupling.md
-# lists them.
+# keyboard handling, dialogs, help text). It registers its own engine
+# callbacks (include/engine-host.h).
 
 if BUILD_SCHISMPLAY
 bin_PROGRAMS += schismplay
@@ -996,7 +995,6 @@ schismplay_SOURCES = \
 	schism/mt.c	\
 	schism/sample-edit.c	\
 	schism/schismplay.c	\
-	schism/schismplay-stubs.c	\
 	schism/slurp.c	\
 	schism/str.c	\
 	schism/timer.c	\

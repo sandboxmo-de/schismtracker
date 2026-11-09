@@ -23,6 +23,11 @@
 
 #include "headers.h"
 #include "util.h"
+#include "it.h"
+#include "osdefs.h"
+#include "events.h"
+#include "page.h"
+#include "widget.h"
 
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOReturn.h>
@@ -89,4 +94,78 @@ int macosx_ibook_fnswitch(int setting)
 	IOServiceClose(dp);
 	/* old setting... */
 	return res;
+}
+
+/* ------------------------------------------------------------------------ */
+
+/* this gets stored at startup as the initial value of fnswitch before
+ * we tamper with it, so we can restore it on shutdown */
+static int ibook_helper = -1;
+
+int macosx_event(schism_event_t *event)
+{
+	switch (event->type) {
+	case SCHISM_WINDOWEVENT_FOCUS_GAINED:
+		macosx_ibook_fnswitch(1);
+		return 1;
+	case SCHISM_WINDOWEVENT_FOCUS_LOST:
+		macosx_ibook_fnswitch(ibook_helper);
+		return 1;
+	case SCHISM_KEYDOWN:
+	case SCHISM_KEYUP:
+		switch (status.fix_numlock_setting) {
+		case NUMLOCK_GUESS:
+			/* why is this checking for ibook_helper? */
+			if (ibook_helper != -1) {
+				if (ACTIVE_PAGE.selected_widget > -1
+					&& ACTIVE_PAGE.selected_widget < ACTIVE_PAGE.total_widgets
+					&& ACTIVE_PAGE_WIDGET.accept_text) {
+					/* text is more likely? */
+					event->key.mod |= SCHISM_KEYMOD_NUM;
+				} else {
+					event->key.mod &= ~SCHISM_KEYMOD_NUM;
+				}
+			} /* otherwise honor it */
+			break;
+		default:
+			/* other cases are handled in schism/main.c */
+			break;
+		}
+
+		switch (event->key.scancode) {
+		case SCHISM_SCANCODE_KP_ENTER:
+			/* On portables, the regular Insert key
+			 * isn't available. This is equivalent to
+			 * pressing Fn-Return, which just so happens
+			 * to be a "de facto" Insert in mac land.
+			 * However, on external keyboards this causes
+			 * a real keypad enter to get eaten by this
+			 * function as well. IMO it's more important
+			 * for now that portable users can actually
+			 * have an Insert key.
+			 *
+			 *   - paper */
+			event->key.sym = SCHISM_KEYSYM_INSERT;
+			break;
+		default:
+			break;
+		};
+		return 1;
+	default:
+		break;
+	}
+	return 1;
+}
+
+void macosx_ibook_init(void)
+{
+	/* macosx_ibook_fnswitch only sets the value if it's one of (0, 1) */
+	ibook_helper = macosx_ibook_fnswitch(-1);
+}
+
+void macosx_ibook_quit(void)
+{
+	/* return back to default */
+	if (ibook_helper != -1)
+		macosx_ibook_fnswitch(ibook_helper);
 }
