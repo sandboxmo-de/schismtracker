@@ -204,6 +204,9 @@ bank is loaded into (the tracker's own instrument loading does the same).
 In a render, notes are sorted by time and each one is started during the
 disk writer buffer it falls in, with a delay in frames, so it lands on its
 exact sample and notes that are still waiting don't fill the pool early.
+The next note after that is also started early (with its delay) once the
+ones before it have begun, so the render doesn't end in a gap between
+notes. In live playback every note is started at once.
 
 ## Checking it
 
