@@ -79,6 +79,7 @@ sysfiles = \
 scripts = \
 	scripts/bin2h.sh		\
 	scripts/build-font.sh		\
+	scripts/check-engine-boundary.sh	\
 	scripts/genhelp.pl		\
 	scripts/half2itf.py		\
 	scripts/itcfg.py		\
@@ -611,7 +612,7 @@ endif
 # The engine: the player, the loaders, the song, playback, disk writer and
 # MIDI code, and the audio, timer, thread and filesystem backends. It talks
 # to the program it's linked into through include/engine-host.h, and must
-# not refer to anything in the UI.
+# not refer to anything in the UI; `make check-engine-boundary` checks that.
 noinst_LIBRARIES = libschismengine.a
 
 libschismengine_a_SOURCES = \
@@ -887,3 +888,19 @@ schismplay_LDADD = libschismengine.a $(LIBM) $(libs_sdl3) \
 	$(libs_asio) $(libs_zlib) $(libs_bzip2) \
 	$(libs_lzma) $(libs_zstd)
 schismplay_LDFLAGS = $(schismtracker_LDFLAGS)
+
+# ---------------------------------------------------------------------------
+# Fail if the engine library refers to anything the UI defines, or can't be
+# linked into a program on its own. See scripts/check-engine-boundary.sh.
+
+check-engine-boundary: libschismengine.a $(schismtracker_OBJECTS)
+	@NM="$(NM)" CC="$(CC)" \
+	CPPFLAGS="$(DEFS) $(DEFAULT_INCLUDES) $(schismplay_CPPFLAGS) $(CPPFLAGS)" \
+	CFLAGS="$(schismplay_CFLAGS) $(CFLAGS)" \
+	LDFLAGS="$(schismplay_LDFLAGS) $(LDFLAGS)" \
+	LIBS="$(filter-out libschismengine.a,$(schismplay_LDADD)) $(LIBS)" \
+	$(SHELL) $(srcdir)/scripts/check-engine-boundary.sh libschismengine.a $(schismtracker_OBJECTS)
+
+check-local: check-engine-boundary
+
+.PHONY: check-engine-boundary
