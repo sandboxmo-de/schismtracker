@@ -451,6 +451,8 @@ void show_length_dialog(const char *label, uint32_t length);
 
 /* page_patedit.c */
 void update_current_row(void);
+void pattern_editor_playback_reset(void);
+void pattern_editor_playback_stopped(void);
 void update_current_pattern(void);
 void pattern_editor_display_options(void);
 void pattern_editor_length_edit(void);

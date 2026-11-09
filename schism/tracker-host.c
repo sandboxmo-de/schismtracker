@@ -25,6 +25,12 @@
 #include "engine-host.h"
 #include "it.h"
 #include "page.h"
+#include "fakemem.h"
+
+static void tracker_redraw(void)
+{
+	status.flags |= NEED_UPDATE;
+}
 
 void tracker_host_register(void)
 {
@@ -32,6 +38,16 @@ void tracker_host_register(void)
 		.log = log_host_append,
 		.log_underline = log_host_underline,
 		.status_text = status_text_host,
+		.redraw = tracker_redraw,
+
+		.song_changed = main_song_changed_cb,
+		.song_mode_changed = main_song_mode_changed_cb,
+		.message_reset = message_reset_selection,
+		.memused_changed = memused_songchanged,
+		.audio_driver_changed = preferences_audio_driver_changed,
+
+		.playback_reset = pattern_editor_playback_reset,
+		.playback_stopped = pattern_editor_playback_stopped,
 
 		.exit = schism_exit,
 #ifndef NDEBUG

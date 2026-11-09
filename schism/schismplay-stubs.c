@@ -44,22 +44,14 @@
 
 struct tracker_status status = {0};
 
-/* audio_playback.c calls every page's song_mode_changed_cb; with no pages
- * loaded they're all NULL. */
+/* sys/macosx/osdefs.m's key handler looks at the active page; it's never
+ * called here. */
 struct page pages[PAGE_MAX] = {0};
-
-int playback_tracing = 0;
-int midi_playback_tracing = 0;
-int midi_last_bend_hit[MAX_CHANNELS] = {0};
 
 /* midi-core.c only uses this for the per-port config, which schismplay
  * never loads or saves. */
 char *cfg_dir_dotschism = NULL;
 
-void main_song_changed_cb(void) {}
-void message_reset_selection(void) {}
-void preferences_audio_driver_changed(void) {}
-void memused_songchanged(void) {}
 void handle_key(SCHISM_UNUSED struct key_event *k) {}
 
 /* ------------------------------------------------------------------------ */

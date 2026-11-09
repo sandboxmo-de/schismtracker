@@ -37,6 +37,7 @@
 #include "loadso.h"
 #include "mem.h"
 #include "str.h"
+#include "engine-host.h"
 
 #include "backend/dmoz.h"
 
@@ -1651,7 +1652,7 @@ int dmoz_worker(void)
 			(*current_dmoz_file_pointer) = (current_dmoz_filelist->num_files-1);
 			if (dmoz_worker_onmove) dmoz_worker_onmove();
 		}
-		status.flags |= NEED_UPDATE;
+		engine_hooks.redraw();
 	} else {
 		current_dmoz_file++;
 	}

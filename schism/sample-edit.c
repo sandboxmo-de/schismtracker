@@ -28,7 +28,7 @@
 #include "util.h"
 #include "song.h"
 #include "sample-edit.h"
-#include "fakemem.h"
+#include "engine-host.h"
 
 #include "player/cmixer.h"
 
@@ -201,7 +201,7 @@ void sample_toggle_quality(song_sample_t * sample, int convert_data)
 		}
 	}
 	csf_adjust_sample_loop(sample);
-	memused_songchanged();
+	engine_hooks.memused_changed();
 	song_unlock_audio();
 }
 
@@ -243,7 +243,7 @@ void sample_centralise(song_sample_t * sample)
 	else
 		_centralise_8(sample->data, sample->length * ((sample->flags & CHN_STEREO) ? 2 : 1));
 	csf_adjust_sample_loop(sample);
-	memused_songchanged();
+	engine_hooks.memused_changed();
 	song_unlock_audio();
 }
 
@@ -275,7 +275,7 @@ void sample_downmix(song_sample_t *sample)
 		_downmix_8(sample->data, sample->length);
 	sample->flags &= ~CHN_STEREO;
 	csf_adjust_sample_loop(sample);
-	memused_songchanged();
+	engine_hooks.memused_changed();
 	song_unlock_audio();
 }
 
@@ -510,7 +510,7 @@ void sample_resize(song_sample_t * sample, uint32_t newlen, int aa)
 	// adjust da fruity loops
 	csf_adjust_sample_loop(sample);
 
-	memused_songchanged();
+	engine_hooks.memused_changed();
 
 	song_unlock_audio();
 }
@@ -542,7 +542,7 @@ static inline void sample_mono_(song_sample_t *sample, int off)
 		sample->flags &= ~CHN_STEREO;
 	}
 	csf_adjust_sample_loop(sample);
-	memused_songchanged();
+	engine_hooks.memused_changed();
 	song_unlock_audio();
 }
 

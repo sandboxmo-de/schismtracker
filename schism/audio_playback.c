@@ -142,9 +142,6 @@ static const schism_audio_backend_t *backend = NULL;
 // ------------------------------------------------------------------------
 // playback
 
-// page_patedit.c
-extern int midi_last_bend_hit[MAX_CHANNELS];
-
 static inline SCHISM_ALWAYS_INLINE
 uint32_t s32_to_f32(void *ptr, const int32_t *buffer, uint32_t samples)
 {
@@ -428,18 +425,6 @@ const char *audio_driver_name(int x)
 
 // ------------------------------------------------------------------------------------------------------------
 // note playing
-
-/* this should be in page.c; the audio handling code doesn't need to know what
-   a page is, much less be talking to them */
-static void main_song_mode_changed_cb(void)
-{
-	int n;
-	for (n = 0; n < PAGE_MAX; n++) {
-		if (pages[n].song_mode_changed_cb)
-			pages[n].song_mode_changed_cb();
-	}
-}
-
 
 static int current_play_channel = 1;
 static int multichannel_mode = 0;
@@ -767,7 +752,7 @@ void song_single_step(int patno, int row)
 // this should be called with the audio LOCKED
 static void song_reset_play_state(void)
 {
-	memset(midi_last_bend_hit, 0, sizeof(midi_last_bend_hit));
+	engine_hooks.playback_reset();
 	memset(keyjazz_note_to_chan, 0, sizeof(keyjazz_note_to_chan));
 	memset(keyjazz_chan_to_note, 0, sizeof(keyjazz_chan_to_note));
 
@@ -798,7 +783,7 @@ void song_start_once(void)
 
 	GM_SendSongStartCode(current_song);
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 
 	csf_reset_playmarks(current_song);
 }
@@ -812,7 +797,7 @@ void song_start(void)
 
 	GM_SendSongStartCode(current_song);
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 
 	csf_reset_playmarks(current_song);
 }
@@ -824,7 +809,7 @@ void song_pause(void)
 	if (!(current_song->flags & SONG_PAUSED))
 		current_song->flags ^= SONG_ENDREACHED;
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 }
 
 void song_stop(void)
@@ -832,7 +817,7 @@ void song_stop(void)
 	song_lock_audio();
 	song_stop_unlocked(0);
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 }
 
 void song_stop_unlocked(int quitting)
@@ -892,7 +877,7 @@ void song_stop_unlocked(int quitting)
 	memset(current_song->midi_was_banklo,0,sizeof(current_song->midi_was_banklo));
 	memset(current_song->midi_was_bankhi,0,sizeof(current_song->midi_was_bankhi));
 
-	playback_tracing = midi_playback_tracing;
+	engine_hooks.playback_stopped();
 
 	song_reset_play_state();
 	// Modplug doesn't actually have a "stop" mode, but if SONG_ENDREACHED is set, csf_read just returns.
@@ -917,7 +902,7 @@ void song_loop_pattern(int pattern, int row)
 	GM_SendSongStartCode(current_song);
 
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 
 	csf_reset_playmarks(current_song);
 }
@@ -935,7 +920,7 @@ void song_start_at_order(int order, int row)
 	GM_SendSongStartCode(current_song);
 	/* TODO: GM_SendSongPositionCode(calculate the number of 1/16 notes) */
 	song_unlock_audio();
-	main_song_mode_changed_cb();
+	engine_hooks.song_mode_changed();
 
 	csf_reset_playmarks(current_song);
 }
@@ -1635,7 +1620,7 @@ agh:
 	if (success) {
 		_audio_init_tail();
 		refresh_audio_device_list();
-		preferences_audio_driver_changed();
+		engine_hooks.audio_driver_changed();
 		return success;
 	}
 

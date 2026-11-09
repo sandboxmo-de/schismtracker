@@ -1685,6 +1685,16 @@ void main_song_changed_cb(void)
 	memused_songchanged();
 }
 
+/* playback started, stopped or paused */
+void main_song_mode_changed_cb(void)
+{
+	int n;
+	for (n = 0; n < PAGE_MAX; n++) {
+		if (pages[n].song_mode_changed_cb)
+			pages[n].song_mode_changed_cb();
+	}
+}
+
 /* --------------------------------------------------------------------- */
 /* not sure where else to toss this crap */
 

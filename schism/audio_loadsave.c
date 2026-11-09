@@ -25,8 +25,6 @@
 
 #include "bits.h"
 #include "charset.h"
-#include "dialog.h"
-#include "fakemem.h"
 #include "it.h"
 #include "song.h"
 #include "slurp.h"
@@ -44,6 +42,7 @@
 
 #include "midi.h"
 #include "disko.h"
+#include "engine-host.h"
 
 // ------------------------------------------------------------------------
 
@@ -180,7 +179,7 @@ void song_new(int flags)
 
 	song_unlock_audio();
 
-	main_song_changed_cb();
+	engine_hooks.song_changed();
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -274,7 +273,7 @@ song_t *song_create_load(const char *file)
 
 	newsong->stop_at_order = newsong->stop_at_row = -1;
 	message_convert_newlines(newsong);
-	message_reset_selection();
+	engine_hooks.message_reset();
 
 	return newsong;
 }
@@ -318,7 +317,7 @@ int song_load_unchecked(const char *file)
 	if (was_playing && (status.flags & PLAY_AFTER_LOAD))
 		song_start();
 
-	main_song_changed_cb();
+	engine_hooks.song_changed();
 
 	status.flags &= ~SONG_NEEDS_SAVE;
 

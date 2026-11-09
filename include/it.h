@@ -257,6 +257,7 @@ void redraw_screen(void);
 
 /* called whenever the song changes (from song_new or song_load) */
 void main_song_changed_cb(void);
+void main_song_mode_changed_cb(void);
 
 /* --------------------------------------------------------------------- */
 /* stuff */

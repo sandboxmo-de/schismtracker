@@ -114,7 +114,7 @@ int playback_tracing = 0;       /* scroll lock */
 int midi_playback_tracing = 0;
 
 static int panning_mode = 0;            /* for the volume column */
-int midi_last_bend_hit[MAX_CHANNELS];
+static int midi_last_bend_hit[MAX_CHANNELS];
 
 /* blah; other forwards */
 static void pated_save(const char *descr);
@@ -204,6 +204,20 @@ void memused_get_pattern_saved(uint32_t *a, uint32_t *b)
 }
 
 
+
+/* --------------------------------------------------------------------- */
+/* called by the engine through engine_hooks */
+
+void pattern_editor_playback_reset(void)
+{
+	memset(midi_last_bend_hit, 0, sizeof(midi_last_bend_hit));
+}
+
+/* MIDI recording turns tracing on; put back what was there before */
+void pattern_editor_playback_stopped(void)
+{
+	playback_tracing = midi_playback_tracing;
+}
 
 /* --------------------------------------------------------------------- */
 /* block selection handling */
